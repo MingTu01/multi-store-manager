@@ -1,0 +1,14 @@
+- complementary:
+  - generic: 店
+  - generic: 多店管理系统
+  - navigation
+  - generic: ·
+  - button "退出登录":
+    - text: 退出登录
+- main:
+  - heading "\\u5206\\u7ea2" [level=1]
+  - button "\\u521b\\u5efa\\u5206\\u7ea2":
+    - text: \u521b\u5efa\u5206\u7ea2
+  - generic: \u53ef\u5206\u7ea2\u4f59\u989d
+  - text: "0.00"
+  - text: \u6682\u65e0\u5206\u7ea2\u8bb0\u5f55

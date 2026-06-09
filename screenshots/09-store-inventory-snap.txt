@@ -1,0 +1,12 @@
+- complementary:
+  - generic: 店
+  - generic: 多店管理系统
+  - navigation
+  - generic: ·
+  - button "退出登录":
+    - text: 退出登录
+- main:
+  - heading "盘点" [level=1]
+  - button "新建盘点":
+    - text: 新建盘点
+  - generic: 暂无盘点记录

@@ -1,0 +1,11 @@
+- complementary:
+  - generic: 店
+  - generic: 多店管理系统
+  - navigation
+  - generic: ·
+  - button "退出登录":
+    - text: 退出登录
+- main:
+  - heading "消息通知" [level=1]
+  - paragraph: 共 0 条
+  - text: 暂无通知

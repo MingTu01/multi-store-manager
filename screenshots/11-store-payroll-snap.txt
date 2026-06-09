@@ -1,0 +1,13 @@
+- complementary:
+  - generic: 店
+  - generic: 多店管理系统
+  - navigation
+  - generic: ·
+  - button "退出登录":
+    - text: 退出登录
+- main:
+  - heading "\\u5de5\\u8d44" [level=1]
+  - button "生成工资"
+  - button "2026-06":
+    - text: 2026-06
+  - text: \u6682\u65e0\u5de5\u8d44\u8bb0\u5f55\uff0c\u70b9\u51fb\u53f3\u4e0a\u89d2\u751f\u6210
