@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 *.db
 *.db-shm
@@ -13,3 +13,8 @@ scripts/
 *.zip
 *.log
 _*.mjs
+*.png
+*.js
+!apps/web/vite.config.*
+!apps/server/seed.ts
+!apps/server/src/seed.ts
