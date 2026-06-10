@@ -1,4 +1,5 @@
-﻿import express from 'express';
+process.env.TZ = 'Asia/Shanghai';
+import express from 'express';
 import cors from 'cors';
 import { join } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
@@ -6,6 +7,7 @@ import { authMiddleware } from './auth.js';
 import authRouter from './routes/auth.js';
 import storesRouter from './routes/stores.js';
 import entriesRouter from './routes/entries.js';
+import categoriesRouter from './routes/categories.js';
 import reportRouter from './routes/report.js';
 import notificationsRouter from './routes/notifications.js';
 import usersRouter from './routes/users.js';
@@ -34,6 +36,7 @@ app.use('/api/auth', authRouter);
 // Protected routes
 app.use('/api/stores', authMiddleware, storesRouter);
 app.use('/api/stores/:storeId/entries', authMiddleware, entriesRouter);
+app.use('/api/stores/:storeId/categories', authMiddleware, categoriesRouter);
 app.use('/api/stores/:storeId/inventory', authMiddleware, inventoryRouter);
 app.use('/api/stores/:storeId/handovers', authMiddleware, handoversRouter);
 app.use('/api/stores/:storeId/shifts', authMiddleware, shiftsRouter);

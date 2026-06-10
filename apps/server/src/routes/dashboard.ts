@@ -2,36 +2,44 @@
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 
+function localDate(d?: Date): string {
+  const dt = d || new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
 const router = Router({ mergeParams: true });
 
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const { period, date, storeId } = req.query;
     const d = date ? new Date(date as string) : new Date();
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = localDate(d);
     const storeCondition = storeId ? 'AND store_id = ?' : '';
     const storeParams = storeId ? [storeId] : [];
 
     function getDateConditions(d: Date, period: string) {
-      const ds = d.toISOString().slice(0, 10);
+      const ds = localDate(d);
       let cur = '', curP: any[] = [], prev = '', prevP: any[] = [], yoy = '', yoyP: any[] = [];
       if (period === 'day') {
         cur = 'AND date = ?'; curP = [ds];
-        const p = new Date(d); p.setDate(p.getDate()-1); prev = 'AND date = ?'; prevP = [p.toISOString().slice(0,10)];
-        const y = new Date(d); y.setFullYear(y.getFullYear()-1); yoy = 'AND date = ?'; yoyP = [y.toISOString().slice(0,10)];
+        const p = new Date(d); p.setDate(p.getDate()-1); prev = 'AND date = ?'; prevP = [localDate(p)];
+        const y = new Date(d); y.setFullYear(y.getFullYear()-1); yoy = 'AND date = ?'; yoyP = [localDate(y)];
       } else if (period === 'week') {
         const ws = new Date(d); ws.setDate(d.getDate()-d.getDay()+1);
         const we = new Date(ws); we.setDate(ws.getDate()+6);
-        cur = 'AND date >= ? AND date <= ?'; curP = [ws.toISOString().slice(0,10), we.toISOString().slice(0,10)];
+        cur = 'AND date >= ? AND date <= ?'; curP = [localDate(ws), localDate(we)];
         const pws = new Date(ws); pws.setDate(pws.getDate()-7); const pwe = new Date(pws); pwe.setDate(pws.getDate()+6);
-        prev = 'AND date >= ? AND date <= ?'; prevP = [pws.toISOString().slice(0,10), pwe.toISOString().slice(0,10)];
+        prev = 'AND date >= ? AND date <= ?'; prevP = [localDate(pws), localDate(pwe)];
         const yws = new Date(ws); yws.setFullYear(yws.getFullYear()-1); const ywe = new Date(yws); ywe.setDate(yws.getDate()+6);
-        yoy = 'AND date >= ? AND date <= ?'; yoyP = [yws.toISOString().slice(0,10), ywe.toISOString().slice(0,10)];
+        yoy = 'AND date >= ? AND date <= ?'; yoyP = [localDate(yws), localDate(ywe)];
       } else if (period === 'month') {
         const ms = ds.slice(0,7);
         cur = "AND strftime('%Y-%m',date) = ?"; curP = [ms];
-        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); prev = "AND strftime('%Y-%m',date) = ?"; prevP = [pm.toISOString().slice(0,7)];
-        const ym = new Date(d); ym.setFullYear(ym.getFullYear()-1); yoy = "AND strftime('%Y-%m',date) = ?"; yoyP = [ym.toISOString().slice(0,7)];
+        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); prev = "AND strftime('%Y-%m',date) = ?"; prevP = [localDate(pm).slice(0,7)];
+        const ym = new Date(d); ym.setFullYear(ym.getFullYear()-1); yoy = "AND strftime('%Y-%m',date) = ?"; yoyP = [localDate(ym).slice(0,7)];
       } else if (period === 'year') {
         const ys = ds.slice(0,4);
         cur = "AND strftime('%Y',date) = ?"; curP = [ys];
@@ -45,7 +53,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const base = 'FROM entries WHERE 1=1 ' + storeCondition;
 
     const q = (type: string, cond: string, params: any[]) => {
-      try { return (db.prepare(`SELECT COALESCE(SUM(amount),0) as t ${base} AND type='${type}' ${cond}`).get(...storeParams, ...params) as any).t || 0; } catch { return 0; }
+      const isIncome = type === '收入' || type === 'income';
+      const typeFilter = isIncome ? `AND type IN ('收入','income')` : `AND type IN ('支出','expense')`;
+      try { return (db.prepare(`SELECT COALESCE(SUM(amount),0) as t ${base} ${typeFilter} ${cond}`).get(...storeParams, ...params) as any).t || 0; } catch { return 0; }
     };
 
     const ci = q('收入', conds.cur, conds.curP);
@@ -59,8 +69,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     const pct = (c: number, p: number) => p !== 0 ? (c - p) / Math.abs(p) : 0;
 
-    const incomeByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type='收入' ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
-    const expenseByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type='支出' ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
+    const incomeByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('收入','income') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
+    const expenseByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('支出','expense') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
 
     // Per-store summary (only for admin without storeId filter)
     let stores: any[] = [];
@@ -83,4 +93,58 @@ router.get('/', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+
+// GET /dashboard/trend - get trend data for charts
+router.get('/trend', (req: AuthRequest, res: Response) => {
+  try {
+    const { period = 'day', storeId } = req.query;
+    const now = new Date();
+    const points: any[] = [];
+    
+    if (period === 'day') {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        const ds = localDate(d);
+        const cond = storeId ? 'AND store_id = ?' : '';
+        const params = storeId ? [ds, storeId] : [ds];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        points.push({ label: ds.slice(5), income: inc, expense: exp });
+      }
+    } else if (period === 'week') {
+      for (let i = 14; i >= 0; i--) {
+        const ws = new Date(now); ws.setDate(ws.getDate() - ws.getDay() + 1 - i * 7);
+        const we = new Date(ws); we.setDate(we.getDate() + 6);
+        const startStr = localDate(ws);
+        const endStr = localDate(we);
+        const cond = storeId ? 'AND store_id = ?' : '';
+        const params = storeId ? [startStr, endStr, storeId] : [startStr, endStr];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        points.push({ label: 'W' + Math.ceil((ws.getDate()) / 7) + '/' + (ws.getMonth() + 1), income: inc, expense: exp });
+      }
+    } else if (period === 'month') {
+      for (let i = 11; i >= 0; i--) {
+        const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const ms = localDate(m).slice(0, 7);
+        const cond = storeId ? 'AND store_id = ?' : '';
+        const params = storeId ? [ms + '%', storeId] : [ms + '%'];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        points.push({ label: (m.getMonth() + 1) + '月', income: inc, expense: exp });
+      }
+    } else if (period === 'year') {
+      for (let i = 9; i >= 0; i--) {
+        const y = String(now.getFullYear() - i);
+        const cond = storeId ? 'AND store_id = ?' : '';
+        const params = storeId ? [y + '%', storeId] : [y + '%'];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        points.push({ label: y, income: inc, expense: exp });
+      }
+    }
+    
+    res.json({ trend: points });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
 export default router;

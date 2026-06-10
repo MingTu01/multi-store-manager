@@ -16,6 +16,7 @@ const p: Record<string, Role[]> = {
   storeStaff: ['ADMIN', 'MANAGER'],
   storeReport: ['ADMIN', 'SHAREHOLDER', 'MANAGER'],
   storeLogs: ['ADMIN', 'MANAGER'],
+  storeAccount: ['ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeSettings: ['ADMIN', 'MANAGER'],
 };
 

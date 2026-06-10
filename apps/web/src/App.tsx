@@ -21,6 +21,7 @@ import StoreDividendsPage from './pages/store/StoreDividendsPage';
 import StoreStaffPage from './pages/store/StoreStaffPage';
 import StoreLogsPage from './pages/store/StoreLogsPage';
 import StoreSettingsPage from './pages/store/StoreSettingsPage';
+import StoreAccountPage from './pages/store/StoreAccountPage';
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const role = useStore((s) => s.user?.role);
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="store/:storeId/staff" element={<StoreGuard><StoreStaffPage /></StoreGuard>} />
         <Route path="store/:storeId/report" element={<StoreGuard><StoreReportPage /></StoreGuard>} />
         <Route path="store/:storeId/logs" element={<StoreGuard><StoreLogsPage /></StoreGuard>} />
+        <Route path="store/:storeId/account" element={<StoreGuard><StoreAccountPage /></StoreGuard>} />
         <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

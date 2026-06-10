@@ -83,6 +83,29 @@ CREATE TABLE IF NOT EXISTS inventory_items (
   note TEXT DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS inventory_master (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  quantity REAL DEFAULT 0,
+  photo TEXT DEFAULT '',
+  status TEXT DEFAULT 'normal',
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS inventory_check_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  check_id INTEGER NOT NULL,
+  master_id INTEGER,
+  name TEXT NOT NULL,
+  expected_qty REAL DEFAULT 0,
+  consumption REAL DEFAULT 0,
+  actual_qty REAL DEFAULT 0,
+  status TEXT DEFAULT 'normal',
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS handovers (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   store_id TEXT NOT NULL,
@@ -181,6 +204,15 @@ CREATE TABLE IF NOT EXISTS notification_settings (
   push_alert INTEGER DEFAULT 0,
   updated_at TEXT DEFAULT (datetime('now','localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  store_id TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
 `);
 
 // Migrations - add columns that may not exist
@@ -221,6 +253,8 @@ const migrations = [
   "ALTER TABLE op_logs ADD COLUMN target TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN link TEXT DEFAULT ''",
   "ALTER TABLE shareholders ADD COLUMN phone TEXT DEFAULT ''",
+  "ALTER TABLE entries ADD COLUMN category_id INTEGER",
+  "ALTER TABLE payroll ADD COLUMN confirmed_at TEXT",
 ];
 
 for (const sql of migrations) {
@@ -231,7 +265,7 @@ for (const sql of migrations) {
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
   const hash = bcrypt.hashSync('123456', 10);
-  db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)").run('admin', hash, '管理员', 'admin');
+  db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)").run('admin', hash, '管理员', 'ADMIN');
 }
 
 // Seed default notification settings
@@ -239,5 +273,18 @@ const nsExists = db.prepare('SELECT id FROM notification_settings WHERE id = 1')
 if (!nsExists) {
   db.prepare('INSERT INTO notification_settings (id) VALUES (1)').run();
 }
+
+// Seed default categories
+try {
+  const catCount = (db.prepare('SELECT COUNT(*) as c FROM categories').get() as any).c;
+  if (catCount === 0) {
+    const defaultCategories: [string, string, number][] = [
+      ['餐饮', 'income', 1], ['零售', 'income', 2], ['服务', 'income', 3],
+      ['原材料', 'expense', 1], ['房租', 'expense', 2], ['水电', 'expense', 3], ['工资', 'expense', 4]
+    ];
+    const stmt = db.prepare('INSERT INTO categories (name, type, sort_order) VALUES (?, ?, ?)');
+    for (const [name, type, order] of defaultCategories) stmt.run(name, type, order);
+  }
+} catch (e) { /* categories table may not exist yet */ }
 
 export default db;

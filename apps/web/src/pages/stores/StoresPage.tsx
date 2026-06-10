@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -126,7 +126,7 @@ export default function StoresPage() {
                 </div>
                 <div className="mb-3 flex gap-4 text-xs text-slate-500">
                   <span>员工 {staffCount}</span>
-                  <span>股东 {shCount}</span>
+                  {shCount > 0 && <span>股东 {shCount}</span>}
                   <span>初始资金 {(s.initial_capital || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center gap-2 border-t border-slate-100 pt-3" onClick={e => e.stopPropagation()}>
@@ -153,7 +153,10 @@ export default function StoresPage() {
               {form.photo ? (
                 <div className="relative h-20 w-20 overflow-hidden rounded-xl"><img src={form.photo} className="h-full w-full object-cover" /><button onClick={() => setForm(f => ({ ...f, photo: '' }))} className="absolute right-0.5 top-0.5 rounded-full bg-black/50 p-0.5"><X className="h-3 w-3 text-white" /></button></div>
               ) : (
-                <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Camera className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">上传</span><input type="file" accept="image/*" onChange={handlePhoto} className="hidden" /></label>
+                <div className="flex gap-2">
+                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Upload className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">上传</span><input type="file" accept="image/*" onChange={handlePhoto} className="hidden" /></label>
+                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Camera className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">拍照</span><input type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" /></label>
+                </div>
               )}
             </div>
           </div>

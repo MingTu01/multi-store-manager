@@ -4,196 +4,657 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { Plus, Camera, Upload, CheckCircle, AlertTriangle, XCircle, Trash2 } from 'lucide-react';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
+import {
+  Plus, Camera, Upload, CheckCircle, AlertTriangle, XCircle, Trash2,
+  ArrowUp, ArrowDown, ArrowLeft, ChevronRight, RotateCcw, Loader2
+} from 'lucide-react';
+
+type InventoryItem = {
+  id: number;
+  name: string;
+  photo: string;
+  quantity: number;
+  sort_order: number;
+};
+
+type StatusType = 'normal' | 'diff' | 'lost' | 'scrap' | 'empty' | 'restocking';
+
+const STATUS_MAP: Record<StatusType, { label: string; color: string; icon: any }> = {
+  normal: { label: '正常', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
+  diff: { label: '差异', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
+  lost: { label: '丢失', color: 'bg-rose-50 text-rose-600', icon: XCircle },
+  scrap: { label: '报废', color: 'bg-slate-100 text-slate-600', icon: Trash2 },
+  empty: { label: '空', color: 'bg-slate-100 text-slate-500', icon: XCircle },
+  restocking: { label: '补货中', color: 'bg-blue-50 text-blue-600', icon: AlertTriangle },
+};
+
+const STATUS_OPTIONS: { v: StatusType; l: string }[] = [
+  { v: 'normal', l: '正常' },
+  { v: 'diff', l: '差异' },
+  { v: 'lost', l: '丢失' },
+  { v: 'scrap', l: '报废' },
+  { v: 'empty', l: '空' },
+  { v: 'restocking', l: '补货中' },
+];
 
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
-  const [checks, setChecks] = useState<any[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [activeCheck, setActiveCheck] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', expected: '', actual: '', consumption: '', note: '', status: 'normal', photo: '' });
-  const [showItemModal, setShowItemModal] = useState(false);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [showEditItem, setShowEditItem] = useState<InventoryItem | null>(null);
+  const [addForm, setAddForm] = useState({ name: '', quantity: '', photo: '' });
+  const [editForm, setEditForm] = useState({ name: '', quantity: '', photo: '' });
   const fileRef = useRef<HTMLInputElement>(null);
+  const editFileRef = useRef<HTMLInputElement>(null);
 
-  const load = () => {
+  // Inventory check state
+  const [checkActive, setCheckActive] = useState(false);
+  const [checkIndex, setCheckIndex] = useState(0);
+  const [lastCheckResults, setLastCheckResults] = useState<Record<number, { expected: number; consumption: number; actual: number; status: StatusType }>>({});
+  const [checkResults, setCheckResults] = useState<Record<number, {
+    consumption: number;
+    actual: number;
+    status: StatusType;
+  }>>({});
+  const [checkForm, setCheckForm] = useState({ consumption: '', actual: '', status: 'normal' as StatusType });
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [savingCheck, setSavingCheck] = useState(false);
+
+  const loadItems = () => {
     if (!storeId) return;
-    api.get('/stores/' + storeId + '/inventory').then((d) => setChecks(d.checks || [])).catch(() => {});
-  };
-  useEffect(() => { load(); }, [storeId]);
-
-  const loadCheck = async (id: number) => {
-    const d = await api.get('/stores/' + storeId + '/inventory/' + id);
-    setActiveCheck(d.check);
-    setItems(d.items || []);
-  };
-
-  const createCheck = async () => {
-    const d = await api.post('/stores/' + storeId + '/inventory', {});
-    setShowModal(false);
-    load();
-    if (d.check) loadCheck(d.check.id);
-  };
-
-  const addItem = async () => {
-    if (!activeCheck || !form.name) return;
-    await api.post('/stores/' + storeId + '/inventory/' + activeCheck.id + '/items', {
-      name: form.name,
-      expected_qty: parseFloat(form.expected) || 0,
-      actual_qty: parseFloat(form.actual) || 0,
-      consumption: parseFloat(form.consumption) || 0,
-      note: form.note,
-      status: form.status,
-      photo: form.photo,
-    });
-    setShowItemModal(false);
-    setForm({ name: '', expected: '', actual: '', consumption: '', note: '', status: 'normal', photo: '' });
-    loadCheck(activeCheck.id);
+    setLoading(true);
+    api.get('/stores/' + storeId + '/inventory')
+      .then((d) => {
+        const list = d.items || [];
+        setItems(Array.isArray(list) ? list : []);
+        // 加载最近一次盘点结果
+        const checks = d.checks || [];
+        if (checks.length > 0 && checks[0].status === 'completed') {
+          api.get('/stores/' + storeId + '/inventory/checks/' + checks[0].id)
+            .then((detail) => {
+              const results: Record<number, { expected: number; consumption: number; actual: number; status: StatusType }> = {};
+              (detail.items || []).forEach((item: any) => {
+                results[item.master_id] = {
+                  expected: item.expected_qty,
+                  consumption: item.consumption || 0,
+                  actual: item.actual_qty || 0,
+                  status: item.status || 'normal'
+                };
+              });
+              setLastCheckResults(results);
+            })
+            .catch(() => {});
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   };
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => { loadItems(); }, [storeId]);
+
+  // --- Add Item ---
+  const handleAddPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setForm({ ...form, photo: reader.result as string });
+    reader.onload = () => setAddForm((f) => ({ ...f, photo: reader.result as string }));
     reader.readAsDataURL(file);
   };
 
-  const statusLabel = (s: string) => {
-    const m: Record<string, { label: string; color: string; icon: any }> = {
-      normal: { label: '正常', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
-      diff: { label: '差异', color: 'bg-amber-50 text-amber-600', icon: AlertTriangle },
-      lost: { label: '丢失', color: 'bg-rose-50 text-rose-600', icon: XCircle },
-      scrap: { label: '报废', color: 'bg-slate-100 text-slate-600', icon: Trash2 },
-    };
-    return m[s] || m.normal;
+  const handleAddItem = async () => {
+    if (!addForm.name) return;
+    try {
+      await api.post('/stores/' + storeId + '/inventory/items', {
+        name: addForm.name,
+        quantity: parseFloat(addForm.quantity) || 0,
+        photo: addForm.photo,
+        sort_order: items.length,
+      });
+      setShowAddItem(false);
+      setAddForm({ name: '', quantity: '', photo: '' });
+      loadItems();
+    } catch (e: any) {
+      alert(e.message || '添加失败');
+    }
   };
 
-  return (
-    <div className="space-y-4">
-      <PageHeader title="盘点" action={
-        <button onClick={() => setShowModal(true)} className="btn text-sm"><Plus className="mr-1 h-4 w-4" />新建盘点</button>
-      } />
+  // --- Edit Item ---
+  const openEdit = (item: InventoryItem) => {
+    setShowEditItem(item);
+    setEditForm({ name: item.name, quantity: String(item.quantity), photo: item.photo || '' });
+  };
 
-      {activeCheck ? (
-        <div className="space-y-3">
-          <GlassCard className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">盘点 #{activeCheck.id}</div>
-                <div className="text-xs text-slate-400">{activeCheck.created_at}</div>
+  const handleEditPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setEditForm((f) => ({ ...f, photo: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!showEditItem) return;
+    try {
+      await api.put('/stores/' + storeId + '/inventory/items/' + showEditItem.id, {
+        name: editForm.name,
+        quantity: parseFloat(editForm.quantity) || 0,
+        photo: editForm.photo,
+      });
+      setShowEditItem(null);
+      loadItems();
+    } catch (e: any) {
+      alert(e.message || '保存失败');
+    }
+  };
+
+  const handleDeleteItem = async (id: number) => {
+    if (!confirm('确定删除该物品？')) return;
+    try {
+      await api.del('/stores/' + storeId + '/inventory/items/' + id);
+      loadItems();
+    } catch (e: any) {
+      alert(e.message || '删除失败');
+    }
+  };
+
+  // --- Reorder ---
+  const moveItem = async (index: number, dir: number) => {
+    const newIndex = index + dir;
+    if (newIndex < 0 || newIndex >= items.length) return;
+    const reordered = [...items];
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    setItems(reordered);
+    try {
+      await api.put('/stores/' + storeId + '/inventory/items/reorder', {
+        ids: reordered.map((it) => it.id),
+      });
+    } catch {
+      loadItems();
+    }
+  };
+
+  // --- Inventory Check ---
+  const startCheck = () => {
+    if (items.length === 0) {
+      alert('请先添加物品');
+      return;
+    }
+    setCheckActive(true);
+    setCheckIndex(0);
+    setCheckResults({});
+    const first = items[0];
+    setCheckForm({
+      consumption: '',
+      actual: '',
+      status: calcAutoStatus(first.quantity, 0, 0),
+    });
+  };
+
+  const calcAutoStatus = (expected: number, consumption: number, actual: number): StatusType => {
+    if (consumption + actual === expected) return 'normal';
+    return 'diff';
+  };
+
+  const currentItem = items[checkIndex];
+
+  useEffect(() => {
+    if (!checkActive || !currentItem) return;
+    const r = checkResults[currentItem.id];
+    if (r) {
+      setCheckForm({
+        consumption: String(r.consumption),
+        actual: String(r.actual),
+        status: r.status,
+      });
+    } else {
+      setCheckForm({
+        consumption: '',
+        actual: '',
+        status: calcAutoStatus(currentItem.quantity, 0, 0),
+      });
+    }
+  }, [checkActive, checkIndex, currentItem?.id]);
+
+  const handleCheckInputChange = (field: string, value: string) => {
+    const updated = { ...checkForm, [field]: value };
+    if (field !== 'status' && currentItem) {
+      const c = parseFloat(updated.consumption) || 0;
+      const a = parseFloat(updated.actual) || 0;
+      updated.status = calcAutoStatus(currentItem.quantity, c, a);
+    }
+    setCheckForm(updated);
+  };
+
+  const saveCurrentCheck = () => {
+    if (!currentItem) return;
+    setCheckResults((prev) => ({
+      ...prev,
+      [currentItem.id]: {
+        consumption: parseFloat(checkForm.consumption) || 0,
+        actual: parseFloat(checkForm.actual) || 0,
+        status: checkForm.status,
+      },
+    }));
+  };
+
+  const goNext = () => {
+    saveCurrentCheck();
+    if (checkIndex < items.length - 1) {
+      setCheckIndex(checkIndex + 1);
+    } else {
+      setShowCompleteConfirm(true);
+    }
+  };
+
+  const goPrev = () => {
+    saveCurrentCheck();
+    if (checkIndex > 0) setCheckIndex(checkIndex - 1);
+  };
+
+  const completeCheck = async () => {
+    setSavingCheck(true);
+    try {
+      const results = items.map((item) => {
+        const r = checkResults[item.id];
+        const consumption = r?.consumption || 0;
+        const actual = r?.actual || 0;
+        const expected = item.quantity;
+        let status = r?.status || 'normal';
+        if (consumption + actual !== expected) status = 'diff';
+        if (actual === 0 && consumption === 0) status = 'empty';
+        return {
+          item_id: item.id,
+          name: item.name,
+          expected_qty: expected,
+          consumption,
+          actual_qty: actual,
+          status,
+        };
+      });
+      await api.post('/stores/' + storeId + '/inventory/checks/batch-complete', { results });
+      setShowCompleteConfirm(false);
+      setCheckActive(false);
+      setCheckResults({});
+      loadItems();
+    } catch (e: any) {
+      alert(e.message || '提交失败');
+    } finally {
+      setSavingCheck(false);
+    }
+  };
+
+  const cancelCheck = () => {
+    if (Object.keys(checkResults).length > 0 && !confirm('确定放弃本次盘点？')) return;
+    setCheckActive(false);
+    setCheckResults({});
+    setCheckIndex(0);
+  };
+
+  // --- Render: Inventory Check Mode ---
+  if (checkActive && currentItem) {
+    const st = STATUS_MAP[checkForm.status];
+    const StIcon = st.icon;
+    const expected = currentItem.quantity;
+    const consumption = parseFloat(checkForm.consumption) || 0;
+    const actual = parseFloat(checkForm.actual) || 0;
+    const isBalanced = consumption + actual === expected;
+    const progress = ((checkIndex + 1) / items.length) * 100;
+
+    return (
+      <div className="space-y-4">
+        <PageHeader title="盘点中" />
+
+        {/* Progress bar */}
+        <GlassCard className="p-4">
+          <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+            <span>{checkIndex + 1} / {items.length}</span>
+            <button onClick={cancelCheck} className="text-rose-500 hover:text-rose-600">取消盘点</button>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-slate-100">
+            <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: progress + '%' }} />
+          </div>
+        </GlassCard>
+
+        {/* Current item card */}
+        <GlassCard className="p-5">
+          <div className="mb-4 flex items-center gap-4">
+            {currentItem.photo ? (
+              <img src={currentItem.photo} alt={currentItem.name} className="h-20 w-20 rounded-xl object-cover" />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-indigo-50 text-2xl font-bold text-indigo-400">
+                {currentItem.name[0]}
               </div>
-              <button onClick={() => setActiveCheck(null)} className="text-xs text-indigo-500">返回列表</button>
+            )}
+            <div>
+              <div className="text-lg font-semibold text-slate-900">{currentItem.name}</div>
+              <div className="mt-1 text-sm text-slate-500">预期库存: <span className="font-medium text-slate-700">{expected}</span></div>
             </div>
-          </GlassCard>
+          </div>
 
-          <button onClick={() => setShowItemModal(true)} className="btn w-full text-sm"><Plus className="mr-1 h-4 w-4" />添加盘点项</button>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">消耗</label>
+                <input
+                  type="number"
+                  value={checkForm.consumption}
+                  onChange={(e) => handleCheckInputChange('consumption', e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">实际数量</label>
+                <input
+                  type="number"
+                  value={checkForm.actual}
+                  onChange={(e) => handleCheckInputChange('actual', e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+            </div>
 
-          {items.length === 0 ? (
-            <GlassCard className="py-8 text-center text-sm text-slate-400">暂无盘点项</GlassCard>
-          ) : (
+            {/* Status indicator */}
+            <div className={'flex items-center gap-2 rounded-xl px-3 py-2 ' + (isBalanced ? 'bg-emerald-50' : 'bg-amber-50')}>
+              <StIcon className={'h-4 w-4 ' + (isBalanced ? 'text-emerald-500' : 'text-amber-500')} />
+              <span className={'text-sm font-medium ' + (isBalanced ? 'text-emerald-600' : 'text-amber-600')}>
+                {isBalanced ? '数量正常' : '存在差异 (差 ' + (expected - consumption - actual) + ')'}
+              </span>
+            </div>
+
+            {/* Manual status override */}
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">手动设置状态</label>
+              <div className="flex gap-2">
+                {STATUS_OPTIONS.map((s) => (
+                  <button
+                    key={s.v}
+                    onClick={() => setCheckForm((f) => ({ ...f, status: s.v }))}
+                    className={'rounded-lg px-3 py-1.5 text-xs transition-all ' +
+                      (checkForm.status === s.v ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}
+                  >
+                    {s.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Navigation */}
+        <div className="flex gap-3">
+          <button
+            onClick={goPrev}
+            disabled={checkIndex === 0}
+            className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white py-3 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <ArrowLeft className="h-4 w-4" />上一项
+          </button>
+          <button
+            onClick={goNext}
+            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-indigo-500 py-3 text-sm font-medium text-white hover:bg-indigo-600"
+          >
+            {checkIndex === items.length - 1 ? '完成盘点' : '下一项'}<ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Complete confirmation */}
+        <Modal open={showCompleteConfirm} onClose={() => setShowCompleteConfirm(false)} title="确认盘点完成">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">已完成所有物品的盘点，提交后系统库存将更新为实际数量。</p>
             <div className="space-y-2">
-              {items.map((item: any) => {
-                const st = statusLabel(item.status);
+              {items.map((item) => {
+                const r = checkResults[item.id];
+                const s = r ? STATUS_MAP[r.status] : STATUS_MAP.normal;
                 return (
-                  <GlassCard key={item.id} className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-slate-800">{item.name}</div>
-                        <div className="mt-1 flex gap-3 text-xs text-slate-500">
-                          <span>预期: {item.expected_qty}</span>
-                          <span>实际: {item.actual_qty}</span>
-                          {item.consumption > 0 && <span>消耗: {item.consumption}</span>}
-                        </div>
-                        {item.note && <div className="mt-1 text-xs text-slate-400">{item.note}</div>}
-                      </div>
-                      <span className={'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ' + st.color}>
-                        <st.icon className="h-3 w-3" />{st.label}
-                      </span>
+                  <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                    <span className="text-sm text-slate-700">{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">{item.quantity} → {r?.actual ?? '?'}</span>
+                      <span className={'rounded-full px-2 py-0.5 text-xs ' + s.color}>{s.label}</span>
                     </div>
-                    {item.photo && <img src={item.photo} alt="盘点照片" className="mt-2 h-20 w-20 rounded-lg object-cover" />}
-                  </GlassCard>
+                  </div>
                 );
               })}
             </div>
-          )}
+            <div className="flex gap-3">
+              <button onClick={() => setShowCompleteConfirm(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+                返回修改
+              </button>
+              <button onClick={completeCheck} disabled={savingCheck} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
+                {savingCheck ? '提交中...' : '确认提交'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      </div>
+    );
+  }
+
+  // --- Render: Items List ---
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <PageHeader title="盘点" />
+        <div className="hidden items-center gap-2 lg:flex">
+          <button onClick={() => setShowAddItem(true)} className="inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Plus className="h-4 w-4" />添加物品
+          </button>
+          <button onClick={startCheck} className="inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+            <RotateCcw className="h-4 w-4" />开始盘点
+          </button>
         </div>
+      </div>
+
+      {loading ? (
+        <div className="flex h-40 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
+        </div>
+      ) : items.length === 0 ? (
+        <GlassCard className="py-12 text-center">
+          <RotateCcw className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+          <div className="text-sm text-slate-400">暂无物品，点击下方按钮添加</div>
+        </GlassCard>
       ) : (
-        <>
-          {checks.length === 0 ? (
-            <GlassCard className="py-12 text-center text-sm text-slate-400">暂无盘点记录</GlassCard>
-          ) : (
-            <GlassCard className="divide-y divide-slate-100">
-              {checks.map((c: any) => (
-                <button key={c.id} onClick={() => loadCheck(c.id)} className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-white/30">
-                  <div>
-                    <div className="text-sm font-medium text-slate-800">盘点 #{c.id}</div>
-                    <div className="text-xs text-slate-400">{c.items_count || 0} 项 · {c.created_at}</div>
+        <div className="space-y-2">
+          {items.map((item, index) => {
+            const hasResult = !!checkResults[item.id];
+            const result = checkResults[item.id];
+            const st = result ? STATUS_MAP[result.status] : null;
+            const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
+            return (
+              <GlassCard key={item.id} className="p-4">
+                <div className="flex items-center gap-3">
+                  {item.photo ? (
+                    <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">
+                      {item.name[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-slate-800">{item.name}</div>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs">
+                      <span className="text-slate-400">库存: {item.quantity}</span>
+                      {lastCheckResults[item.id] && (() => {
+                        const check = lastCheckResults[item.id];
+                        const diffVal = (check.consumption + check.actual) - check.expected;
+                        return diffVal !== 0 ? (
+                          <span className={'font-medium ' + (diffVal > 0 ? 'text-emerald-600' : 'text-rose-500')}>
+                            {diffVal > 0 ? '+' : ''}{diffVal}
+                          </span>
+                        ) : null;
+                      })()}
+                      {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
+                    </div>
+                    <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>
+                        {st ? st.label : STATUS_MAP[item.status || 'normal'].label}
+                      </span>
                   </div>
-                  <span className={'rounded-full px-2 py-0.5 text-xs ' + (c.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}>
-                    {c.status === 'completed' ? '已完成' : '进行中'}
-                  </span>
-                </button>
-              ))}
-            </GlassCard>
-          )}
-        </>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => moveItem(index, -1)}
+                      disabled={index === 0}
+                      className="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
+                    </button>
+                    <button
+                      onClick={() => moveItem(index, 1)}
+                      disabled={index === items.length - 1}
+                      className="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
+                    </button>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </GlassCard>
+            );
+          })}
+        </div>
       )}
 
-      <Modal open={showModal} onClose={() => setShowModal(false)} title="新建盘点">
-        <p className="mb-4 text-sm text-slate-600">确认创建新的盘点任务？</p>
-        <button onClick={createCheck} className="btn w-full">确认创建</button>
-      </Modal>
-
-      <Modal open={showItemModal} onClose={() => setShowItemModal(false)} title="添加盘点项">
+      {/* Add Item Modal */}
+      <Modal open={showAddItem} onClose={() => setShowAddItem(false)} title="添加物品">
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs text-slate-500">物品名称</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input" placeholder="输入物品名称" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">预期数量</label>
-              <input type="number" value={form.expected} onChange={(e) => setForm({ ...form, expected: e.target.value })} className="input" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">实际数量</label>
-              <input type="number" value={form.actual} onChange={(e) => setForm({ ...form, actual: e.target.value })} className="input" />
-            </div>
+            <input
+              value={addForm.name}
+              onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              placeholder="输入物品名称"
+            />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">消耗量</label>
-            <input type="number" value={form.consumption} onChange={(e) => setForm({ ...form, consumption: e.target.value })} className="input" placeholder="0" />
+            <label className="mb-1 block text-xs text-slate-500">初始数量</label>
+            <input
+              type="number"
+              value={addForm.quantity}
+              onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
+              className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              placeholder="0"
+              min="0"
+            />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">状态</label>
+            <label className="mb-1 block text-xs text-slate-500">物品照片</label>
             <div className="flex gap-2">
-              {[{ v: 'normal', l: '正常' }, { v: 'diff', l: '差异' }, { v: 'lost', l: '丢失' }, { v: 'scrap', l: '报废' }].map((s) => (
-                <button key={s.v} onClick={() => setForm({ ...form, status: s.v })}
-                  className={'rounded-lg px-3 py-1.5 text-xs ' + (form.status === s.v ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600')}>
-                  {s.l}
-                </button>
-              ))}
+              <button
+                onClick={() => {
+                  if (fileRef.current) {
+                    fileRef.current.accept = 'image/*';
+                    fileRef.current.capture = 'environment';
+                    fileRef.current.click();
+                  }
+                }}
+                className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                <Camera className="h-4 w-4" />拍照
+              </button>
+              <button
+                onClick={() => {
+                  if (fileRef.current) {
+                    fileRef.current.accept = 'image/*';
+                    fileRef.current.removeAttribute('capture');
+                    fileRef.current.click();
+                  }
+                }}
+                className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"
+              >
+                <Upload className="h-4 w-4" />上传
+              </button>
             </div>
+            <input ref={fileRef} type="file" onChange={handleAddPhoto} className="hidden" />
+            {addForm.photo && (
+              <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
+            )}
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">备注</label>
-            <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="input" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-slate-500">拍照/上传</label>
-            <div className="flex gap-2">
-              <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.capture = 'environment'; fileRef.current.click(); } }}
-                className="btn-ghost flex-1 text-xs"><Camera className="mr-1 inline h-4 w-4" />拍照</button>
-              <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.click(); } }}
-                className="btn-ghost flex-1 text-xs"><Upload className="mr-1 inline h-4 w-4" />上传</button>
-            </div>
-            <input ref={fileRef} type="file" onChange={handlePhoto} className="hidden" />
-            {form.photo && <img src={form.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />}
-          </div>
-          <button onClick={addItem} className="btn w-full">添加</button>
+          <button onClick={handleAddItem} className="btn w-full">添加</button>
         </div>
       </Modal>
+
+      {/* Edit Item Modal */}
+      <Modal open={!!showEditItem} onClose={() => setShowEditItem(null)} title="编辑物品">
+        {showEditItem && (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">物品名称</label>
+              <input
+                value={editForm.name}
+                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">当前数量</label>
+              <input
+                type="number"
+                value={editForm.quantity}
+                onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">物品照片</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (editFileRef.current) {
+                      editFileRef.current.accept = 'image/*';
+                      editFileRef.current.capture = 'environment';
+                      editFileRef.current.click();
+                    }
+                  }}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  <Camera className="h-4 w-4" />拍照
+                </button>
+                <button
+                  onClick={() => {
+                    if (editFileRef.current) {
+                      editFileRef.current.accept = 'image/*';
+                      editFileRef.current.removeAttribute('capture');
+                      editFileRef.current.click();
+                    }
+                  }}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"
+                >
+                  <Upload className="h-4 w-4" />上传
+                </button>
+              </div>
+              <input ref={editFileRef} type="file" onChange={handleEditPhoto} className="hidden" />
+              {editForm.photo && (
+                <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
+              )}
+            </div>
+            <button onClick={handleSaveEdit} className="btn w-full">保存</button>
+          </div>
+        )}
+      </Modal>
+
+      {/* Mobile FABs */}
+      <FloatingActionButton label="开始盘点" icon={RotateCcw} onClick={startCheck} />
+      <button
+        onClick={() => setShowAddItem(true)}
+        className="fixed right-4 bottom-44 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-white text-indigo-500 shadow-xl border border-indigo-100 transition-all hover:bg-indigo-50 active:scale-95 lg:hidden"
+      >
+        <Plus className="h-5 w-5" />
+      </button>
     </div>
   );
 }

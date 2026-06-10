@@ -4,8 +4,18 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { MoneyDisplay, formatMoney } from '../../lib/format';
-import { ChevronLeft, ChevronRight, Check, Edit3, FileText, Loader2, ChevronDown } from 'lucide-react';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { formatMoney } from '../../lib/format';
+import { ChevronLeft, ChevronRight, Check, Loader2, X, FileText, Trash2 } from 'lucide-react';
+
+function formatDateTime(d: string | null | undefined): string {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0') + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0') + ':' + String(dt.getSeconds()).padStart(2, '0');
+  } catch { return d || ''; }
+}
 
 function getMonths(count = 12) {
   const m: string[] = [];
@@ -26,10 +36,12 @@ export default function StorePayrollPage() {
   const [payrolls, setPayrolls] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [showEdit, setShowEdit] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ bonus: '', deduction: '', note: '' });
-  const [saving, setSaving] = useState(false);
-  const [showSlip, setShowSlip] = useState<number | null>(null);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const [editForms, setEditForms] = useState<Record<number, { bonus: string; deduction: string }>>({});
+  const [slipPayrollId, setSlipPayrollId] = useState<number | null>(null);
+  const [slipEmployeeIdx, setSlipEmployeeIdx] = useState(0);
   const [monthOpen, setMonthOpen] = useState(false);
   const months = getMonths();
   const touchRef = useRef<{ x: number; y: number } | null>(null);
@@ -37,18 +49,60 @@ export default function StorePayrollPage() {
   const load = () => {
     if (!storeId) return;
     setLoading(true);
-    api.get('/stores/' + storeId + '/payrolls?month=' + month).then((d) => { setPayrolls(d.payrolls || []); setLoading(false); }).catch(() => setLoading(false));
+    api.get('/stores/' + storeId + '/payrolls?month=' + month)
+      .then((d) => { setPayrolls(d.payrolls || []); setLoading(false); })
+      .catch(() => setLoading(false));
   };
   useEffect(() => { load(); }, [storeId, month]);
 
+  const loadStaff = async () => {
+    if (!storeId) return;
+    setLoadingStaff(true);
+    try {
+      const d = await api.get('/stores/' + storeId + '/staff');
+      const active = (d.staff || d || [])
+        .filter((s: any) => s.status === 'active' && s.role !== 'SHAREHOLDER')
+        .map((s: any) => ({ ...s, monthly_salary: s.salary ?? s.monthly_salary ?? 0, position: s.job_title || s.position || '' }));
+      setStaffList(active);
+      const forms: Record<number, { bonus: string; deduction: string }> = {};
+      active.forEach((s: any) => { forms[s.id] = { bonus: '', deduction: '' }; });
+      setEditForms(forms);
+    } catch {
+      setStaffList([]);
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  const openGenerate = () => { setShowGenerate(true); loadStaff(); };
+
+  const removeStaff = (id: number) => {
+    setStaffList((prev) => prev.filter((s) => s.id !== id));
+    setEditForms((prev) => { const next = { ...prev }; delete next[id]; return next; });
+  };
+
+  const updateEditForm = (id: number, field: string, value: string) => {
+    setEditForms((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+  };
+
   const handleGenerate = async () => {
-    if (!confirm('确认为 ' + month + ' 生成工资？')) return;
+    if (staffList.length === 0) return;
     setGenerating(true);
     try {
-      await api.post('/stores/' + storeId + '/payrolls/generate', { month });
+      const payload = staffList.map((s) => ({
+        staff_id: s.id,
+        base_salary: s.monthly_salary ?? s.salary ?? 0,
+        bonus: parseFloat(editForms[s.id]?.bonus) || 0,
+        deduction: parseFloat(editForms[s.id]?.deduction) || 0,
+      }));
+      await api.post('/stores/' + storeId + '/payrolls/generate', { month, staff: payload });
+      setShowGenerate(false);
       load();
-    } catch (e: any) { alert(e.message || '生成失败'); }
-    finally { setGenerating(false); }
+    } catch (e: any) {
+      alert(e.message || '生成失败');
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleConfirm = async (id: number) => {
@@ -59,45 +113,39 @@ export default function StorePayrollPage() {
     } catch (e: any) { alert(e.message || '确认失败'); }
   };
 
-  const openEdit = (p: any) => {
-    setShowEdit(p);
-    setEditForm({ bonus: String(p.bonus || 0), deduction: String(p.deduction || 0), note: p.note || '' });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!showEdit) return;
-    setSaving(true);
+  const handleDelete = async (id: number) => {
+    if (!confirm('确认删除该工资单？')) return;
     try {
-      await api.put('/stores/' + storeId + '/payrolls/' + showEdit.id, {
-        bonus: parseFloat(editForm.bonus) || 0,
-        deduction: parseFloat(editForm.deduction) || 0,
-        note: editForm.note,
-      });
-      setShowEdit(null);
+      await api.del('/stores/' + storeId + '/payrolls/' + id);
       load();
-    } catch (e: any) { alert(e.message || '保存失败'); }
-    finally { setSaving(false); }
+    } catch (e: any) { alert(e.message || '删除失败'); }
   };
 
-  const slipItems = payrolls;
-  const currentSlipIdx = slipItems.findIndex((p: any) => p.id === showSlip);
-  const currentSlip = currentSlipIdx >= 0 ? slipItems[currentSlipIdx] : null;
+  // Payslip state
+  const currentPayroll = slipPayrollId ? payrolls.find((p: any) => p.id === slipPayrollId) : null;
+  const slipItems = currentPayroll?.items || [];
+  const currentEmployee = slipItems[slipEmployeeIdx] || null;
 
-  const goSlip = useCallback((dir: number) => {
-    const next = currentSlipIdx + dir;
-    if (next >= 0 && next < slipItems.length) setShowSlip(slipItems[next].id);
-  }, [currentSlipIdx, slipItems]);
+  const openSlip = (payrollId: number) => {
+    setSlipPayrollId(payrollId);
+    setSlipEmployeeIdx(0);
+  };
+
+  const goEmployee = useCallback((dir: number) => {
+    const next = slipEmployeeIdx + dir;
+    if (next >= 0 && next < slipItems.length) setSlipEmployeeIdx(next);
+  }, [slipEmployeeIdx, slipItems.length]);
 
   useEffect(() => {
-    if (showSlip === null) return;
+    if (slipPayrollId === null) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') goSlip(-1);
-      if (e.key === 'ArrowRight') goSlip(1);
-      if (e.key === 'Escape') setShowSlip(null);
+      if (e.key === 'ArrowLeft') goEmployee(-1);
+      if (e.key === 'ArrowRight') goEmployee(1);
+      if (e.key === 'Escape') setSlipPayrollId(null);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showSlip, goSlip]);
+  }, [slipPayrollId, goEmployee]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -105,27 +153,28 @@ export default function StorePayrollPage() {
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (!touchRef.current) return;
     const dx = e.changedTouches[0].clientX - touchRef.current.x;
-    if (Math.abs(dx) > 60) goSlip(dx < 0 ? 1 : -1);
+    if (Math.abs(dx) > 60) goEmployee(dx < 0 ? 1 : -1);
     touchRef.current = null;
   };
 
   return (
     <div className="space-y-4">
-      <PageHeader title="工资" action={
-        <button onClick={handleGenerate} disabled={generating} className="btn text-sm">
-          {generating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}{generating ? '生成中..' : '生成工资'}
+      <div className="flex items-center justify-between">
+        <PageHeader title="工资" />
+        <button onClick={openGenerate} className="hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+          <FileText className="h-4 w-4" />生成工资
         </button>
-      } />
+      </div>
 
       <div className="relative">
-        <button onClick={() => setMonthOpen(!monthOpen)} className="flex items-center gap-2 rounded-xl bg-white/60 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur-sm">
-          {month} <ChevronDown className={'h-4 w-4 text-slate-400 transition-transform ' + (monthOpen ? 'rotate-180' : '')} />
+        <button onClick={() => setMonthOpen(!monthOpen)} className="flex items-center gap-1 rounded-xl bg-white/60 px-3 py-2 text-sm text-slate-700 border border-slate-200">
+          {month}<ChevronDown className="h-4 w-4" />
         </button>
         {monthOpen && (
-          <div className="absolute z-20 mt-1 max-h-60 w-48 overflow-y-auto rounded-xl border border-white/40 bg-white/90 shadow-xl backdrop-blur-xl">
+          <div className="absolute top-full left-0 z-30 mt-1 max-h-60 w-40 overflow-y-auto rounded-xl bg-white/95 shadow-xl backdrop-blur-xl border border-slate-100">
             {months.map((m) => (
               <button key={m} onClick={() => { setMonth(m); setMonthOpen(false); }}
-                className={'flex w-full items-center px-4 py-2.5 text-sm hover:bg-indigo-50 ' + (m === month ? 'bg-indigo-50 font-semibold text-indigo-600' : 'text-slate-600')}>
+                className={'block w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 ' + (m === month ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-slate-700')}>
                 {m}
               </button>
             ))}
@@ -136,120 +185,185 @@ export default function StorePayrollPage() {
       {loading ? (
         <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-500" /></div>
       ) : payrolls.length === 0 ? (
-        <GlassCard className="py-12 text-center text-sm text-slate-400">
-          <FileText className="mx-auto mb-2 h-8 w-8" />暂无工资记录，点击右上角生成
+        <GlassCard className="py-12 text-center">
+          <FileText className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+          <div className="text-sm text-slate-400">暂无工资记录</div>
         </GlassCard>
       ) : (
-        <GlassCard className="divide-y divide-slate-100">
+        <div className="space-y-2">
           {payrolls.map((p: any) => (
-            <div key={p.id} className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setShowSlip(p.id)}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-sm font-bold text-indigo-600">{p.staff_name?.[0] || '?'}</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-slate-800">{p.staff_name}</div>
-                <div className="text-xs text-slate-400">{p.position || ''} · 底薪 {formatMoney(p.base_salary || 0)}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <MoneyDisplay value={p.total || 0} className="text-sm text-indigo-600" />
-                  <div className={'text-xs ' + (p.status === 'confirmed' ? 'text-emerald-500' : 'text-amber-500')}>
-                    {p.status === 'confirmed' ? '已发放' : '草稿'}
-                  </div>
+            <GlassCard key={p.id} className="cursor-pointer p-4 hover:bg-white/80 transition-colors" onClick={() => openSlip(p.id)}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">{p.period}</div>
+                  <div className="text-xs text-slate-400">{(p.items || []).length}人</div>
                 </div>
-                {p.status === 'draft' && (
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openEdit(p)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-500" /></button>
-                    <button onClick={() => handleConfirm(p.id)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-emerald-50"><Check className="h-3.5 w-3.5 text-emerald-500" /></button>
-                  </div>
-                )}
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-indigo-600">{formatMoney(p.total_amount || 0)}</div>
+                  <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (p.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}>
+                    {p.status === 'confirmed' ? '已发放' : '草稿'}
+                  </span>
+                  {p.status === 'confirmed' && p.confirmed_at && (
+                    <div className="mt-1 text-xs text-slate-400">发放: {formatDateTime(p.confirmed_at)}</div>
+                  )}
+                </div>
               </div>
-            </div>
+              {p.status !== 'confirmed' && (
+                <div className="mt-3 flex gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-100"><Trash2 className="h-3 w-3" />删除</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleConfirm(p.id); }} className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-600 hover:bg-emerald-100"><Check className="h-3 w-3" />发放</button>
+                </div>
+              )}
+            </GlassCard>
           ))}
-        </GlassCard>
+        </div>
       )}
 
-      {/* Edit Modal */}
-      <Modal open={!!showEdit} onClose={() => setShowEdit(null)} title="编辑工资">
-        {showEdit && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-sm font-bold text-indigo-600">{showEdit.staff_name?.[0]}</div>
-              <div>
-                <div className="text-sm font-semibold text-slate-800">{showEdit.staff_name}</div>
-                <div className="text-xs text-slate-400">底薪: {formatMoney(showEdit.base_salary || 0)}</div>
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">奖金</label>
-              <input type="number" value={editForm.bonus} onChange={(e) => setEditForm({ ...editForm, bonus: e.target.value })} className="input" placeholder="0" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">扣款</label>
-              <input type="number" value={editForm.deduction} onChange={(e) => setEditForm({ ...editForm, deduction: e.target.value })} className="input" placeholder="0" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-slate-500">备注</label>
-              <input value={editForm.note} onChange={(e) => setEditForm({ ...editForm, note: e.target.value })} className="input" placeholder="可选" />
-            </div>
-            <div className="rounded-xl bg-indigo-50 p-3 text-center">
-              <div className="text-xs text-slate-500">应发合计</div>
-              <div className="text-lg font-bold text-indigo-600">
-                {formatMoney((showEdit.base_salary || 0) + (parseFloat(editForm.bonus) || 0) - (parseFloat(editForm.deduction) || 0))}
-              </div>
-            </div>
-            <button onClick={handleSaveEdit} disabled={saving} className="btn w-full disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
+      {/* Generate Payroll Modal */}
+      <Modal open={showGenerate} onClose={() => setShowGenerate(false)} title="生成工资" wide>
+        {loadingStaff ? (
+          <div className="flex h-32 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-500" /></div>
+        ) : staffList.length === 0 ? (
+          <div className="py-8 text-center text-sm text-slate-400">暂无在职员工</div>
+        ) : (
+          <div className="space-y-3">
+            <div className="text-xs text-slate-500">月份: {month}</div>
+            {staffList.map((s: any) => {
+              const base = s.monthly_salary || 0;
+              const bonus = parseFloat(editForms[s.id]?.bonus) || 0;
+              const deduction = parseFloat(editForms[s.id]?.deduction) || 0;
+              const total = base + bonus - deduction;
+              return (
+                <div key={s.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium text-slate-800">{s.name}</span>
+                      <span className="ml-2 text-xs text-slate-400">{s.position || '-'}</span>
+                    </div>
+                    <button onClick={() => removeStaff(s.id)} className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="mb-2 text-xs text-slate-500">底薪: {formatMoney(base)}</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">奖金</label>
+                      <input type="number" value={editForms[s.id]?.bonus || ''} onChange={(e) => updateEditForm(s.id, 'bonus', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-indigo-300" placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">扣款</label>
+                      <input type="number" value={editForms[s.id]?.deduction || ''} onChange={(e) => updateEditForm(s.id, 'deduction', e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-indigo-300" placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-400">应发</label>
+                      <div className="rounded-lg bg-indigo-50 px-2 py-1.5 text-sm font-medium text-indigo-600">{formatMoney(total)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <button onClick={handleGenerate} disabled={generating || staffList.length === 0} className="btn w-full disabled:opacity-50">
+              {generating ? '生成中...' : '确认生成 (' + staffList.length + '人)'}
+            </button>
           </div>
         )}
       </Modal>
 
-      {/* Payslip Modal */}
-      <Modal open={showSlip !== null && !!currentSlip} onClose={() => setShowSlip(null)} title="工资明细" wide>
-        {currentSlip && (
+      {/* Individual Payslip Modal */}
+      <Modal open={slipPayrollId !== null && !!currentPayroll} onClose={() => setSlipPayrollId(null)} title="工资单" wide>
+        {currentPayroll && currentEmployee && (
           <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            {/* Employee navigation */}
             <div className="mb-4 flex items-center justify-between">
-              <button onClick={() => goSlip(-1)} disabled={currentSlipIdx <= 0} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 disabled:opacity-30">
-                <ChevronLeft className="h-4 w-4" />
+              <button onClick={() => goEmployee(-1)} disabled={slipEmployeeIdx <= 0}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 transition-colors">
+                <ChevronLeft className="h-5 w-5 text-slate-600" />
               </button>
               <div className="text-center">
-                <div className="text-sm font-semibold text-slate-800">{currentSlip.staff_name}</div>
-                <div className="text-xs text-slate-400">{currentSlip.position || ''} · {month}</div>
+                <div className="text-sm font-semibold text-slate-800">{currentEmployee.user_display_name || currentEmployee.user_name || '-'}</div>
+                <div className="text-xs text-slate-400">{currentEmployee.job_title || ''} · {slipEmployeeIdx + 1}/{slipItems.length}</div>
               </div>
-              <button onClick={() => goSlip(1)} disabled={currentSlipIdx >= slipItems.length - 1} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 disabled:opacity-30">
-                <ChevronRight className="h-4 w-4" />
+              <button onClick={() => goEmployee(1)} disabled={slipEmployeeIdx >= slipItems.length - 1}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 disabled:opacity-30 transition-colors">
+                <ChevronRight className="h-5 w-5 text-slate-600" />
               </button>
             </div>
 
-            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5">
-              <div className="mb-4 text-center">
-                <div className="text-xs text-slate-500">应发工资</div>
-                <div className="text-3xl font-bold text-indigo-600">{formatMoney(currentSlip.total || 0)}</div>
-                <div className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (currentSlip.status === 'confirmed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}>
-                  {currentSlip.status === 'confirmed' ? '已发放' : '草稿'}
+            {/* Individual Pay Stub */}
+            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-6 shadow-sm">
+              {/* Header */}
+              <div className="mb-5 text-center border-b border-indigo-100 pb-4">
+                <div className="text-lg font-bold text-slate-800">工资单</div>
+                <div className="text-sm text-indigo-500 font-medium">{currentPayroll.period}</div>
+                <div className={'mt-2 inline-block rounded-full px-3 py-1 text-xs font-medium ' + (currentPayroll.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>
+                  {currentPayroll.status === 'confirmed' ? '已发放' : '待发放'}
                 </div>
               </div>
-              <div className="space-y-3 divide-y divide-slate-100">
-                {[
-                  { label: '底薪', value: currentSlip.base_salary || 0, color: 'text-slate-800' },
-                  { label: '奖金', value: currentSlip.bonus || 0, color: 'text-emerald-600' },
-                  { label: '扣款', value: currentSlip.deduction || 0, color: 'text-rose-500', prefix: '-' },
-                  { label: '其他', value: currentSlip.other || 0, color: 'text-slate-600' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between pt-3">
-                    <span className="text-sm text-slate-500">{item.label}</span>
-                    <span className={'text-sm font-medium ' + item.color}>{item.prefix || ''}{formatMoney(item.value)}</span>
-                  </div>
-                ))}
-                {currentSlip.note && (
-                  <div className="pt-3">
-                    <span className="text-xs text-slate-400">备注: {currentSlip.note}</span>
+
+              {/* Employee Info */}
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 text-lg font-bold">
+                  {(currentEmployee.user_display_name || currentEmployee.user_name || '?')[0]}
+                </div>
+                <div>
+                  <div className="text-base font-semibold text-slate-800">{currentEmployee.user_display_name || currentEmployee.user_name || '-'}</div>
+                  {currentEmployee.job_title && <div className="text-sm text-slate-500">{currentEmployee.job_title}</div>}
+                </div>
+              </div>
+
+              {/* Salary Breakdown */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-xl bg-white/80 px-4 py-3 border border-slate-100">
+                  <span className="text-sm text-slate-500">基本工资</span>
+                  <span className="text-sm font-semibold text-slate-800">{formatMoney(currentEmployee.base_amount || 0)}</span>
+                </div>
+                {currentEmployee.bonus > 0 && (
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-50/80 px-4 py-3 border border-emerald-100">
+                    <span className="text-sm text-emerald-600">奖金</span>
+                    <span className="text-sm font-semibold text-emerald-700">+{formatMoney(currentEmployee.bonus)}</span>
                   </div>
                 )}
+                {currentEmployee.deduction > 0 && (
+                  <div className="flex items-center justify-between rounded-xl bg-rose-50/80 px-4 py-3 border border-rose-100">
+                    <span className="text-sm text-rose-500">扣款</span>
+                    <span className="text-sm font-semibold text-rose-600">-{formatMoney(currentEmployee.deduction)}</span>
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="flex items-center justify-between rounded-xl bg-indigo-500 px-4 py-4 mt-2">
+                  <span className="text-sm font-medium text-indigo-100">实发工资</span>
+                  <span className="text-xl font-bold text-white">{formatMoney(currentEmployee.total_amount || 0)}</span>
+                </div>
               </div>
+
+              {/* Footer */}
+              {currentPayroll.status === 'confirmed' && currentPayroll.confirmed_at && (
+                <div className="mt-4 text-center text-xs text-slate-400">
+                  发放时间: {formatDateTime(currentPayroll.confirmed_at)}
+                </div>
+              )}
             </div>
 
-            <div className="mt-3 text-center text-xs text-slate-400">{currentSlipIdx + 1} / {slipItems.length} · 左右滑动或键盘切换</div>
+            {/* Navigation hint */}
+            <div className="mt-3 flex items-center justify-center gap-4 text-xs text-slate-400">
+              <span className="hidden sm:inline">← → 键盘切换</span>
+              <span className="sm:hidden">左右滑动切换</span>
+              <span>{slipEmployeeIdx + 1} / {slipItems.length}</span>
+            </div>
           </div>
         )}
       </Modal>
+
+      <FloatingActionButton label="生成工资" onClick={openGenerate} />
     </div>
+  );
+}
+
+function ChevronDown(props: any) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6"/></svg>
   );
 }

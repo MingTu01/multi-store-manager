@@ -1,113 +1,100 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
+import { AuthRequest } from '../auth.js';
+
+function normalizeType(type: string): string {
+  if (type === 'income') return '收入';
+  if (type === 'expense') return '支出';
+  return type;
+}
+
+function localDate(d?: Date): string {
+  const dt = d || new Date();
+  return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+}
+
+function localDateTime(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const local = new Date(now.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 19).replace('T', ' ');
+}
 
 const router = Router({ mergeParams: true });
 
-// GET entries with date filtering
-router.get('/', (req, res) => {
-  const { storeId } = req.params;
-  const { date, dateFrom, dateTo, month, year, week, period, limit } = req.query;
-  let sql = 'SELECT * FROM entries WHERE store_id=?';
-  const params: any[] = [storeId];
-  
-  const user = (req as any).user;
-  if (user.role !== 'admin' && user.role !== 'ADMIN') {
-    sql += ' AND is_system=0';
-  }
-  
-  // Period-based filtering
-  if (period === 'day') {
-    const today = new Date().toISOString().slice(0, 10);
-    sql += ' AND date=?';
-    params.push(today);
-  } else if (period === 'week') {
-    const d = new Date();
-    const start = new Date(d);
-    start.setDate(d.getDate() - d.getDay() + 1);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    sql += ' AND date>=? AND date<=?';
-    params.push(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
-  } else if (period === 'month') {
-    const monthStr = new Date().toISOString().slice(0, 7);
-    sql += " AND strftime('%Y-%m',date)=?";
-    params.push(monthStr);
-  } else if (period === 'year') {
-    const yearStr = new Date().getFullYear().toString();
-    sql += " AND strftime('%Y',date)=?";
-    params.push(yearStr);
-  }
-  
-  // Explicit date filters (take precedence)
-  if (date) { sql += ' AND date=?'; params.push(date); }
-  if (dateFrom && dateTo) { sql += ' AND date>=? AND date<=?'; params.push(dateFrom, dateTo); }
-  if (month) { sql += " AND strftime('%Y-%m',date)=?"; params.push(month); }
-  if (year) { sql += " AND strftime('%Y',date)=?"; params.push(year); }
-  if (week) {
-    const d = new Date(week as string);
-    const start = new Date(d);
-    start.setDate(d.getDate() - d.getDay() + 1);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    sql += ' AND date>=? AND date<=?';
-    params.push(start.toISOString().slice(0,10), end.toISOString().slice(0,10));
-  }
-  
-  sql += ' ORDER BY created_at DESC';
-  if (limit) { sql += ' LIMIT ?'; params.push(Number(limit)); }
-  
-  const rows = db.prepare(sql).all(...params);
-  
-  // Calculate summary
-  const summarySql = `SELECT 
-    COALESCE(SUM(CASE WHEN type='收入' THEN amount ELSE 0 END), 0) as income,
-    COALESCE(SUM(CASE WHEN type='支出' THEN amount ELSE 0 END), 0) as expense
-  FROM entries WHERE store_id=?`;
-  const summaryParams: any[] = [storeId];
-  // Apply same date filters for summary
-  let summaryDateCondition = '';
-  if (period === 'day') {
-    summaryDateCondition = ' AND date=?';
-    summaryParams.push(new Date().toISOString().slice(0, 10));
-  } else if (period === 'month') {
-    summaryDateCondition = " AND strftime('%Y-%m',date)=?";
-    summaryParams.push(new Date().toISOString().slice(0, 7));
-  } else if (period === 'year') {
-    summaryDateCondition = " AND strftime('%Y',date)=?";
-    summaryParams.push(new Date().getFullYear().toString());
-  }
-  
-  let summary;
+router.get('/stats', (req: AuthRequest, res: Response) => {
   try {
-    summary = db.prepare(summarySql + summaryDateCondition).get(...summaryParams) as any;
-  } catch {
-    summary = { income: 0, expense: 0 };
-  }
-  
-  res.json({ entries: rows, summary: { ...summary, profit: (summary?.income || 0) - (summary?.expense || 0) } });
+    const { storeId } = req.params;
+    const today = localDate();
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
+    res.json({ income, expense, profit: income - expense });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// POST create entry
-router.post('/', (req, res) => {
+router.get('/', (req: AuthRequest, res: Response) => {
   const { storeId } = req.params;
-  const { type, category, amount, note, date } = req.body;
+  const { date, dateFrom, dateTo, month, year, week, period, limit, page, pageSize } = req.query;
+  const p = parseInt(page as string) || 1;
+  const ps = parseInt(pageSize as string) || 20;
+  const offset = (p - 1) * ps;
+  let whereClause = ' WHERE e.store_id=?';
+  const params: any[] = [storeId];
   const user = (req as any).user;
-  const result = db.prepare('INSERT INTO entries (store_id, type, category, amount, note, date, created_by) VALUES (?,?,?,?,?,?,?)').run(storeId, type, category, amount, note || '', date || new Date().toISOString().slice(0, 10), user.id);
-  opLog(user.id, Number(storeId), '记账', type + ' ' + category + ' ¥' + amount);
+  if (user.role !== 'admin' && user.role !== 'ADMIN') whereClause += ' AND e.is_system=0';
+  if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
+  else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
+  else if (period === 'month') { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(localDate().slice(0,7)); }
+  else if (period === 'year') { whereClause += " AND strftime('%Y',e.date)=?"; params.push(new Date().getFullYear().toString()); }
+  if (date) { whereClause += ' AND e.date=?'; params.push(date); }
+  if (dateFrom && dateTo) { whereClause += ' AND e.date>=? AND e.date<=?'; params.push(dateFrom, dateTo); }
+  if (month) { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(month); }
+  if (year) { whereClause += " AND strftime('%Y',e.date)=?"; params.push(year); }
+  if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
+  const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
+  const qp = [...params];
+  let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id' + whereClause + ' ORDER BY e.created_at DESC';
+  if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
+  res.json({ entries: db.prepare(sql).all(...qp), total });
+});
+
+router.post('/', (req: AuthRequest, res: Response) => {
+  const { storeId } = req.params;
+  const { type, category, category_id, amount, note, date } = req.body;
+  const user = (req as any).user;
+  let categoryName = category || '';
+  let catId = category_id || null;
+  if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
+  const nt = normalizeType(type);
+  const result = db.prepare('INSERT INTO entries (store_id,type,category,category_id,amount,note,date,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(storeId, nt, categoryName, catId, amount, note||'', date||localDate(), user.id, localDateTime());
+  opLog(user.id, storeId, '记账', '新增' + nt + ' ' + categoryName + ' ¥' + amount);
   res.json({ id: result.lastInsertRowid, success: true });
 });
 
-// PUT update entry
-router.put('/:id', (req, res) => {
-  const { type, category, amount, note, date } = req.body;
-  db.prepare('UPDATE entries SET type=?, category=?, amount=?, note=?, date=? WHERE id=?').run(type, category, amount, note || '', date, req.params.id);
+router.put('/:id', (req: AuthRequest, res: Response) => {
+  const { storeId } = req.params;
+  const { type, category, category_id, amount, note, date } = req.body;
+  const original = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
+  let categoryName = category || '';
+  let catId = category_id || null;
+  if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
+  const nt = normalizeType(type);
+  db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=? WHERE id=?').run(nt, categoryName, catId, amount, note||'', date, req.params.id);
+  const user = (req as any).user;
+  const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
+  const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
+  opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }));
   res.json({ success: true });
 });
 
-// DELETE entry
-router.delete('/:id', (req, res) => {
+router.delete('/:id', (req: AuthRequest, res: Response) => {
+  const { storeId } = req.params;
+  const entry = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
   db.prepare('DELETE FROM entries WHERE id=?').run(req.params.id);
+  const user = (req as any).user;
+  const detail = entry ? '删除记账 #' + req.params.id + ' ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount + ' (' + entry.date + ')' : '删除记账 #' + req.params.id;
+  opLog(user.id, storeId, '记账', detail);
   res.json({ success: true });
 });
 

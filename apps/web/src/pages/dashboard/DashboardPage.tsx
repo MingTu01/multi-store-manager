@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -18,12 +18,14 @@ export default function DashboardPage() {
   const [date, setDate] = useState(new Date());
   const [stats, setStats] = useState<any>(null);
   const [stores, setStores] = useState<any[]>([]);
+  const [trend, setTrend] = useState<any[]>([]);
   const nav = useNavigate();
 
   useEffect(() => {
     const d = date.toISOString().split('T')[0];
     api.get('/dashboard?period=' + period + '&date=' + d).then(setStats).catch(() => {});
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
+    api.get('/dashboard/trend?period=' + period).then((d: any) => setTrend(d.trend || [])).catch(() => {});
   }, [period, date]);
 
   const income = stats?.income ?? 0;
@@ -158,6 +160,22 @@ export default function DashboardPage() {
       </div>
 
       <div>
+      {trend.length > 0 && (
+        <GlassCard className="p-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-700">趋势对比</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={Math.max(0, Math.floor(trend.length / 10))} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip formatter={fmtMoney} />
+              <Legend />
+              <Bar dataKey="income" fill="#6366f1" name="收入" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="expense" fill="#f43f5e" name="支出" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </GlassCard>
+      )}
         <h3 className="mb-3 text-sm font-semibold text-slate-700">门店概览</h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(storeData.length > 0 ? storeData : stores).map((s: any) => {
@@ -198,7 +216,10 @@ export default function DashboardPage() {
                   </div>
                 )}
                 <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-                  <span className="text-xs text-slate-400">毛利率 {(sm * 100).toFixed(1)}%</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">员工 {s.staff_count ?? 0}</span>
+                    <span className="text-xs text-slate-400">毛利率 {(sm * 100).toFixed(1)}%</span>
+                  </div>
                   <ArrowRight className="h-4 w-4 text-slate-400" />
                 </div>
               </GlassCard>

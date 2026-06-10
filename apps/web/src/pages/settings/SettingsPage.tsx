@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
@@ -19,6 +19,13 @@ export default function SettingsPage() {
   const [info, setInfo] = useState<any>(null);
   const [backups, setBackups] = useState<any[]>([]);
   const [autoBackup, setAutoBackup] = useState<any>({});
+  const [uploadingBackup, setUploadingBackup] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [restoreFilename, setRestoreFilename] = useState('');
+  const [restoreSteps, setRestoreSteps] = useState<{ msg: string; done: boolean }[]>([]);
+  const [restoreComplete, setRestoreComplete] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const backupFileRef = useRef<HTMLInputElement>(null);
   const [notifSettings, setNotifSettings] = useState<any>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [notifSaving, setNotifSaving] = useState(false);
@@ -53,17 +60,102 @@ export default function SettingsPage() {
     try { const d: any = await api.post('/system/backup', {}); showMsg(true, d.message || '备份成功'); api.get('/system/backups').then((d: any) => setBackups(d.backups || [])); }
     catch (e: any) { showMsg(false, e.message || '备份失败'); }
   };
-  const handleRestore = async (filename: string) => {
-    if (!confirm('确定恢复此备份？当前数据将被覆盖。')) return;
-    try { const d: any = await api.post('/system/backups/' + filename + '/restore', {}); showMsg(true, d.message || '恢复成功'); }
-    catch (e: any) { showMsg(false, e.message || '恢复失败'); }
+  
+  const handleUploadBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.zip')) { showMsg(false, '请上传.zip格式的备份文件'); return; }
+    setUploadingBackup(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch('/api/system/backups/upload', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+        body: fd
+      });
+      const d = await r.json();
+      if (r.ok) {
+        showMsg(true, d.message || '上传成功');
+        api.get('/system/backups').then((d: any) => setBackups(d.backups || []));
+      } else {
+        showMsg(false, d.error || '上传失败');
+      }
+    } catch (err: any) { showMsg(false, err.message || '上传失败'); }
+    finally { setUploadingBackup(false); if (backupFileRef.current) backupFileRef.current.value = ''; }
   };
+  
+  const handleRestore = (filename: string) => {
+    setRestoreFilename(filename);
+    setShowRestoreModal(true);
+    setRestoreComplete(false);
+    setRestoreSteps([]);
+    setRestoring(false);
+  };
+  
+  const confirmRestore = async (filename?: string) => {
+    const file = filename || restoreFilename;
+    setRestoring(true);
+    setRestoreSteps([{ msg: '正在备份当前数据库...', done: false }]);
+    
+    try {
+      // Step 1: Backup current DB
+      await api.post('/system/backup', {});
+      setRestoreSteps([{ msg: '当前数据库已备份', done: true }, { msg: '正在恢复备份数据...', done: false }]);
+      
+      // Step 2: Restore (this will trigger server restart)
+      await api.post('/system/backups/' + file + '/restore', {});
+      setRestoreSteps(prev => [...prev.slice(0, 1), { msg: '当前数据库已备份', done: true }, { msg: '备份数据已恢复', done: true }, { msg: '服务器正在重启...', done: false }]);
+      
+      // Step 3: Poll for server restart
+      const pollServer = async () => {
+        for (let i = 0; i < 30; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            const r = await fetch('/api/system/info');
+            if (r.ok) {
+              setRestoreSteps(prev => {
+                const newSteps = [...prev];
+                newSteps[newSteps.length - 1] = { msg: '服务器已重启', done: true };
+                return newSteps;
+              });
+              setRestoreComplete(true);
+              setRestoring(false);
+              return;
+            }
+          } catch {}
+        }
+        setRestoreComplete(true);
+        setRestoring(false);
+      };
+      pollServer();
+    } catch (e: any) {
+      setRestoreSteps(prev => [...prev, { msg: '恢复失败: ' + (e.message || '未知错误'), done: false }]);
+      showMsg(false, e.message || '恢复失败');
+      setRestoring(false);
+    }
+  };
+  
+  const handleRefreshAfterRestore = () => {
+    setShowRestoreModal(false);
+    window.location.reload();
+  };
+  
   const handleDeleteBackup = async (filename: string) => {
     if (!confirm('确定删除此备份？')) return;
     try { await api.del('/system/backups/' + filename); showMsg(true, '备份已删除'); setBackups(b => b.filter(x => x.filename !== filename)); }
     catch (e: any) { showMsg(false, e.message || '删除失败'); }
   };
-  const handleDownload = (filename: string) => { const a = document.createElement('a'); a.href = '/api/system/backups/' + filename + '/download'; a.click(); };
+  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { alert('下载失败'); } };
+  
+  // Get backup type label
+  const getBackupType = (filename: string) => {
+    if (filename.startsWith('manual-')) return { label: '手动', color: 'bg-blue-100 text-blue-700' };
+    if (filename.startsWith('auto-')) return { label: '自动', color: 'bg-emerald-100 text-emerald-700' };
+    if (filename.startsWith('pre-upgrade-')) return { label: '升级前', color: 'bg-amber-100 text-amber-700' };
+    if (filename.startsWith('uploaded-')) return { label: '上传', color: 'bg-purple-100 text-purple-700' };
+    return { label: '备份', color: 'bg-slate-100 text-slate-700' };
+  };
 
   // === Upgrade ===
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,27 +329,41 @@ export default function SettingsPage() {
           <GlassCard className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Database className="h-4 w-4 text-indigo-500" />备份管理</h3>
-              <button onClick={handleBackup} className="btn text-xs"><Plus className="mr-1 h-3.5 w-3.5" />创建备份</button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => backupFileRef.current?.click()} disabled={uploadingBackup} className="btn-ghost text-xs"><Upload className="mr-1 h-3.5 w-3.5" />{uploadingBackup ? '上传中..' : '上传备份'}</button>
+                <button onClick={handleBackup} className="btn text-xs"><Plus className="mr-1 h-3.5 w-3.5" />创建备份</button>
+              </div>
             </div>
+            <input ref={backupFileRef} type="file" accept=".db" onChange={handleUploadBackup} className="hidden" />
             {backups.length === 0 ? <div className="py-8 text-center text-sm text-slate-400">暂无备份</div> : (
               <div className="space-y-2">
-                {backups.map((b: any) => (
-                  <div key={b.filename} className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Database className="h-4 w-4 text-blue-500" /></div>
-                      <div><div className="text-sm font-medium text-slate-800">{b.filename}</div><div className="text-xs text-slate-400">{b.size} · {new Date(b.date).toLocaleString('zh-CN')}</div></div>
+                {backups.map((b: any) => {
+                  const type = getBackupType(b.filename);
+                  return (
+                    <div key={b.filename} className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50"><Database className="h-4 w-4 text-blue-500" /></div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={'rounded-full px-2 py-0.5 text-xs font-medium ' + type.color}>{type.label}</span>
+                            <span className="text-sm font-medium text-slate-800">{b.filename}</span>
+                          </div>
+                          <div className="text-xs text-slate-400">{b.size} · {new Date(b.date).toLocaleString('zh-CN')}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleRestore(b.filename)} className="rounded-lg p-2 text-blue-500 hover:bg-blue-50" title="恢复"><RotateCcw className="h-4 w-4" /></button>
+                        <button onClick={() => handleDownload(b.filename)} className="rounded-lg p-2 text-indigo-500 hover:bg-indigo-50" title="下载"><Download className="h-4 w-4" /></button>
+                        <button onClick={() => handleDeleteBackup(b.filename)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-50" title="删除"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleRestore(b.filename)} className="rounded-lg p-2 text-blue-500 hover:bg-blue-50" title="恢复"><RotateCcw className="h-4 w-4" /></button>
-                      <button onClick={() => handleDownload(b.filename)} className="rounded-lg p-2 text-indigo-500 hover:bg-indigo-50" title="下载"><Download className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteBackup(b.filename)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-50" title="删除"><Trash2 className="h-4 w-4" /></button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </GlassCard>
         </div>
+        
       )}
 
       {/* === Upgrade === */}
@@ -349,7 +455,60 @@ export default function SettingsPage() {
         </GlassCard>
       )}
 
-      {/* === Upgrade Confirm Modal === */}
+        {/* === Restore Progress Modal === */}
+        <Modal open={showRestoreModal} onClose={() => { if (restoreComplete || !restoring) { setShowRestoreModal(false); setRestoreFilename(''); setRestoreComplete(false); } }} title="恢复数据">
+          <div className="space-y-4">
+            {!restoreComplete && !restoring && (
+              <>
+                <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3">
+                  <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-700">
+                    <div className="font-medium mb-1">确认恢复此备份？</div>
+                    <div className="text-xs text-amber-600">当前数据将被覆盖，系统会自动备份当前数据库</div>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-slate-50 p-3 text-sm">
+                  <div className="text-slate-500">备份文件</div>
+                  <div className="font-medium text-slate-800">{restoreFilename}</div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowRestoreModal(false)} className="btn-ghost flex-1">取消</button>
+                  <button onClick={() => confirmRestore()} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">确认恢复</button>
+                </div>
+              </>
+            )}
+            {restoreSteps.map((step, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-all ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  {step.done ? <Check className="h-4 w-4" /> : i + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm ${step.done ? 'text-emerald-600 font-medium' : 'text-slate-400'}`}>{step.msg}</div>
+                </div>
+                {restoring && step.done && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
+              </div>
+            ))}
+            {restoring && !restoreComplete && (
+              <div className="flex items-center justify-center gap-2 py-3 text-sm text-indigo-600">
+                <Loader2 className="h-4 w-4 animate-spin" />正在恢复数据...
+              </div>
+            )}
+            {restoreComplete && (
+              <div className="space-y-3 border-t border-slate-100 pt-4">
+                <div className="rounded-xl bg-emerald-50 p-4 text-center">
+                  <Check className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
+                  <div className="text-lg font-bold text-emerald-700">恢复完成</div>
+                  <div className="text-xs text-emerald-500 mt-1">数据已恢复，服务器已重启</div>
+                </div>
+                <button onClick={handleRefreshAfterRestore} className="btn w-full flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4" />确认并刷新页面
+                </button>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+            {/* === Upgrade Confirm Modal === */}
       <Modal open={showConfirmModal} onClose={() => setShowConfirmModal(true)} title="确认升级">
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3">

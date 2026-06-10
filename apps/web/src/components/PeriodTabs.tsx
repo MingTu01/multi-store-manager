@@ -1,4 +1,4 @@
-﻿import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export type Period = 'day' | 'week' | 'month' | 'year' | 'all';
 const tabs: { key: Period; label: string }[] = [
@@ -25,6 +25,10 @@ export function PeriodTabs({
     else if (period === 'year') d.setFullYear(d.getFullYear() + dir);
     onDateChange(d);
   };
+  const handleTabClick = (key: Period) => {
+    onPeriodChange(key);
+    onDateChange(new Date());
+  };
   const fmtDate = () => {
     const d = date;
     if (period === 'day') return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -41,7 +45,7 @@ export function PeriodTabs({
     <div className="space-y-2">
       <div className="flex gap-1 rounded-xl bg-slate-100/80 p-1">
         {visible.map((t) => (
-          <button key={t.key} onClick={() => onPeriodChange(t.key)}
+          <button key={t.key} onClick={() => handleTabClick(t.key)}
             className={'flex-1 rounded-lg py-1.5 text-xs font-medium transition-all ' + (period === t.key ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700')}>
             {t.label}
           </button>

@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { join } from 'path';
 import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import os from 'os';
@@ -55,17 +55,41 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
     const backupDir = join(process.cwd(), 'backups');
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = 'backup-' + now + '.db';
-    copyFileSync(join(process.cwd(), 'data', 'store.db'), join(backupDir, filename));
-    res.json({ filename, message: '备份成功' });
+    const filename = 'manual-' + now + '.zip';
+    // Checkpoint WAL to ensure all data is in main db file
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    // Copy all DB files (db + wal + shm)
+    const dbDir = join(process.cwd(), 'data');
+    const zipPath = join(backupDir, filename);
+    const archiver = require('adm-zip');
+    const zip = new archiver();
+    zip.addLocalFile(join(dbDir, 'store.db'), '', 'store.db');
+    if (existsSync(join(dbDir, 'store.db-wal'))) zip.addLocalFile(join(dbDir, 'store.db-wal'), '', 'store.db-wal');
+    if (existsSync(join(dbDir, 'store.db-shm'))) zip.addLocalFile(join(dbDir, 'store.db-shm'), '', 'store.db-shm');
+    zip.writeZip(zipPath);
+    const size = statSync(zipPath).size;
+    res.json({ filename, size: (size / 1024).toFixed(1) + ' KB', message: '备份成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
+  try {
+    const filepath = join(process.cwd(), 'backups', req.params.filename);
+    if (!existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
+    const stats = statSync(filepath);
+    res.json({ 
+      filename: req.params.filename,
+      size: (stats.size / 1024).toFixed(1) + ' KB',
+      sizeBytes: stats.size,
+      date: stats.mtime.toISOString(),
+    });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
 router.get('/backups', (req: AuthRequest, res: Response) => {
   try {
     const backupDir = join(process.cwd(), 'backups');
     if (!existsSync(backupDir)) return res.json({ backups: [] });
-    const files = readdirSync(backupDir).filter(f => f.endsWith('.db')).map(f => {
+    const files = readdirSync(backupDir).filter(f => f.endsWith('.zip')).map(f => {
       const stats = statSync(join(backupDir, f));
       return { filename: f, size: (stats.size / 1024).toFixed(1) + ' KB', date: stats.mtime.toISOString() };
     }).sort((a: any, b: any) => b.date.localeCompare(a.date));
@@ -76,16 +100,50 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
 router.get('/backups/:filename/download', (req: AuthRequest, res: Response) => {
   const filepath = join(process.cwd(), 'backups', req.params.filename);
   if (!existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
-  res.download(filepath);
+  res.download(filepath, req.params.filename);
 });
 
+// === Upload Backup ===
+router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Response) => {
+  try {
+    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ error: '请上传备份文件' });
+    if (!file.originalname.endsWith('.db')) return res.status(400).json({ error: '请上传.db格式的备份文件' });
+    
+    const backupDir = join(process.cwd(), 'backups');
+    mkdirSync(backupDir, { recursive: true });
+    const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = 'uploaded-' + now + '.db';
+    
+    copyFileSync(file.path, join(backupDir, filename));
+    unlinkSync(file.path);
+    
+    res.json({ filename, message: '备份上传成功' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
 router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const filepath = join(process.cwd(), 'backups', req.params.filename);
     if (!existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
-    copyFileSync(filepath, join(process.cwd(), 'data', 'store.db'));
-    res.json({ message: '备份恢复成功，建议刷新页面' });
+    const dbDir = join(process.cwd(), 'data');
+    // Write a restore script that runs AFTER server exits (can safely delete locked files)
+    const restoreScript = `const fs=require('fs'),path=require('path'),{spawn}=require('child_process');const dir='${dbDir.replace(/\\/g, '\\\\')}';setTimeout(()=>{try{fs.unlinkSync(path.join(dir,'store.db'));}catch{}try{fs.unlinkSync(path.join(dir,'store.db-wal'));}catch{}try{fs.unlinkSync(path.join(dir,'store.db-shm'));}catch{}const AdmZip=require('adm-zip');const zip=new AdmZip('${filepath.replace(/\\/g, '\\\\')}');zip.extractAllTo(dir,true);console.log('Restore complete');setTimeout(()=>{const child=spawn(process.execPath,['--import','tsx','src/index.ts'],{detached:true,stdio:'ignore',cwd:dir.replace(/\\\\data$/,'')});child.unref();process.exit(0);},1000);},1000);`;
+    const restorePath = join(process.cwd(), 'data', '_restore.js');
+    const fs = require('fs');
+    fs.writeFileSync(restorePath, restoreScript);
+    res.json({ message: '备份恢复成功，服务器即将重启...' });
+    
+    // Launch restore script as independent process, then exit
+    setTimeout(() => {
+      const { exec } = require('child_process');
+      const cmd = process.platform === 'win32'
+        ? 'start /b cmd /c "cd /d ' + process.cwd() + ' && node data/_restore.js"'
+        : 'cd ' + process.cwd() + ' && nohup node data/_restore.js > /dev/null 2>&1 &';
+      exec(cmd, { cwd: process.cwd(), windowsHide: true });
+      setTimeout(() => process.exit(0), 500);
+    }, 200);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -157,7 +215,13 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const backupDir = join(process.cwd(), 'backups');
         mkdirSync(backupDir, { recursive: true });
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        copyFileSync(join(process.cwd(), 'data', 'store.db'), join(backupDir, 'pre-upgrade-' + now + '.db'));
+        db.pragma('wal_checkpoint(TRUNCATE)');
+        const AdmZip2 = require('adm-zip');
+        const preZip = new AdmZip2();
+        preZip.addLocalFile(join(process.cwd(), 'data', 'store.db'), '', 'store.db');
+        if (existsSync(join(process.cwd(), 'data', 'store.db-wal'))) preZip.addLocalFile(join(process.cwd(), 'data', 'store.db-wal'), '', 'store.db-wal');
+        if (existsSync(join(process.cwd(), 'data', 'store.db-shm'))) preZip.addLocalFile(join(process.cwd(), 'data', 'store.db-shm'), '', 'store.db-shm');
+        preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
         upgradeState = { step: 1, message: '数据库备份完成', complete: false }; broadcastProgress('progress', { step: 1, total: 5, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 500));
 
@@ -216,27 +280,16 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
-    // Create restart script and execute after response
-    const script = join(process.cwd(), 'uploads', 'restart.js');
-    writeFileSync(script, `
-      setTimeout(() => {
-        const { spawn } = require('child_process');
-        const args = process.argv.slice(2);
-        const child = spawn(process.execPath, args, { detached: true, stdio: 'ignore', cwd: process.cwd() });
-        child.unref();
-        process.exit(0);
-      }, 2000);
-    `);
-    // Use a detached process to restart
-    const { spawn } = require('child_process');
-    const nodeArgs = process.argv;
-    const child = spawn(process.execPath, [...nodeArgs.slice(1)], {
-      detached: true, stdio: 'ignore',
-      cwd: process.cwd()
-    });
-    child.unref();
-    // Give time for response to be sent, then exit
-    setTimeout(() => { process.exit(0); }, 3000);
+    
+    // Restart server - cross-platform
+    setTimeout(() => {
+      const { exec } = require('child_process');
+      const cmd = process.platform === 'win32'
+        ? 'start /b cmd /c "cd /d ' + process.cwd() + ' && node --import tsx src/index.ts"'
+        : 'cd ' + process.cwd() + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &';
+      exec(cmd, { cwd: process.cwd(), windowsHide: true });
+      setTimeout(() => process.exit(0), 500);
+    }, 200);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

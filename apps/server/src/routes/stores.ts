@@ -17,7 +17,12 @@ router.get('/', (req: AuthRequest, res: Response) => {
     } else {
       stores = db.prepare('SELECT s.* FROM stores s JOIN shareholders sh ON s.id = sh.store_id WHERE sh.name = ?').all(user.username);
     }
-    res.json({ stores });
+    const enriched = (stores as any[]).map((store: any) => {
+      const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(store.id) as any).count || 0;
+      const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
+      return { ...store, staff_count: staffCount, shareholders };
+    });
+    res.json({ stores: enriched });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -27,7 +32,9 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
   try {
     const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(req.params.storeId) as any;
     if (!store) return res.status(404).json({ error: '门店不存在' });
-    res.json(store);
+    const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(store.id) as any).count || 0;
+    const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
+    res.json({ ...store, staff_count: staffCount, shareholders });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -96,31 +103,15 @@ router.get('/:storeId/summary', (req: AuthRequest, res: Response) => {
     else if (dateFrom && dateTo) { dateCondition = 'AND date >= ? AND date <= ?'; params.push(dateFrom, dateTo); }
     else if (month) { dateCondition = 'AND date LIKE ?'; params.push(month + '%'); }
     else if (year) { dateCondition = 'AND date LIKE ?'; params.push(year + '%'); }
-    else { const today = new Date().toISOString().slice(0, 10); dateCondition = 'AND date = ?'; params.push(today); }
-
-    const income = db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' " + dateCondition).get(...params) as any;
-    const expense = db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' " + dateCondition).get(...params) as any;
-    const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
-    const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
-    res.json({ store, shareholders, income: income?.total || 0, expense: expense?.total || 0, profit: (income?.total || 0) - (expense?.total || 0) });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-// GET /:storeId/today - today's income/expense for the store
-router.get('/:storeId/today', (req: AuthRequest, res: Response) => {
-  try {
-    const storeId = req.params.storeId;
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' " + dateCondition).get(...params) as any).total;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' " + dateCondition).get(...params) as any).total;
     const today = new Date().toISOString().slice(0, 10);
-    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' AND date = ?").get(storeId, today) as any).total;
-    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' AND date = ?").get(storeId, today) as any).total;
+    const todayIncome = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' AND date = ?").get(storeId, today) as any).total;
+    const todayExpense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' AND date = ?").get(storeId, today) as any).total;
     res.json({ income: income || 0, expense: expense || 0, profit: (income || 0) - (expense || 0) });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// GET /:storeId/staff - list staff for a store
 router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
@@ -129,21 +120,20 @@ router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /:storeId/staff - create staff
 router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
     if (!name || !phone) return res.status(400).json({ error: '请填写姓名和手机号' });
     const username = phone;
-    const passwordHash = bcrypt.hashSync(password || '123456', 10);
+    const pw = (password && password.length > 0) ? password : '123456';
+    const passwordHash = bcrypt.hashSync(pw, 10);
     const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, role || 'STAFF', storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
     opLog(req.user.id, storeId, '添加员工', '添加员工: ' + name);
     res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /:storeId/staff/:id - update staff
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   try {
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
@@ -167,7 +157,6 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE /:storeId/staff/:id - delete staff
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });

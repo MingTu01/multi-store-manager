@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
@@ -15,7 +15,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const total = (db.prepare('SELECT COUNT(*) as count FROM payroll WHERE store_id = ?').get(storeId) as any).count;
     const payrolls = db.prepare('SELECT * FROM payroll WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
     const enriched = payrolls.map((pr: any) => {
-      const items = db.prepare('SELECT * FROM payroll_items WHERE payroll_id = ?').all(pr.id);
+      const items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ?').all(pr.id);
       return { ...pr, items };
     });
     res.json({ payrolls: enriched, total, page: p, pageSize: ps });
@@ -39,11 +39,9 @@ router.post('/', (req: AuthRequest, res: Response) => {
       const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
       for (const item of items) {
         const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
-        stmt.run(payrollId, item.user_id, item.user_name || item.username || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+        stmt.run(payrollId, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
       }
     }
-    db.prepare('INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)').run(storeId, '支出', '工资', totalAmount, '工资支出 ' + period + ' #' + payrollId, new Date().toISOString().slice(0, 10), req.user.id);
-    opLog(req.user.id, 0, '创建工资单', '创建工资单 #' + payrollId + ' 周期: ' + period);
     res.json({ id: payrollId, message: '工资单创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -66,66 +64,80 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
       for (const item of items) {
         const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
-        stmt.run(req.params.id, item.user_id, item.user_name || item.username || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+        stmt.run(req.params.id, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
       }
     }
-    opLog(req.user.id, 0, '修改工资单', '修改工资单 #' + req.params.id);
     res.json({ message: '工资单更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
-  try {
-    const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
-    if (!payroll) return res.status(404).json({ error: '工资单不存在' });
-    db.prepare("UPDATE payroll SET status = 'confirmed' WHERE id = ?").run(req.params.id);
-    opLog(req.user.id, 0, '确认工资单', '确认工资单 #' + req.params.id);
-    res.json({ message: '工资单已确认' });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-// POST /generate - auto-generate payroll from staff
+// POST /generate - auto-generate payroll with optional bonus/deduction per staff
 router.post('/generate', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
-    const { period, month } = req.body;
+    const { period, month, staff } = req.body;
     const payrollPeriod = period || month;
     if (!payrollPeriod) return res.status(400).json({ error: '请输入工资周期' });
-    const staff = db.prepare('SELECT id, name, salary, job_title FROM users WHERE store_id = ? AND role IN (\'STAFF\',\'MANAGER\') AND status = \'active\'').all(storeId) as any[];
-    if (staff.length === 0) return res.status(400).json({ error: '该门店没有在职员工' });
+    let items: any[] = [];
+    if (Array.isArray(staff) && staff.length > 0) {
+      items = staff.map((s: any) => {
+        const base = s.base_salary || s.monthly_salary || 0;
+        const bonus = s.bonus || 0;
+        const deduction = s.deduction || 0;
+        let userName = s.user_name || s.name || '';
+        if (!userName) {
+          const uid = s.staff_id || s.user_id;
+          const u = db.prepare("SELECT name FROM users WHERE id = ?").get(uid) as any;
+          if (u) userName = u.name || '';
+        }
+        return { user_id: s.staff_id || s.user_id, user_name: userName, base_amount: base, bonus, deduction, total_amount: base + bonus - deduction, job_title: s.job_title || s.position || '' };
+      });
+    } else {
+      const dbStaff = db.prepare("SELECT id, name, salary, job_title FROM users WHERE store_id = ? AND role IN ('STAFF','MANAGER') AND status = 'active'").all(storeId) as any[];
+      if (dbStaff.length === 0) return res.status(400).json({ error: '该门店没有在职员工' });
+      items = dbStaff.map((s: any) => ({ user_id: s.id, user_name: s.name, base_amount: s.salary || 0, bonus: 0, deduction: 0, total_amount: s.salary || 0, job_title: s.job_title || '' }));
+    }
     let totalAmount = 0;
-    const items = staff.map((s: any) => {
-      const base = s.salary || 0;
-      totalAmount += base;
-      return { user_id: s.id, user_name: s.name, base_amount: base, bonus: 0, deduction: 0, total_amount: base, job_title: s.job_title || '' };
-    });
+    for (const item of items) totalAmount += item.total_amount;
     const result = db.prepare('INSERT INTO payroll (store_id, period, total_amount, created_by) VALUES (?,?,?,?)').run(storeId, payrollPeriod, totalAmount, req.user.id);
     const payrollId = result.lastInsertRowid;
     const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
     for (const item of items) {
       stmt.run(payrollId, item.user_id, item.user_name, item.base_amount, item.bonus, item.deduction, item.total_amount, item.job_title);
     }
-    opLog(req.user.id, storeId, '创建工资单', '创建工资单 #' + payrollId + ' 周期: ' + payrollPeriod);
     res.json({ id: payrollId, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT /:id/confirm - confirm payroll
+// PUT /:id/confirm
 router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
   try {
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
-    db.prepare("UPDATE payroll SET status = 'confirmed' WHERE id = ?").run(req.params.id);
-    // Create expense entry for payroll
-    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + req.params.id, new Date().toISOString().slice(0, 10), req.user.id);
+    if (payroll.status === 'confirmed') return res.status(400).json({ error: '工资单已确认' });
+    db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(req.params.id);
+    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + req.params.id, (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(), req.user.id);
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
     res.json({ message: '工资单已确认' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /:id - delete draft payroll
+router.delete('/:id', (req: AuthRequest, res: Response) => {
+  try {
+    const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
+    if (!payroll) return res.status(404).json({ error: '工资单不存在' });
+    if (payroll.status === 'confirmed') return res.status(400).json({ error: '已确认的工资单不能删除' });
+    db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM payroll WHERE id = ?').run(req.params.id);
+    res.json({ message: '工资单已删除' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

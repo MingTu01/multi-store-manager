@@ -19,7 +19,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(username, password);
-      nav('/', { replace: true });
+      const user = useStore.getState().user;
+      if (user?.store_id && user.role !== 'ADMIN') {
+        nav('/store/' + user.store_id, { replace: true });
+      } else {
+        nav('/', { replace: true });
+      }
     } catch (e: any) {
       setErr(e.message || '登录失败');
     } finally {
@@ -38,20 +43,19 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">用户名</label>
-            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="input" placeholder="请输入用户名" autoComplete="username" />
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="请输入用户名" autoComplete="username" />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">密码</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input" placeholder="请输入密码" autoComplete="current-password" />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="请输入密码" autoComplete="current-password" />
           </div>
           {err && (
             <div className="flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-600">
               <AlertCircle className="h-4 w-4 shrink-0" />{err}
             </div>
           )}
-          <button type="submit" disabled={loading} className="btn w-full disabled:opacity-50">
-            <LogIn className="mr-2 h-4 w-4" />
-            {loading ? '登录中...' : '登录'}
+          <button type="submit" disabled={loading} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50 flex items-center justify-center gap-2">
+            <LogIn className="h-4 w-4" />{loading ? '登录中..' : '登录'}
           </button>
         </form>
       </GlassCard>

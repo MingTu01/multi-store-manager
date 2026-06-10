@@ -1,10 +1,10 @@
-﻿import { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { User, Phone, MapPin, Shield, Camera, Lock, Save } from 'lucide-react';
+import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save } from 'lucide-react';
 
 const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
@@ -17,6 +17,7 @@ export default function AdminSettingsPage() {
   const [profileForm, setProfileForm] = useState({ phone: user?.phone || '', address: (user as any)?.address || '' });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 3000); };
 
@@ -75,10 +76,16 @@ export default function AdminSettingsPage() {
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600 overflow-hidden">
               {user?.avatar ? <img src={user.avatar} className="h-full w-full object-cover" /> : (user?.name?.[0] || '?')}
             </div>
-            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600">
-              <Camera className="h-3.5 w-3.5" />
-            </button>
+            <div className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 gap-1">
+              <button onClick={() => fileRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600" title="上传">
+                <Upload className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => cameraRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600" title="拍照">
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+            </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleAvatar} className="hidden" />
           </div>
           <div>
             <div className="text-xl font-bold text-slate-900">{user?.name}</div>
