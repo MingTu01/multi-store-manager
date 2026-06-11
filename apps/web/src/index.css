@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
@@ -21,4 +21,13 @@
   .btn-ghost { @apply inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white/60 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur-sm transition-all hover:bg-white active:scale-[0.98]; }
   .input { @apply w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2.5 text-sm text-slate-900 outline-none backdrop-blur-sm transition-all placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100; }
   .select { @apply w-full rounded-xl border border-slate-200 bg-white/70 px-3 py-2.5 text-sm text-slate-900 outline-none backdrop-blur-sm transition-all focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100; }
+}
+
+/* Toast slide-down animation */
+@keyframes slide-down {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+.animate-slide-down {
+  animation: slide-down 0.3s ease-out;
 }

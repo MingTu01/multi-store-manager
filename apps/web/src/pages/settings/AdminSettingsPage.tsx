@@ -1,3 +1,4 @@
+import { compressImage } from '../../lib/image';
 import { useState, useRef } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
@@ -50,15 +51,12 @@ export default function AdminSettingsPage() {
   const handleAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      try {
-        const d: any = await api.put('/auth/me', { avatar: reader.result });
-        if (d.user) useStore.setState({ user: { ...user!, ...d.user } });
-        showMsg(true, '头像已更新');
-      } catch { showMsg(false, '头像更新失败'); }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file);
+      const d: any = await api.put('/auth/me', { avatar: compressed });
+      if (d.user) useStore.setState({ user: { ...user!, ...d.user } });
+      showMsg(true, '头像已更新');
+    } catch (err: any) { showMsg(false, err.message || '头像更新失败'); }
   };
 
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100';

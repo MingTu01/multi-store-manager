@@ -255,12 +255,32 @@ const migrations = [
   "ALTER TABLE shareholders ADD COLUMN phone TEXT DEFAULT ''",
   "ALTER TABLE entries ADD COLUMN category_id INTEGER",
   "ALTER TABLE payroll ADD COLUMN confirmed_at TEXT",
+  "ALTER TABLE stores ADD COLUMN photos TEXT DEFAULT '[]'",
 ];
 
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) { /* column already exists */ }
 }
 
+
+// P1: 数据库索引 - 提升查询性能
+const indexes = [
+  "CREATE INDEX IF NOT EXISTS idx_entries_store_date ON entries(store_id, date)",
+  "CREATE INDEX IF NOT EXISTS idx_entries_store_type_date ON entries(store_id, type, date)",
+  "CREATE INDEX IF NOT EXISTS idx_users_store ON users(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)",
+  "CREATE INDEX IF NOT EXISTS idx_op_logs_created ON op_logs(created_at)",
+  "CREATE INDEX IF NOT EXISTS idx_op_logs_target ON op_logs(target)",
+  "CREATE INDEX IF NOT EXISTS idx_payroll_store ON payroll(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_dividends_store ON dividends(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_inventory_master_store ON inventory_master(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_store_opens_store ON store_opens(store_id, type)",
+  "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read)",
+  "CREATE INDEX IF NOT EXISTS idx_categories_store ON categories(store_id)",
+];
+for (const sql of indexes) {
+  try { db.exec(sql); } catch (e) { /* index may already exist */ }
+}
 // Seed default admin user
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {

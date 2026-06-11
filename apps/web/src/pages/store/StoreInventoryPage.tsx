@@ -578,7 +578,7 @@ export default function StoreInventoryPage() {
                 <Upload className="h-4 w-4" />上传
               </button>
             </div>
-            <input ref={fileRef} type="file" onChange={handleAddPhoto} className="hidden" />
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleAddPhoto} className="hidden" />
             {addForm.photo && (
               <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
             )}
@@ -637,7 +637,7 @@ export default function StoreInventoryPage() {
                   <Upload className="h-4 w-4" />上传
                 </button>
               </div>
-              <input ref={editFileRef} type="file" onChange={handleEditPhoto} className="hidden" />
+              <input ref={editFileRef} type="file" accept="image/*" onChange={handleEditPhoto} className="hidden" />
               {editForm.photo && (
                 <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
               )}

@@ -18,3 +18,10 @@ _*.mjs
 !apps/web/vite.config.*
 !apps/server/seed.ts
 !apps/server/src/seed.ts
+# ÐÞ¸´±¸·ÝÄ¿Â¼
+apps/server/src_backup_*/
+apps/web/src_backup_*/
+apps/server/package-lock.json
+apps/web/package-lock.json
+apps/server/pnpm-workspace.yaml
+

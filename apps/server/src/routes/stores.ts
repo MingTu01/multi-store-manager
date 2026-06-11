@@ -46,7 +46,13 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const { id, name, address, initial_capital } = req.body;
     if (!name) return res.status(400).json({ error: '请输入门店名称' });
     const storeId = id || 'store_' + Date.now();
-    db.prepare('INSERT INTO stores (id, name, address, initial_capital) VALUES (?,?,?,?)').run(storeId, name, address || '', initial_capital || 0);
+    const photos = JSON.stringify(req.body.photos || []);
+    db.prepare('INSERT INTO stores (id, name, address, initial_capital, photos) VALUES (?,?,?,?,?)').run(storeId, name, address || '', initial_capital || 0, photos);
+    const shBody = req.body.shareholders;
+    if (Array.isArray(shBody) && shBody.length > 0) {
+      const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
+      for (const sh of shBody) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+    }
     opLog(req.user.id, 0, '创建门店', '创建门店: ' + name);
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
@@ -58,7 +64,18 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const { name, address, initial_capital } = req.body;
-    db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = datetime("now","localtime") WHERE id = ?').run(name, address, initial_capital, req.params.storeId);
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
+    const photos = req.body.photos;
+    if (Array.isArray(photos)) {
+      db.prepare('UPDATE stores SET photos = ? WHERE id = ?').run(JSON.stringify(photos), req.params.storeId);
+    }
+    const shBody = req.body.shareholders;
+    if (Array.isArray(shBody)) {
+      db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(req.params.storeId);
+      const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
+      for (const sh of shBody) { stmt.run(req.params.storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+    }
     opLog(req.user.id, 0, '修改门店', '修改门店信息');
     res.json({ message: '门店更新成功' });
   } catch (err: any) {

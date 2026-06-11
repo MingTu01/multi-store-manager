@@ -1,6 +1,7 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { join } from 'path';
 import { existsSync, readFileSync, readdirSync } from 'fs';
+import { safePath } from '../middleware/store-access.js';
 
 const router = Router();
 
@@ -16,10 +17,11 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /:filename - serve report file
+// GET /:filename - serve report file — S3: 路径安全校验
 router.get('/:filename', (req, res) => {
   try {
-    const filepath = join(process.cwd(), 'public', 'reports', req.params.filename);
+    const filepath = safePath(join(process.cwd(), 'public', 'reports'), req.params.filename);
+    if (!filepath) return res.status(400).json({ error: '非法文件名' });
     if (!existsSync(filepath)) return res.status(404).json({ error: '报告不存在' });
     const ext = req.params.filename.split('.').pop()?.toLowerCase();
     if (ext === 'html') {

@@ -6,7 +6,8 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useStore } from '../../stores/data';
-import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield } from 'lucide-react';
+import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload } from 'lucide-react';
+import { compressImage } from '../../lib/image';
 
 const roles = [
   { value: 'STAFF', label: '员工' },

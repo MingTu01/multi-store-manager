@@ -1,5 +1,6 @@
-﻿// VITE_BUILD_VERIFY_20260610_205500
+// VITE_BUILD_VERIFY_20260610_205500
 import { useParams } from 'react-router-dom';
+import { handleImageFiles } from '../../lib/image';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -75,7 +76,7 @@ export default function StoreShiftsPage() {
         <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.capture = 'environment'; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Camera className="h-4 w-4" />拍照</button>
         <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.multiple = true; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Upload className="h-4 w-4" />上传</button>
       </div>
-      <input ref={fileRef} type="file" onChange={handlePhoto} className="hidden" />
+      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
       {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0" />)}</div>}
     </div>
   );

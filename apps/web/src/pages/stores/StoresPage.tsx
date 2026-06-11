@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
+import { showToast } from '../../components/Toast';
+import { compressImage, handleImageFiles } from '../../lib/image';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
@@ -13,7 +15,7 @@ export default function StoresPage() {
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<StoreItem | null>(null);
-  const [form, setForm] = useState({ name: '', address: '', initial_capital: '', photo: '', shareholders: [] as Shareholder[] });
+  const [form, setForm] = useState({ name: '', address: '', initial_capital: '', photos: [] as string[], shareholders: [] as Shareholder[] });
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deletePwd, setDeletePwd] = useState('');
@@ -30,7 +32,7 @@ export default function StoresPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const resetForm = () => setForm({ name: '', address: '', initial_capital: '', photo: '', shareholders: [] });
+  const resetForm = () => setForm({ name: '', address: '', initial_capital: '', photos: [], shareholders: [] });
 
   const openCreate = () => { setEditing(null); resetForm(); setShowModal(true); };
 
@@ -40,7 +42,7 @@ export default function StoresPage() {
       name: s.name || '',
       address: s.address || '',
       initial_capital: String(s.initial_capital || ''),
-      photo: s.photo || '',
+      photos: s.photos ? (typeof s.photos === 'string' ? JSON.parse(s.photos) : s.photos) : (s.photo ? [s.photo] : []),
       shareholders: (s.shareholders || []).map(sh => ({ name: sh.name, phone: sh.phone || '', ratio: sh.ratio })),
     });
     setShowModal(true);
@@ -56,29 +58,34 @@ export default function StoresPage() {
     });
   };
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm(f => ({ ...f, photo: reader.result as string }));
-    reader.readAsDataURL(file);
+  const handlePhotos = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    try {
+      const compressed = await handleImageFiles(files);
+      setForm(f => ({ ...f, photos: [...f.photos, ...compressed] }));
+    } catch (err: any) { showToast(err.message || '图片处理失败', 'error'); }
   };
+  const removePhoto = (idx: number) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
-    if (!form.name.trim()) { showMsg(false, '请输入门店名称'); return; }
+    if (!form.name.trim()) { showToast( '请输入门店名称'); return; }
+      if (form.shareholders.length === 0) { showToast( '请至少添加一位股东'); return; }
+      const totalRatio = form.shareholders.reduce((s, sh) => s + (Number(sh.ratio) || 0), 0);
+      if (totalRatio !== 100) { showToast( '股东份额相加必须等于 100%，当前为 ' + totalRatio + '%'); return; }
     setLoading(true);
     try {
-      const body: any = { name: form.name, address: form.address, initial_capital: Number(form.initial_capital) || 0, photo: form.photo, shareholders: form.shareholders };
+      const body: any = { name: form.name, address: form.address, initial_capital: Number(form.initial_capital) || 0, photos: form.photos, shareholders: form.shareholders };
       if (editing) {
         await api.put('/stores/' + editing.id, body);
-        showMsg(true, '门店更新成功');
+        showToast( '门店更新成功');
       } else {
         await api.post('/stores', body);
-        showMsg(true, '门店创建成功');
+        showToast( '门店创建成功');
       }
       setShowModal(false);
       load();
-    } catch (e: any) { showMsg(false, e.message || '保存失败'); }
+    } catch (e: any) { showToast( e.message || '保存失败'); }
     finally { setLoading(false); }
   };
 
@@ -86,11 +93,11 @@ export default function StoresPage() {
     if (!deleteId || !deletePwd) return;
     try {
       await api.del('/stores/' + deleteId, { password: deletePwd });
-      showMsg(true, '门店已删除');
+      showToast( '门店已删除');
       setDeleteId(null);
       setDeletePwd('');
       load();
-    } catch (e: any) { showMsg(false, e.message || '删除失败'); }
+    } catch (e: any) { showToast( e.message || '删除失败'); }
   };
 
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 placeholder:text-slate-400';
@@ -107,13 +114,18 @@ export default function StoresPage() {
           const shCount = s.shareholders?.length ?? 0;
           return (
             <GlassCard key={s.id} className="cursor-pointer overflow-hidden transition-all hover:shadow-xl" onClick={() => nav('/store/' + s.id)}>
-              {s.photo ? (
-                <div className="h-32 w-full overflow-hidden bg-slate-100"><img src={s.photo} alt={s.name} className="h-full w-full object-cover" /></div>
-              ) : (
-                <div className="flex h-32 w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">
-                  <Store className="h-10 w-10 text-indigo-300" />
-                </div>
-              )}
+              {(() => {
+                const sp = s.photos ? (typeof s.photos === "string" ? JSON.parse(s.photos) : s.photos) : (s.photo ? [s.photo] : []);
+                return sp.length > 0 ? (
+                  <div className="h-32 w-full overflow-hidden bg-slate-100 flex gap-0.5">
+                    {sp.slice(0, 3).map((p, i) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover" />)}
+                  </div>
+                ) : (
+                  <div className="flex h-32 w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">
+                    <Store className="h-10 w-10 text-indigo-300" />
+                  </div>
+                );
+              })()}
               <div className="p-4">
                 <div className="mb-2 flex items-start justify-between">
                   <div>
@@ -148,16 +160,16 @@ export default function StoresPage() {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editing ? '编辑门店' : '新建门店'}>
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-600">门店照片</label>
-            <div className="flex items-center gap-3">
-              {form.photo ? (
-                <div className="relative h-20 w-20 overflow-hidden rounded-xl"><img src={form.photo} className="h-full w-full object-cover" /><button onClick={() => setForm(f => ({ ...f, photo: '' }))} className="absolute right-0.5 top-0.5 rounded-full bg-black/50 p-0.5"><X className="h-3 w-3 text-white" /></button></div>
-              ) : (
-                <div className="flex gap-2">
-                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Upload className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">上传</span><input type="file" accept="image/*" onChange={handlePhoto} className="hidden" /></label>
-                  <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Camera className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">拍照</span><input type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="hidden" /></label>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">门店照片（可多张）</label>
+            <div className="flex flex-wrap gap-2">
+              {form.photos.map((p, i) => (
+                <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl">
+                  <img src={p} className="h-full w-full object-cover" alt="" />
+                  <button onClick={() => removePhoto(i)} className="absolute right-0.5 top-0.5 rounded-full bg-black/50 p-0.5"><X className="h-3 w-3 text-white" /></button>
                 </div>
-              )}
+              ))}
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Camera className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">拍照</span><input type="file" accept="image/*" capture="environment" onChange={handlePhotos} className="hidden" /></label>
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 hover:border-indigo-300"><Upload className="h-5 w-5 text-slate-400" /><span className="mt-1 text-[10px] text-slate-400">上传</span><input type="file" accept="image/*" multiple onChange={handlePhotos} className="hidden" /></label>
             </div>
           </div>
           <div>
@@ -177,7 +189,11 @@ export default function StoresPage() {
               <label className="text-xs font-medium text-slate-600">股东信息</label>
               <button onClick={addShareholder} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50"><Plus className="h-3 w-3" />添加</button>
             </div>
-            {form.shareholders.length === 0 && <div className="py-3 text-center text-xs text-slate-400">暂无股东</div>}
+            {form.shareholders.length === 0 && <div className="py-3 text-center text-xs text-slate-400">请添加股东（必填）</div>}
+            {form.shareholders.length > 0 && (() => {
+              const total = form.shareholders.reduce((s, sh) => s + (Number(sh.ratio) || 0), 0);
+              return <div className={"text-xs text-right py-1 " + (total === 100 ? 'text-emerald-600' : 'text-rose-500')}>合计: {total}%{total === 100 ? ' ✓' : ' (需等于100%)'}</div>;
+            })()}
             {form.shareholders.map((sh, i) => (
               <div key={i} className="mb-2 flex items-start gap-2 rounded-xl bg-slate-50 p-2">
                 <div className="flex-1 grid grid-cols-3 gap-2">

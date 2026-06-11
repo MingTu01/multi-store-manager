@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
@@ -10,6 +11,8 @@ import { Plus, Edit3, Trash2, Archive, Wallet, Loader2, FileText } from 'lucide-
 
 export default function StoreDividendsPage() {
   const { storeId } = useParams();
+  const myRole = useStore((s) => s.user?.role);
+  const canManage = myRole === 'ADMIN';
   const [balance, setBalance] = useState(0);
   const [dividends, setDividends] = useState<any[]>([]);
   const [shareholders, setShareholders] = useState<any[]>([]);
@@ -126,7 +129,7 @@ export default function StoreDividendsPage() {
                   {d.status === 'archived' ? '已归档' : '草稿'}
                 </span>
               </div>
-              {d.status !== 'archived' && (
+              {d.status !== 'archived' && canManage && (
                 <div className="flex gap-1">
                   <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500" title="删除"><Trash2 className="h-3.5 w-3.5" /></button>
                   <button onClick={(e) => { e.stopPropagation(); openEditDividend(d); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500" title="修改"><Edit3 className="h-3.5 w-3.5" /></button>
@@ -141,6 +144,10 @@ export default function StoreDividendsPage() {
       {/* Create Modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="创建分红">
         <div className="space-y-4">
+          <div className="rounded-xl bg-indigo-50 px-4 py-3 flex items-center justify-between">
+            <span className="text-xs text-indigo-700">可分红余额</span>
+            <span className="text-lg font-bold text-indigo-600">{formatMoney(balance)}</span>
+          </div>
           <div>
             <label className="mb-1 block text-xs text-slate-500">分红总额</label>
             <input
@@ -242,7 +249,7 @@ export default function StoreDividendsPage() {
           </div>
         )}
       </Modal>
-      <FloatingActionButton label="创建分红" onClick={() => setShowCreate(true)} />
+      {canManage && <FloatingActionButton label="创建分红" onClick={() => setShowCreate(true)} />}
     </div>
   );
 }

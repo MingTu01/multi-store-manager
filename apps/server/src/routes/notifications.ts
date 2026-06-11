@@ -21,6 +21,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    if (!['admin', 'ADMIN', 'manager', 'MANAGER'].includes(req.user.role)) {
+      return res.status(403).json({ error: '无权限' });
+    }
     const { user_id, title, link, content } = req.body;
     if (!user_id || !title) return res.status(400).json({ error: '参数不完整' });
     const result = db.prepare('INSERT INTO notifications (user_id, title, link) VALUES (?,?,?)').run(user_id, title, link || content || '');

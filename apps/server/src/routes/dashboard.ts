@@ -14,6 +14,10 @@ const router = Router({ mergeParams: true });
 
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
+    // Q13: 仅 ADMIN 可访问管理大屏
+    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+      return res.status(403).json({ error: '无权限' });
+    }
     const { period, date, storeId } = req.query;
     const d = date ? new Date(date as string) : new Date();
     const dateStr = localDate(d);
@@ -97,6 +101,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // GET /dashboard/trend - get trend data for charts
 router.get('/trend', (req: AuthRequest, res: Response) => {
   try {
+    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+      return res.status(403).json({ error: '无权限' });
+    }
     const { period = 'day', storeId } = req.query;
     const now = new Date();
     const points: any[] = [];
@@ -148,3 +155,4 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 export default router;
+

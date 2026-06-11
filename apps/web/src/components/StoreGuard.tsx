@@ -1,14 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
+import { canAccess } from '../lib/permissions';
 import { Power, Camera, Upload, Lock, ArrowLeft } from 'lucide-react';
+import { handleImageFiles } from '../lib/image';
 import { GlassCard } from './GlassCard';
 import { Modal } from './Modal';
 
 export function StoreGuard({ children }: { children: React.ReactNode }) {
   const { storeId } = useParams();
   const nav = useNavigate();
+  const location = useLocation();
   const user = useStore((s) => s.user);
   const [store, setStore] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,8 +31,29 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => { load(); }, [storeId]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
+  // 角色权限检查：根据路径判断所需权限
+  const path = location.pathname;
+  const permMap: [string, string][] = [
+    ['/entries', 'storeEntries'],
+    ['/inventory', 'storeInventory'],
+    ['/shifts', 'storeShifts'],
+    ['/payroll', 'storePayroll'],
+    ['/dividends', 'storeDividends'],
+    ['/staff', 'storeStaff'],
+    ['/report', 'storeReport'],
+    ['/logs', 'storeLogs'],
+    ['/settings', 'storeSettings'],
+    ['/account', 'storeAccount'],
+  ];
+  let permKey = 'storeOverview';
+  for (const [suffix, key] of permMap) {
+    if (path.endsWith(suffix)) { permKey = key; break; }
+  }
+  if (user && !canAccess(permKey, user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
   const isOpen = store?.is_open === 1;
-  // Find the last close shift for handover content
   const lastCloseShift = shifts.find((s: any) => s.type === 'close');
   const lastHandover = lastCloseShift?.handover_content || '';
 
@@ -38,14 +62,13 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const weekStr = '星期' + weekdays[now.getDay()];
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach((f) => {
-      const reader = new FileReader();
-      reader.onload = () => setPhotos((p) => [...p, reader.result as string]);
-      reader.readAsDataURL(f);
-    });
+    try {
+      const compressed = await handleImageFiles(files);
+      setPhotos((p) => [...p, ...compressed]);
+    } catch (err: any) { alert(err.message || '图片处理失败'); }
   };
 
   const handleOpen = async () => {
@@ -53,7 +76,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
     try {
       await api.post('/stores/' + storeId + '/shifts/open', { photos });
       setShowOpen(false); setPhotos([]);
-      setTimeout(() => location.reload(), 500);
+      setTimeout(() => window.location.reload(), 500);
     } catch (e: any) { alert(e.message || '开店失败'); }
     finally { setSaving(false); }
   };
@@ -97,10 +120,10 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
                 <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.capture = 'environment'; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Camera className="h-4 w-4" />拍照</button>
                 <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.multiple = true; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Upload className="h-4 w-4" />上传</button>
               </div>
-              <input ref={fileRef} type="file" onChange={handlePhoto} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
               {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0" />)}</div>}
             </div>
-            <button onClick={handleOpen} disabled={saving || photos.length === 0} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? '提交中..' : '确认开店'}</button>
+            <button onClick={handleOpen} disabled={saving || photos.length === 0} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? '提交中...' : '确认开店'}</button>
           </div>
         </Modal>
       </div>

@@ -1,4 +1,4 @@
-﻿import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
@@ -10,10 +10,10 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-8" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" style={{minHeight: '100vh'}} />
       <div
-        className={'relative max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white/95 shadow-2xl backdrop-blur-xl ' + (wide ? 'max-w-2xl' : 'max-w-lg')}
+        className={'relative max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white/95 shadow-2xl backdrop-blur-xl my-auto ' + (wide ? 'max-w-2xl' : 'max-w-lg')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/80 px-5 py-3 backdrop-blur-lg rounded-t-2xl">

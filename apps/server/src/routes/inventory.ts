@@ -53,6 +53,10 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 // DELETE /items/:id - delete master item
 router.delete('/items/:id', (req: AuthRequest, res: Response) => {
   try {
+    const { storeId } = req.params;
+    const item = db.prepare('SELECT store_id FROM inventory_master WHERE id = ?').get(req.params.id) as any;
+    if (!item) return res.status(404).json({ error: '物品不存在' });
+    if (String(item.store_id) !== String(storeId)) return res.status(404).json({ error: '物品不存在' });
     db.prepare('DELETE FROM inventory_master WHERE id = ?').run(req.params.id);
     res.json({ message: '物品已删除' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
