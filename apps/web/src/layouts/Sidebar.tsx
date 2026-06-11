@@ -67,9 +67,6 @@ export function Sidebar() {
           </div>
           <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
-        <button onClick={logout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50">
-          <LogOut className="h-4 w-4" /> 退出登录
-        </button>
       </div>
     </aside>
   );

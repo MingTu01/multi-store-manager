@@ -5,12 +5,13 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { User, Phone, MapPin, Shield, Camera, Lock, Save } from 'lucide-react';
+import { User, Phone, MapPin, Shield, Camera, Lock, Save, LogOut } from 'lucide-react';
 
 const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
 export default function StoreAccountPage() {
   const user = useStore((s) => s.user);
+  const logout = useStore((s) => s.logout);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -58,7 +59,7 @@ export default function StoreAccountPage() {
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100';
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col min-h-[calc(100vh-10rem)] space-y-4">
       <PageHeader title="我的" subtitle="账户信息管理" />
       {msg && <div className={'rounded-xl p-3 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>{msg.text}</div>}
 
@@ -99,6 +100,10 @@ export default function StoreAccountPage() {
       <div className="grid grid-cols-2 gap-3">
         <button onClick={() => { setProfileForm({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><User className="h-4 w-4" />编辑资料</button>
         <button onClick={() => setShowPwd(true)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><Lock className="h-4 w-4" />修改密码</button>
+      </div>
+
+      <div className="flex flex-1 items-end justify-center pb-6">
+        <button onClick={logout} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/80 px-5 py-2 text-sm text-rose-600 hover:bg-rose-100"><LogOut className="h-4 w-4" />退出登录</button>
       </div>
 
       <Modal open={showProfile} onClose={() => setShowProfile(false)} title="编辑资料">

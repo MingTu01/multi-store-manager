@@ -33,6 +33,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
     let whereClause = ' WHERE e.store_id=?';
     const params: any[] = [storeId];
     const user = (req as any).user;
+    if ((user.role === 'STAFF' || user.role === 'staff') && !period && !date && !dateFrom && !dateTo) {
+      whereClause += ' AND e.date=?'; params.push(localDate());
+    }
     if (user.role !== 'admin' && user.role !== 'ADMIN') whereClause += ' AND e.is_system=0';
     if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
     else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
@@ -69,6 +72,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
 // S12: PUT 添加记录归属校验
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
+    const user = (req as any).user;
+    if (user.role === 'STAFF' || user.role === 'staff') return res.status(403).json({ error: '员工无权修改记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
     const original = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
@@ -80,7 +85,6 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
     const nt = normalizeType(type);
     db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=? WHERE id=?').run(nt, categoryName, catId, amount, note||'', date, req.params.id);
-    const user = (req as any).user;
     const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
     const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
     opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }), req.ip);
@@ -91,13 +95,14 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 // S12: DELETE 添加记录归属校验
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
+    const user = (req as any).user;
+    if (user.role === 'STAFF' || user.role === 'staff') return res.status(403).json({ error: '员工无权删除记账' });
     const { storeId } = req.params;
     const entry = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
     if (entry && String(entry.store_id) !== String(storeId)) {
       return res.status(404).json({ error: '记录不存在' });
     }
     db.prepare('DELETE FROM entries WHERE id=?').run(req.params.id);
-    const user = (req as any).user;
     const detail = entry ? '删除记账 #' + req.params.id + ' ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount + ' (' + entry.date + ')' : '删除记账 #' + req.params.id;
     opLog(user.id, storeId, '记账', detail, req.ip);
     res.json({ success: true });

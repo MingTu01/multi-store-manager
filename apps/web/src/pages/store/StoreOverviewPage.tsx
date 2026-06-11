@@ -11,6 +11,7 @@ export default function StoreOverviewPage() {
   const nav = useNavigate();
   const user = useStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
+  const isNonAdmin = user?.role !== 'ADMIN';
   const [store, setStore] = useState<any>(null);
   const [today, setToday] = useState<any>(null);
   const [recent, setRecent] = useState<any[]>([]);
@@ -34,6 +35,7 @@ export default function StoreOverviewPage() {
     { label: '今日支出', value: today?.expense || 0, color: 'text-rose-600', bg: 'bg-rose-50', icon: TrendingDown },
     { label: '今日利润', value: today?.profit || 0, color: today?.profit >= 0 ? 'text-indigo-600' : 'text-rose-600', bg: 'bg-indigo-50', icon: DollarSign },
   ];
+  const visibleMetrics = isNonAdmin ? metrics.filter(m => m.label !== '今日利润') : metrics;
 
   const quickActions = [
     { label: '记账', icon: BookOpen, to: '/store/' + storeId + '/entries', key: 'storeEntries', openModal: true },
@@ -61,8 +63,8 @@ export default function StoreOverviewPage() {
       {store.address && <div className="text-xs text-slate-400 -mt-2">{store.address}</div>}
 
       {/* Today metrics */}
-      <div className="grid grid-cols-3 gap-3">
-        {metrics.map((m) => (
+      <div className={`grid gap-3 ${isNonAdmin ? "grid-cols-2" : "grid-cols-3"}`}>
+        {visibleMetrics.map((m) => (
           <GlassCard key={m.label} className="p-3 text-center">
             <div className="text-[10px] text-slate-400 mb-1">{m.label}</div>
             <MoneyDisplay value={m.value} className={`text-lg font-bold ${m.color}`} />

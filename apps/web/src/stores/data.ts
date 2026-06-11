@@ -35,6 +35,7 @@ export const useStore = create<AppState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     set({ token: null, user: null, loading: false });
+    window.location.href = '/login';
   },
   restore: async () => {
     const tk = localStorage.getItem('token');
