@@ -32,7 +32,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     if (!name) return res.status(400).json({ error: '请输入物品名称' });
     const maxOrder = (db.prepare('SELECT MAX(sort_order) as m FROM inventory_master WHERE store_id = ?').get(storeId) as any)?.m || 0;
     const result = db.prepare('INSERT INTO inventory_master (store_id, name, quantity, photo, status, sort_order) VALUES (?,?,?,?,?,?)').run(storeId, name, quantity || 0, photo || '', 'normal', sort_order ?? maxOrder + 1);
-    opLog(req.user.id, Number(storeId), '盘点', '添加物品: ' + name);
+    opLog(req.user.id, storeId, '盘点', '添加物品: ' + name);
     res.json({ id: result.lastInsertRowid, message: '物品添加成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -70,7 +70,7 @@ router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
     const newQty = item.quantity - quantity;
     const newStatus = newQty <= 0 ? 'pending' : item.status;
     db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, req.params.id);
-    opLog(req.user.id, Number(storeId), '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
+    opLog(req.user.id, storeId, '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
     res.json({ success: true, newQuantity: newQty, message: '领出成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -109,7 +109,7 @@ router.post('/checks', (req: AuthRequest, res: Response) => {
     for (const item of items) {
       stmt.run(checkId, item.id, item.name, item.quantity, 0, item.quantity, 'normal');
     }
-    opLog(req.user.id, Number(storeId), '盘点', '开始盘点 #' + checkId);
+    opLog(req.user.id, storeId, '盘点', '开始盘点 #' + checkId);
     res.json({ id: checkId, message: '盘点已开始' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -153,7 +153,7 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
       db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, finalStatus, item.master_id);
     }
     db.prepare("UPDATE inventory_checks SET status = 'completed' WHERE id = ?").run(req.params.id);
-    opLog(req.user.id, Number(check.store_id), '盘点', '完成盘点 #' + req.params.id);
+    opLog(req.user.id, check.store_id, '盘点', '完成盘点 #' + req.params.id);
     res.json({ message: '盘点完成' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -188,7 +188,7 @@ router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
       updateMaster.run(actual, finalStatus, r.item_id);
     }
     
-    opLog(req.user.id, Number(storeId), '盘点', '完成盘点 #' + checkId);
+    opLog(req.user.id, storeId, '盘点', '完成盘点 #' + checkId);
     res.json({ id: checkId, message: '盘点完成' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

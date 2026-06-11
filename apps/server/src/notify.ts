@@ -4,10 +4,7 @@ export function getSettings(): any {
   return db.prepare('SELECT * FROM notification_settings WHERE id = 1').get() || {};
 }
 
-export function formatMoney(amount: number): string {
-  if (amount >= 10000) {
-    return (amount / 10000).toFixed(2) + '万';
-  }
+
   return amount.toFixed(2);
 }
 

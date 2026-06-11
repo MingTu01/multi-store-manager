@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import bcrypt from 'bcryptjs';

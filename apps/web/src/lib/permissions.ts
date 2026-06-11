@@ -23,10 +23,6 @@ const p: Record<string, Role[]> = {
 export function canAccess(key: string, role?: Role): boolean {
   if (!role) return false;
   const allowed = p[key];
-  if (!allowed) return true;
+  if (!allowed) return false;
   return allowed.includes(role);
-}
-
-export function isMobile(): boolean {
-  return window.innerWidth < 1024;
 }

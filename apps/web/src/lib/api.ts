@@ -4,9 +4,20 @@ const headers = () => ({ Authorization: 'Bearer ' + token(), 'Content-Type': 'ap
 async function parseError(r: Response): Promise<Error> {
   try {
     const data = await r.json();
-    return new Error(data.error || data.message || '请求失败');
+    if (r.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return new Error('\u767B\u5F55\u5DF2\u8FC7\u671F\uFF0C\u8BF7\u91CD\u65B0\u767B\u5F55');
+    }
+    return new Error(data.error || data.message || '\u8BF7\u6C42\u5931\u8D25');
   } catch {
-    return new Error('请求失败 (' + r.status + ')');
+    if (r.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return new Error('\u8BF7\u6C42\u5931\u8D25 (' + r.status + ')');
   }
 }
 

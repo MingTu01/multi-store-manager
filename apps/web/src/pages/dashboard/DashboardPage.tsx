@@ -21,12 +21,12 @@ export default function DashboardPage() {
   const [trend, setTrend] = useState<any[]>([]);
   const nav = useNavigate();
 
+  const dateStr = date.toISOString().split('T')[0];
   useEffect(() => {
-    const d = date.toISOString().split('T')[0];
-    api.get('/dashboard?period=' + period + '&date=' + d).then(setStats).catch(() => {});
+    api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(() => {});
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
     api.get('/dashboard/trend?period=' + period).then((d: any) => setTrend(d.trend || [])).catch(() => {});
-  }, [period, date]);
+  }, [period, dateStr]);
 
   const income = stats?.income ?? 0;
   const expense = stats?.expense ?? 0;

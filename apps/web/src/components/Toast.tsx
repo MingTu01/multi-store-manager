@@ -10,15 +10,6 @@ export function showToast(message: string, type: ToastItem['type'] = 'error') {
   listeners.forEach(fn => fn(message, type));
 }
 
-// 覆盖原生 alert，自动转为 toast
-if (typeof window !== 'undefined') {
-  const origAlert = window.alert;
-  window.alert = (msg?: any) => {
-    const text = typeof msg === 'string' ? msg : String(msg ?? '');
-    if (text) showToast(text, text.includes('成功') ? 'success' : 'error');
-  };
-}
-
 export function ToastContainer() {
   const [items, setItems] = useState<ToastItem[]>([]);
 

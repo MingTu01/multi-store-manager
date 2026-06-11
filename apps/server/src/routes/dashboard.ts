@@ -1,14 +1,8 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 
-function localDate(d?: Date): string {
-  const dt = d || new Date();
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const day = String(dt.getDate()).padStart(2, '0');
-  return y + '-' + m + '-' + day;
-}
+
 
 const router = Router({ mergeParams: true });
 

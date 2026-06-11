@@ -3,25 +3,37 @@ dist/
 *.db
 *.db-shm
 *.db-wal
-uploads/
-backups/
-data/
-screenshots/
-scripts/
-*.txt
+*.log
 *.bat
 *.zip
-*.log
 _*.mjs
-*.png
-*.js
+
+# Uploads and backups
+apps/server/uploads/
+apps/server/backups/
+apps/server/data/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.tsbuildinfo
+
+# Temp files
+screenshots/
+scripts/
+_check_*/
+stdout.txt
+stderr.txt
+_fulltest.js
+
+# Keep important files
 !apps/web/vite.config.*
 !apps/server/seed.ts
 !apps/server/src/seed.ts
-# ÐÞ¸´±¸·ÝÄ¿Â¼
-apps/server/src_backup_*/
-apps/web/src_backup_*/
-apps/server/package-lock.json
-apps/web/package-lock.json
-apps/server/pnpm-workspace.yaml
-
+!apps/server/src/lib/utils.ts

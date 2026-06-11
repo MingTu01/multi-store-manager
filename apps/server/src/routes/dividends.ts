@@ -28,6 +28,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { total_amount, note } = req.body;
     if (!total_amount) return res.status(400).json({ error: '请输入总金额' });
@@ -48,6 +49,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const { total_amount, note } = req.body;
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
@@ -71,6 +73,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
 router.put('/:id/archive', (req: AuthRequest, res: Response) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档' });
@@ -83,6 +86,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档的分红不能删除' });

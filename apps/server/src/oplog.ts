@@ -1,4 +1,4 @@
-﻿import db from './db.js';
+import db from './db.js';
 import { localDateTime } from './lib/utils.js';
 
 export function opLog(userId: number, storeId: number | string, action: string, detail: string, ip?: string) {

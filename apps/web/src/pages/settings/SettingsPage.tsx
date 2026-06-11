@@ -43,8 +43,11 @@ export default function SettingsPage() {
   const [upgradeSteps, setUpgradeSteps] = useState<{ msg: string; done: boolean }[]>([]);
   const [upgradeComplete, setUpgradeComplete] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
+
+  useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
 
   useEffect(() => {
     if (tab === 'info') api.get('/system/info').then(setInfo).catch(() => {});
@@ -203,7 +206,9 @@ export default function SettingsPage() {
     } catch { showMsg(false, '升级请求失败'); setUpgrading(false); return; }
     // Poll for progress
     let currentStep = 0;
+    if (pollRef.current) clearInterval(pollRef.current);
     const poll = setInterval(async () => {
+      pollRef.current = poll;
       try {
         const r: any = await api.get('/system/upgrade/status');
         if (r && r.step !== undefined) {
@@ -509,7 +514,7 @@ export default function SettingsPage() {
         </Modal>
 
             {/* === Upgrade Confirm Modal === */}
-      <Modal open={showConfirmModal} onClose={() => setShowConfirmModal(true)} title="确认升级">
+      <Modal open={showConfirmModal} onClose={() => setShowConfirmModal(false)} title="确认升级">
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3">
             <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />

@@ -78,10 +78,10 @@ export default function StoresPage() {
       const body: any = { name: form.name, address: form.address, initial_capital: Number(form.initial_capital) || 0, photos: form.photos, shareholders: form.shareholders };
       if (editing) {
         await api.put('/stores/' + editing.id, body);
-        showToast( '门店更新成功');
+        showToast('门店更新成功', 'success');
       } else {
         await api.post('/stores', body);
-        showToast( '门店创建成功');
+        showToast('门店创建成功', 'success');
       }
       setShowModal(false);
       load();
@@ -93,7 +93,7 @@ export default function StoresPage() {
     if (!deleteId || !deletePwd) return;
     try {
       await api.del('/stores/' + deleteId, { password: deletePwd });
-      showToast( '门店已删除');
+      showToast('门店已删除', 'success');
       setDeleteId(null);
       setDeletePwd('');
       load();

@@ -138,6 +138,7 @@ router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
 });
 
 router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
   try {
     const storeId = req.params.storeId;
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
@@ -152,6 +153,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
   try {
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
     const fields = [];

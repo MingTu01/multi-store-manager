@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { join } from 'path';
 import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import os from 'os';
@@ -167,6 +167,8 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
 });
 
 // 自动备份配置 — ADMIN
+router.get('/auto-backup', (req: AuthRequest, res: Response, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); next(); }),
 router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
     const configPath = join(process.cwd(), 'data', 'auto-backup.json');
@@ -194,6 +196,7 @@ router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
 });
 
 router.get('/upgrade/status', (req: AuthRequest, res: Response) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
   try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -294,6 +297,7 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
 
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
   try { res.json(getSettings()); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -304,7 +308,14 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     Object.assign(s, req.body);
     const configPath = join(process.cwd(), 'data', 'notification-settings.json');
     mkdirSync(join(process.cwd(), 'data'), { recursive: true });
-    writeFileSync(configPath, JSON.stringify(s, null, 2));
+    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
+      s.method || 'none', s.pushplus_token || '', s.serverchan_key || '',
+      s.wecom_corpid || '', s.wecom_agentid || '', s.wecom_secret || '',
+      s.wecom_userid || '', s.wecom_proxy_url || 'https://wx.908521.xyz/',
+      s.push_daily_report ? 1 : 0, s.push_weekly_report ? 1 : 0,
+      s.push_monthly_report ? 1 : 0, s.push_review_reminder ? 1 : 0,
+      s.push_alert ? 1 : 0
+    )
     res.json({ message: '通知设置已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

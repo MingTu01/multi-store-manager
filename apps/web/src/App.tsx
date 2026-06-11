@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './stores/data';
 import { canAccess } from './lib/permissions';
@@ -42,10 +42,10 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route index element={<Guard perm="dashboard"><DashboardPage /></Guard>} />
         <Route path="stores" element={<Guard perm="stores"><StoresPage /></Guard>} />
-        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications" element={<Guard perm="notifications"><NotificationsPage /></Guard>} />
         <Route path="upgrade" element={<Guard perm="upgrade"><SettingsPage /></Guard>} />
-        <Route path="password" element={<PasswordPage />} />
-        <Route path="admin-settings" element={<AdminSettingsPage />} />
+        <Route path="password" element={<Guard perm="password"><PasswordPage /></Guard>} />
+        <Route path="admin-settings" element={<Guard perm="adminSettings"><AdminSettingsPage /></Guard>} />
         <Route path="store/:storeId" element={<StoreGuard><StoreOverviewPage /></StoreGuard>} />
         <Route path="store/:storeId/entries" element={<StoreGuard><StoreEntriesPage /></StoreGuard>} />
         <Route path="store/:storeId/inventory" element={<StoreGuard><StoreInventoryPage /></StoreGuard>} />

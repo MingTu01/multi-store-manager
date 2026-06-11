@@ -42,9 +42,10 @@ export default function StoreReportPage() {
   const [trend, setTrend] = useState<any[]>([]);
   const hideYearAll = role === 'MANAGER' || role === 'STAFF';
 
+  const dateStr = date.toISOString();
   useEffect(() => {
     if (!storeId) return;
-    const d = date.toISOString().split('T')[0];
+    const d = dateStr.split('T')[0];
     api.get('/stores/' + storeId + '/report?period=' + period + '&date=' + d).then(setData).catch(() => {});
     api.get('/stores/' + storeId).then((d) => setStore(d)).catch(() => {});
     api.get('/dashboard/trend?period=' + period + '&storeId=' + storeId).then((d: any) => setTrend(d.trend || [])).catch(() => {});

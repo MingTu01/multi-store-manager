@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { signToken, authMiddleware, AuthRequest } from '../auth.js';

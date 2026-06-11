@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { join } from 'path';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { safePath } from '../middleware/store-access.js';
