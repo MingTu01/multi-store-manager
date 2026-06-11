@@ -59,7 +59,7 @@ export default function StoreReportPage() {
   const expenseByCategory = data?.expenseByCategory || [];
   const comp = data?.comparison;
   const fundBalance = data?.fundBalance ?? 0;
-  const isAdmin = role === 'ADMIN' || role === 'admin';
+  const isAdmin = (role === 'ADMIN' || role === 'admin') && period === 'all';
   const yoy = data?.yoy;
 
   const compData = comp ? [

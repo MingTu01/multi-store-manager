@@ -52,7 +52,7 @@ export default function DashboardPage() {
   ];
 
   const userRole = useStore((s: any) => s.user?.role);
-  const isAdmin = userRole === 'ADMIN' || userRole === 'admin';
+  const isAdmin = (userRole === 'ADMIN' || userRole === 'admin') && period === 'all';
   const fundBalance = stats?.fundBalance ?? 0;
 
   const metrics = [

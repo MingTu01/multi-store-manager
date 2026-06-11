@@ -81,7 +81,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(s.id) as any).t || 0;
       const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(s.id) as any).t || 0;
       const allDiv = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM dividends WHERE store_id=? AND status='confirmed'").get(s.id) as any).t || 0;
-      const fb = ic + allInc - allExp - allDiv;
+      const allPay = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM payroll WHERE store_id=? AND status='confirmed'").get(s.id) as any).t || 0;
+      const fb = ic + allInc - allExp - allPay - allDiv;
       storeFundBalances[s.id] = fb;
       totalFundBalance += fb;
     }
