@@ -6,29 +6,54 @@
 
 ### 管理端（ADMIN）
 - **管理大屏** - 全店收支总览、环比同比、收入支出构成饼图、门店对比
-- **门店管理** - 创建/编辑/删除门店、股东信息、员工数量
+- **门店管理** - 创建/编辑/删除门店、多张照片、股东信息（强制100%份额）、员工数量
 - **操作日志** - 全局操作记录，支持按门店/时间/操作类型筛选
 - **系统设置** - 数据备份恢复、ZIP升级、消息推送配置、权限说明
 
 ### 店铺端（按角色权限）
-- **总览** - 今日收支、快捷操作、最近记账
-- **记账** - 收入支出记录、分类管理、日/周/月/年/总筛选
-- **盘点** - 物品条目管理、盘点模式、库存同步、差异标注
-- **开闭店** - 拍照确认、交接内容、历史记录
+- **总览** - 今日收支、待办提醒（未确认工资/未盘点）、最近操作记录、快捷操作
+- **记账** - 收入支出记录、分类管理、关键词搜索、分类筛选、金额区间筛选、日/周/月/年/总筛选
+- **盘点** - 物品条目管理、拖动排序（dnd-kit）、领出功能、盘点模式、库存同步、差异标注
+- **开闭店** - 拍照确认（多张）、交接内容、历史记录
 - **报表** - 收入支出构成、同比环比、对比柱状图
-- **员工管理** - 员工信息、头像、岗位、工资设定
-- **工资** - 自动生成工资单、修改确认、工资条
-- **分红** - 按股东占比自动计算分红
+- **员工管理** - 员工信息、头像拍照/上传、岗位、工资设定
+- **工资** - 自动生成工资单、修改确认、工资条（含员工照片和岗位）
+- **分红** - 按股东占比自动计算分红、可分红余额显示
 - **日志** - 门店操作记录
-- **账户** - 修改密码、个人信息
+- **账户** - 修改密码、个人信息、退出登录
 
-### 权限模型
-| 角色 | 权限范围 |
-|------|---------|
-| ADMIN | 全部页面和功能 |
-| MANAGER | 门店全部页面（除分红） |
-| STAFF | 总览、记账、盘点、开闭店 |
-| SHAREHOLDER | 只读分红和报表 |
+### 角色权限
+| 页面/功能 | 管理员 | 店长 | 员工 | 股东 |
+|-----------|:------:|:----:|:----:|:----:|
+| 管理大屏 | ✅ | ❌ | ❌ | ❌ |
+| 门店管理 | ✅ | ❌ | ❌ | ❌ |
+| 系统升级 | ✅ | ❌ | ❌ | ❌ |
+| 门店总览 | ✅ | ✅ | ✅ | ❌ |
+| 记账 | ✅增改删 | ✅增改删 | ✅仅新增 | ❌ |
+| 盘点 | ✅ | ✅ | ✅ | ❌ |
+| 开闭店 | ✅ | ✅ | ✅ | ❌ |
+| 工资 | ✅ | ✅ | ❌ | ❌ |
+| 分红 | ✅管理 | ❌ | ❌ | ✅只读 |
+| 员工 | ✅含删除 | ✅增改 | ❌ | ❌ |
+| 报表 | ✅ | ✅日/周/月 | ❌ | ✅只读 |
+| 操作日志 | ✅ | ✅ | ❌ | ❌ |
+| 系统备份 | ✅ | ❌ | ❌ | ❌ |
+| 消息通知 | ✅ | ✅ | ✅ | ✅ |
+| 个人设置 | ✅ | ✅ | ✅ | ✅ |
+
+**数据可见性规则：**
+- 管理员：看到全部记录（含系统自动生成的工资/分红支出）
+- 店长/员工：只看到手动录入的记录（隐藏系统记录）
+- 员工：只看今日记账，隐藏利润卡片，只能新增不能修改删除
+- 报表数据包含系统记录（保证金额正确），但明细不暴露
+
+### 安全特性
+- 🔒 JWT 认证，密钥通过环境变量配置
+- 🛡️ 门店级数据隔离（后端中间件校验）
+- 🚫 角色权限前后端双重校验
+- 📷 所有图片上传自动压缩（800px/0.6质量）+ 仅限图片文件验证
+- 🔐 路径遍历防护、代码注入防护
+- 📋 操作日志记录 IP 地址
 
 ### 技术特性
 - 📱 PWA支持，可安装到手机桌面
@@ -37,6 +62,8 @@
 - 💾 自动/手动/升级前数据备份
 - 🔄 ZIP包在线升级
 - 🌐 全中文界面
+- 🎨 全局 Toast 通知（替代原生 alert）
+- 📸 所有图片上传支持拍照+文件，自动压缩
 
 ## 快速开始
 
@@ -51,12 +78,11 @@ git clone https://github.com/MingTu01/multi-store-manager.git
 cd multi-store-manager
 
 # 安装依赖
-pnpm install
+cd apps/web && npm install --legacy-peer-deps && cd ../..
+cd apps/server && npm install && cd ../..
 
 # 构建前端
-cd apps/web
-npx vite build
-cd ../..
+cd apps/web && npx vite build && cd ../..
 
 # 启动服务
 cd apps/server
@@ -69,8 +95,17 @@ node --import tsx src/index.ts
 | 账号 | 密码 | 角色 |
 |------|------|------|
 | admin | 123456 | 管理员 |
-| 13900000001 | 123456 | 店长(城南旗舰店) |
-| 13900000002 | 123456 | 员工(城南旗舰店) |
+| 13900000001 | 123456 | 店长 |
+| 13900000002 | 123456 | 员工 |
+
+### 环境变量
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| JWT_SECRET | multi-store-secret-key-2024 | JWT密钥，**必须**修改 |
+| TOKEN_EXPIRY | 24h | Token有效期 |
+| CORS_ORIGIN | * | CORS允许的来源域名 |
+| JSON_LIMIT | 30mb | JSON请求体大小限制 |
+| PORT | 3001 | 服务端口 |
 
 ## 部署指南（阿里云 + 1Panel）
 
@@ -83,27 +118,24 @@ curl -sSL https://resource.fit2cloud.com/1panel/v2/install.sh -o install.sh && b
 
 ### 2. 安装Node.js环境
 ```bash
-# 通过1Panel → App Store 安装 Node.js
-# 或手动安装
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
+npm install -g pnpm
 ```
 
 ### 3. 部署应用
 ```bash
-# 上传项目到服务器
 cd /opt/multi-store-manager
+cd apps/web && pnpm install && npx vite build && cd ../..
+cd apps/server && pnpm install && cd ../..
 
-# 安装依赖
-pnpm install
-
-# 构建前端
-cd apps/web && npx vite build && cd ../..
+# 设置环境变量
+export JWT_SECRET="你的随机密钥"
+export CORS_ORIGIN="https://你的域名"
 
 # 使用 PM2 启动
-pm2 start "node --import tsx src/index.ts" --name multi-store -w apps/server
-
-# 设置开机自启
+cd apps/server
+pm2 start "node --import tsx src/index.ts" --name multi-store
 pm2 save
 pm2 startup
 ```
@@ -113,101 +145,35 @@ pm2 startup
 - 反向代理：http://127.0.0.1:3001
 - 启用HTTPS（Let's Encrypt）
 
-## 升级说明
-
-### 方式一：Web端ZIP升级（推荐）
-1. 管理员登录 → 系统设置 → 系统升级
-2. 上传新的ZIP升级包
-3. 系统自动验证并执行升级
-4. 升级完成自动刷新页面
-
-### 方式二：SSH命令行升级
-```bash
-cd /opt/multi-store-manager
-git pull
-cd apps/web && npx vite build && cd ../..
-pm2 restart multi-store
-```
-
-### ZIP升级包格式
-```
-multi-store-upgrade-vX.X.X.zip
-├── apps/
-│   ├── server/
-│   │   ├── src/          # 后端源码
-│   │   ├── package.json
-│   │   └── ...
-│   └── web/
-│       ├── dist/         # 已构建的前端
-│       ├── package.json
-│       └── ...
-├── upgrade.json          # 升级信息 {version, description}
-└── package.json
-```
-
-## 备份恢复
-
-### 三种备份方式
-1. **自动备份** - 按设定频率自动备份（每小时/每天/每周）
-2. **手动备份** - 在系统设置中手动触发
-3. **升级前备份** - 升级系统时自动创建
-
-### 备份格式
-备份文件为ZIP包，包含：
-- `store.db` - SQLite数据库
-- `store.db-wal` - WAL日志文件
-- `store.db-shm` - 共享内存文件
-
-### 恢复流程
-1. 系统设置 → 数据备份 → 找到目标备份
-2. 点击恢复 → 二次确认
-3. 系统自动备份当前数据 → 恢复备份 → 重启服务
-4. 点击确认刷新页面
-
 ## 项目结构
 
 ```
 multi-store-manager/
 ├── apps/
-│   ├── server/           # Express后端
+│   ├── server/                # Express后端
 │   │   ├── src/
-│   │   │   ├── index.ts      # 入口文件
-│   │   │   ├── auth.ts       # JWT认证
-│   │   │   ├── db.ts         # 数据库初始化
-│   │   │   ├── oplog.ts      # 操作日志
-│   │   │   ├── notify.ts     # 消息推送
-│   │   │   └── routes/       # API路由
+│   │   │   ├── index.ts       # 入口文件
+│   │   │   ├── auth.ts        # JWT认证
+│   │   │   ├── db.ts          # 数据库初始化+索引
+│   │   │   ├── oplog.ts       # 操作日志（含IP）
+│   │   │   ├── notify.ts      # 消息推送
+│   │   │   ├── lib/utils.ts   # 公共工具函数
+│   │   │   ├── middleware/
+│   │   │   │   └── store-access.ts  # 门店权限+路径安全
+│   │   │   └── routes/        # API路由
 │   │   ├── data/              # SQLite数据库
 │   │   └── public/            # 静态资源
-│   └── web/             # React前端
-│       ├── src/
-│       │   ├── pages/         # 页面组件
-│       │   ├── components/    # 通用组件
-│       │   ├── layouts/       # 布局组件
-│       │   ├── lib/           # 工具函数
-│       │   └── stores/        # 状态管理
-│       └── dist/              # 构建输出
-├── AGENTS.md             # AI开发规范
-├── ARCHITECTURE.md       # 系统架构文档
-├── CONTRIBUTING.md       # 开发贡献指南
-└── README.md             # 项目说明
+│   └── web/                   # React前端
+│       └── src/
+│           ├── components/    # 通用组件（Toast/Modal等）
+│           ├── layouts/       # 布局组件
+│           ├── lib/           # 工具（api/permissions/image）
+│           ├── stores/        # 状态管理
+│           └── pages/         # 页面组件
+├── README.md
+├── ARCHITECTURE.md
+└── CONTRIBUTING.md
 ```
-
-## API概览
-
-| 路由前缀 | 说明 | 认证 |
-|----------|------|------|
-| POST /api/auth/login | 登录 | 无 |
-| GET /api/auth/me | 当前用户 | Bearer |
-| PUT /api/auth/password | 修改密码 | Bearer |
-| GET /api/stores | 门店列表 | Bearer |
-| POST /api/stores | 创建门店 | ADMIN |
-| GET /api/stores/:id | 门店详情 | Bearer |
-| GET /api/stores/:id/entries | 记账列表 | Bearer |
-| POST /api/stores/:id/entries | 新增记账 | Bearer |
-| GET /api/dashboard | 管理大屏数据 | ADMIN |
-| GET /api/logs | 操作日志 | Bearer |
-| GET /api/system/backups | 备份列表 | ADMIN |
 
 ## License
 
