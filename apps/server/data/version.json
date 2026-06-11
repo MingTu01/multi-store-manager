@@ -1,5 +1,5 @@
 {
-    "buildDate":  "2026-06-12 01:01:07",
-    "version":  "v2.12.4",
-    "notes":  "\\u4fee\\u590d\\u65e5\\u5fd7\\u9875\\u9762(API\\u8def\\u5f84\\u9519\\u8bef + \\u64cd\\u4f5c\\u7c7b\\u578b\\u4e2d\\u6587\\u4e71\\u7801)"
+    "buildDate":  "2026-06-12 01:05:12",
+    "version":  "v2.12.5",
+    "notes":  "\\u6dfb\\u52a0\\u5347\\u7ea7\\u5305\\u6253\\u5305\\u811a\\u672c(build-upgrade.js)"
 }
