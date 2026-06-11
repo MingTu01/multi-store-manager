@@ -6,7 +6,7 @@ import multer from 'multer';
 import AdmZip from 'adm-zip';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { getSettings, sendNotification } from '../notify.js';
+import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
 
 const router = Router();
@@ -324,7 +324,15 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const type = req.query.type as string || 'daily';
-    sendNotification('测试通知', '这是一条测试通知消息\n发送时间: ' + new Date().toLocaleString('zh-CN'), type)
+    (() => {
+      let title = '测试通知'; let content = '这是一条测试通知消息\n发送时间: ' + new Date().toLocaleString('zh-CN');
+      if (type === 'daily') { title = '每日简报'; content = buildDailyReport(); }
+      else if (type === 'weekly') { title = '每周简报'; content = buildWeeklyReport(); }
+      else if (type === 'monthly') { title = '月度报告'; content = buildMonthlyReport(); }
+      else if (type === 'review') { title = '待审核提醒'; content = buildReviewReminder(); }
+      else if (type === 'alert') { title = '系统告警'; content = buildAlert('测试告警信息'); }
+      return sendNotification(title, content, type);
+    })()
       .then(() => res.json({ message: '测试通知已发送' }))
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
   } catch (err: any) { res.status(500).json({ error: err.message }); }
