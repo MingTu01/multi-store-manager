@@ -72,7 +72,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const expenseByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('支出','expense') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
 
 
-    // Fund balance: initial_capital + all_income - all_expile - confirmed_dividends
+    // Fund balance: initial_capital + all_income - all_expense (payroll/dividends already in entries)
     const stores_all = db.prepare('SELECT id, initial_capital FROM stores').all() as any[];
     let totalFundBalance = 0;
     const storeFundBalances: Record<string, number> = {};
@@ -80,9 +80,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const ic = s.initial_capital || 0;
       const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(s.id) as any).t || 0;
       const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(s.id) as any).t || 0;
-      const allDiv = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM dividends WHERE store_id=? AND status IN ('confirmed','archived')").get(s.id) as any).t || 0;
-      const allPay = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM payroll WHERE store_id=? AND status='confirmed'").get(s.id) as any).t || 0;
-      const fb = ic + allInc - allExp - allPay - allDiv;
+      const fb = ic + allInc - allExp;
       storeFundBalances[s.id] = fb;
       totalFundBalance += fb;
     }
