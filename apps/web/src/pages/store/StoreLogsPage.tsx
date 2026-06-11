@@ -9,16 +9,14 @@ import { Clock, Search, ChevronLeft, ChevronRight, Loader2, TrendingUp, Trending
 const ACTION_TYPES: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
   '记账': { label: '记账', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: TrendingUp },
   '开闭店': { label: '开闭店', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: Store },
-  '开店': { label: '开闭店', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: Store },
-  '闭店': { label: '开闭店', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: Store },
   '员工': { label: '员工', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: Users },
   '添加员工': { label: '员工', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: Users },
   '修改员工': { label: '员工', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: Users },
   '删除员工': { label: '员工', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: Users },
   '盘点': { label: '盘点', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: ClipboardCheck },
-  '领出': { label: '领出', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: ClipboardCheck },
-  '添加物品': { label: '添加物品', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: ClipboardCheck },
+  '工资': { label: '工资', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: Wallet },
   '确认工资单': { label: '工资', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: Wallet },
+  '分红': { label: '分红', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: Wallet },
   '归档分红': { label: '分红', color: 'text-indigo-600', bgColor: 'bg-indigo-50', icon: Wallet },
   '创建门店': { label: '门店', color: 'text-slate-600', bgColor: 'bg-slate-100', icon: Building },
   '修改门店': { label: '门店', color: 'text-slate-600', bgColor: 'bg-slate-100', icon: Building },
@@ -41,7 +39,7 @@ function getBarColor(action: string): string {
 function getActionConfig(action: string) {
   if (ACTION_TYPES[action]) return ACTION_TYPES[action];
   for (const key of Object.keys(ACTION_TYPES)) {
-    if (action.includes(key) || key.includes(action)) return ACTION_TYPES[key];
+    if (action.includes(key)) return ACTION_TYPES[key];
   }
   return { label: action, color: 'text-slate-600', bgColor: 'bg-slate-100', icon: Clock };
 }
@@ -132,7 +130,7 @@ export default function StoreLogsPage() {
     if (dateTo) params.set('dateTo', dateTo);
     if (!storeId && filterStore) params.set('storeId', filterStore);
     
-    const url = storeId ? '/logs/store/' + storeId + '?' + params.toString() : '/logs?' + params.toString();
+    const url = storeId ? '/logs?storeId=' + storeId + '&' + params.toString() : '/logs?' + params.toString();
     api.get(url)
       .then((d: any) => { setLogs(d.logs || []); setTotal(d.total || 0); })
       .catch(() => { setLogs([]); setTotal(0); })
