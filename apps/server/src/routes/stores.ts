@@ -1,3 +1,4 @@
+import { localDate } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
@@ -122,7 +123,7 @@ router.get('/:storeId/summary', (req: AuthRequest, res: Response) => {
     else if (year) { dateCondition = 'AND date LIKE ?'; params.push(year + '%'); }
     const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' " + dateCondition).get(...params) as any).total;
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' " + dateCondition).get(...params) as any).total;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDate();
     const todayIncome = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' AND date = ?").get(storeId, today) as any).total;
     const todayExpense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' AND date = ?").get(storeId, today) as any).total;
     res.json({ income: income || 0, expense: expense || 0, profit: (income || 0) - (expense || 0) });

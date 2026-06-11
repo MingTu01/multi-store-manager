@@ -1,3 +1,4 @@
+import { localDate } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
@@ -78,7 +79,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档' });
     db.prepare("UPDATE dividends SET status = 'archived' WHERE id = ?").run(req.params.id);
-    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '分红', dividend.total_amount, '分红支出 #' + req.params.id + ' ' + (dividend.note || ''), new Date().toISOString().slice(0, 10), req.user?.id);
+    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '分红', dividend.total_amount, '分红支出 #' + req.params.id + ' ' + (dividend.note || ''), localDate(), req.user?.id);
     opLog(req.user.id, req.params.storeId, '归档分红', '归档分红 #' + req.params.id);
     res.json({ message: '分红已归档' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

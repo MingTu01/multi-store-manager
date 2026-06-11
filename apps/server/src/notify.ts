@@ -93,7 +93,7 @@ export async function sendNotification(title: string, content: string, type?: st
 function todayStr(): string {
   const now = new Date();
   const offset = 8 * 60;
-  const local = new Date(now.getTime() + offset * 60 * 1000);
+  const local = new Date(now.getTime() + (offset + now.getTimezoneOffset()) * 60 * 1000);
   return local.toISOString().slice(0, 10);
 }
 

@@ -1,3 +1,4 @@
+import { localDate } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
@@ -47,7 +48,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
     const { period = 'day', date } = req.query;
-    const dateStr = (date as string) || new Date().toISOString().slice(0, 10);
+    const dateStr = (date as string) || localDate();
     const { start, end, prevStart, prevEnd } = getDateRange(period as string, dateStr);
 
     const current = queryStats(storeId, start, end);
@@ -84,7 +85,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const initCap = storeInfo?.initial_capital || 0;
     const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(storeId) as any).t || 0;
     const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(storeId) as any).t || 0;
-    const allDiv = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM dividends WHERE store_id=? AND status='confirmed'").get(storeId) as any).t || 0;
+    const allDiv = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM dividends WHERE store_id=? AND status IN ('confirmed','archived')").get(storeId) as any).t || 0;
     const allPay = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM payroll WHERE store_id=? AND status='confirmed'").get(storeId) as any).t || 0;
     const fundBalance = initCap + allInc - allExp - allPay - allDiv;
 
