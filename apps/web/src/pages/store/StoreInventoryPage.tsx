@@ -21,7 +21,7 @@ type InventoryItem = {
   sort_order: number;
 };
 
-type StatusType = 'normal' | 'diff' | 'lost' | 'scrap' | 'empty' | 'restocking';
+type StatusType = 'normal' | 'diff' | 'lost' | 'scrap' | 'empty' | 'restocking' | 'pending';
 
 const STATUS_MAP: Record<StatusType, { label: string; color: string; icon: any }> = {
   normal: { label: '正常', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
@@ -30,6 +30,7 @@ const STATUS_MAP: Record<StatusType, { label: string; color: string; icon: any }
   scrap: { label: '报废', color: 'bg-slate-100 text-slate-600', icon: Trash2 },
   empty: { label: '空', color: 'bg-slate-100 text-slate-500', icon: XCircle },
   restocking: { label: '补货中', color: 'bg-blue-50 text-blue-600', icon: AlertTriangle },
+  pending: { label: '待补货', color: 'bg-orange-50 text-orange-600', icon: AlertTriangle },
 };
 
 const STATUS_OPTIONS: { v: StatusType; l: string }[] = [

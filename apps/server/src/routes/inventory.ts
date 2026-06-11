@@ -5,6 +5,12 @@ import { opLog } from '../oplog.js';
 
 const router = Router({ mergeParams: true });
 
+function autoStatus(qty) {
+  if (qty <= 0) return 'pending'; // ???
+  return 'normal';
+}
+
+
 // GET / - list master items for this store
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
@@ -62,7 +68,8 @@ router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
     if (!item) return res.status(404).json({ error: '物品不存在' });
     if (item.quantity < quantity) return res.status(400).json({ error: '库存不足，当前库存: ' + item.quantity });
     const newQty = item.quantity - quantity;
-    db.prepare('UPDATE inventory_master SET quantity = ? WHERE id = ?').run(newQty, req.params.id);
+    const newStatus = newQty <= 0 ? 'pending' : item.status;
+    db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, req.params.id);
     opLog(req.user.id, Number(storeId), '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
     res.json({ success: true, newQuantity: newQty, message: '领出成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -142,7 +149,8 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ?').all(check.id) as any[];
     for (const item of items) {
       const newQty = item.actual_qty || 0;
-      db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, item.status, item.master_id);
+      const finalStatus = newQty <= 0 ? 'pending' : (item.status || 'normal');
+      db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, finalStatus, item.master_id);
     }
     db.prepare("UPDATE inventory_checks SET status = 'completed' WHERE id = ?").run(req.params.id);
     opLog(req.user.id, Number(check.store_id), '盘点', '完成盘点 #' + req.params.id);
@@ -176,7 +184,8 @@ router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
       
       insertItem.run(checkId, r.item_id, r.name || '', expected, consumption, actual, status);
       // Update master quantity to actual
-      updateMaster.run(actual, status, r.item_id);
+      const finalStatus = actual <= 0 ? 'pending' : status;
+      updateMaster.run(actual, finalStatus, r.item_id);
     }
     
     opLog(req.user.id, Number(storeId), '盘点', '完成盘点 #' + checkId);
