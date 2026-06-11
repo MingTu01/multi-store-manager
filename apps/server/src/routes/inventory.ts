@@ -51,6 +51,23 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /items/:id - delete master item
+
+// 领出物品
+router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
+  try {
+    const { storeId } = req.params;
+    const { quantity } = req.body;
+    if (!quantity || quantity <= 0) return res.status(400).json({ error: '请输入领出数量' });
+    const item = db.prepare('SELECT * FROM inventory_master WHERE id = ? AND store_id = ?').get(req.params.id, storeId) as any;
+    if (!item) return res.status(404).json({ error: '物品不存在' });
+    if (item.quantity < quantity) return res.status(400).json({ error: '库存不足，当前库存: ' + item.quantity });
+    const newQty = item.quantity - quantity;
+    db.prepare('UPDATE inventory_master SET quantity = ? WHERE id = ?').run(newQty, req.params.id);
+    opLog(req.user.id, Number(storeId), '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
+    res.json({ success: true, newQuantity: newQty, message: '领出成功' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/items/:id', (req: AuthRequest, res: Response) => {
   try {
     const { storeId } = req.params;

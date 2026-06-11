@@ -6,9 +6,12 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import {
-  Plus, Camera, Upload, CheckCircle, AlertTriangle, XCircle, Trash2,
-  ArrowUp, ArrowDown, ArrowLeft, ChevronRight, RotateCcw, Loader2
+  Plus, Camera, Upload, CheckCircle, AlertTriangle, XCircle, Trash2, Edit3,
+  GripVertical, ArrowUp, ArrowDown, ArrowLeft, ChevronRight, RotateCcw, Loader2
 } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type InventoryItem = {
   id: number;
@@ -38,9 +41,22 @@ const STATUS_OPTIONS: { v: StatusType; l: string }[] = [
   { v: 'restocking', l: '补货中' },
 ];
 
+function SortableItem({ id, children }: { id: number; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = { transform: CSS.Transform.toString(transform) || undefined, transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : undefined };
+  return <div ref={setNodeRef} style={style}>{children}</div>;
+}
+function SortableDragHandle({ id }: { id: number }) {
+  const { attributes, listeners } = useSortable({ id });
+  return <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing touch-none select-none p-1 rounded hover:bg-slate-100"><GripVertical className="h-5 w-5 text-slate-300" /></div>;
+}
+
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
+  const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);
+  const [takeoutQty, setTakeoutQty] = useState('');
   const [loading, setLoading] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditItem, setShowEditItem] = useState<InventoryItem | null>(null);
@@ -61,6 +77,26 @@ export default function StoreInventoryPage() {
   const [checkForm, setCheckForm] = useState({ consumption: '', actual: '', status: 'normal' as StatusType });
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [savingCheck, setSavingCheck] = useState(false);
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+    if (active.id !== over?.id) {
+      setItems(prev => {
+        const oi = prev.findIndex(i => i.id === active.id);
+        const ni = prev.findIndex(i => i.id === over.id);
+        const r = arrayMove(prev, oi, ni);
+        api.put('/stores/' + storeId + '/inventory/items/reorder', { ids: r.map(it => it.id) }).catch(() => {});
+        return r;
+      });
+    }
+  };
+  const handleTakeout = async () => {
+    if (!showTakeout || !takeoutQty) return;
+    try {
+      const r: any = await api.post('/stores/' + storeId + '/inventory/items/' + showTakeout.id + '/takeout', { quantity: Number(takeoutQty) });
+      setShowTakeout(null); setTakeoutQty(''); loadItems(); alert(r.message || '领出成功');
+    } catch (e: any) { alert(e.message || '领出失败'); }
+  };
 
   const loadItems = () => {
     if (!storeId) return;
@@ -160,22 +196,6 @@ export default function StoreInventoryPage() {
   };
 
   // --- Reorder ---
-  const moveItem = async (index: number, dir: number) => {
-    const newIndex = index + dir;
-    if (newIndex < 0 || newIndex >= items.length) return;
-    const reordered = [...items];
-    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
-    setItems(reordered);
-    try {
-      await api.put('/stores/' + storeId + '/inventory/items/reorder', {
-        ids: reordered.map((it) => it.id),
-      });
-    } catch {
-      loadItems();
-    }
-  };
-
-  // --- Inventory Check ---
   const startCheck = () => {
     if (items.length === 0) {
       alert('请先添加物品');
@@ -462,68 +482,44 @@ export default function StoreInventoryPage() {
         </GlassCard>
       ) : (
         <div className="space-y-2">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {items.map((item, index) => {
             const hasResult = !!checkResults[item.id];
             const result = checkResults[item.id];
             const st = result ? STATUS_MAP[result.status] : null;
             const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
             return (
-              <GlassCard key={item.id} className="p-4">
+              <SortableItem key={item.id} id={item.id}>
+              <GlassCard className="p-4">
                 <div className="flex items-center gap-3">
                   {item.photo ? (
                     <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">
-                      {item.name[0]}
-                    </div>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-slate-800">{item.name}</div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs">
                       <span className="text-slate-400">库存: {item.quantity}</span>
-                      {lastCheckResults[item.id] && (() => {
-                        const check = lastCheckResults[item.id];
-                        const diffVal = (check.consumption + check.actual) - check.expected;
-                        return diffVal !== 0 ? (
-                          <span className={'font-medium ' + (diffVal > 0 ? 'text-emerald-600' : 'text-rose-500')}>
-                            {diffVal > 0 ? '+' : ''}{diffVal}
-                          </span>
-                        ) : null;
-                      })()}
+                      {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                       {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                     </div>
-                    <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>
-                        {st ? st.label : STATUS_MAP[item.status || 'normal'].label}
-                      </span>
+                    <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => moveItem(index, -1)}
-                      disabled={index === 0}
-                      className="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
-                    </button>
-                    <button
-                      onClick={() => moveItem(index, 1)}
-                      disabled={index === items.length - 1}
-                      className="flex h-6 w-6 items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
-                    </button>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
-                      <RotateCcw className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <SortableDragHandle id={item.id} />
+                    <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
+                    <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
+                    <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               </GlassCard>
+              </SortableItem>
             );
           })}
+          </SortableContext>
+          </DndContext>
         </div>
       )}
 
@@ -643,6 +639,26 @@ export default function StoreInventoryPage() {
               )}
             </div>
             <button onClick={handleSaveEdit} className="btn w-full">保存</button>
+          </div>
+        )}
+      </Modal>
+
+      {/* 领出弹窗 */}
+      <Modal open={!!showTakeout} onClose={() => setShowTakeout(null)} title="领出物品">
+        {showTakeout && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+              {showTakeout.photo ? <img src={showTakeout.photo} className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-400">{showTakeout.name[0]}</div>}
+              <div>
+                <div className="text-sm font-medium text-slate-800">{showTakeout.name}</div>
+                <div className="text-xs text-slate-400">当前库存: {showTakeout.quantity}</div>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">领出数量</label>
+              <input type="number" value={takeoutQty} onChange={e => setTakeoutQty(e.target.value)} min="1" max={showTakeout.quantity} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300" placeholder="请输入数量" />
+            </div>
+            <button onClick={handleTakeout} disabled={!takeoutQty || Number(takeoutQty) <= 0} className="btn w-full disabled:opacity-50">确认领出</button>
           </div>
         )}
       </Modal>
