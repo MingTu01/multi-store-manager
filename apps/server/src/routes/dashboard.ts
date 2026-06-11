@@ -71,6 +71,21 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const incomeByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('收入','income') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
     const expenseByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('支出','expense') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
 
+
+    // Fund balance: initial_capital + all_income - all_expile - confirmed_dividends
+    const stores_all = db.prepare('SELECT id, initial_capital FROM stores').all() as any[];
+    let totalFundBalance = 0;
+    const storeFundBalances: Record<string, number> = {};
+    for (const s of stores_all) {
+      const ic = s.initial_capital || 0;
+      const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(s.id) as any).t || 0;
+      const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(s.id) as any).t || 0;
+      const allDiv = (db.prepare("SELECT COALESCE(SUM(total_amount),0) as t FROM dividends WHERE store_id=? AND status='confirmed'").get(s.id) as any).t || 0;
+      const fb = ic + allInc - allExp - allDiv;
+      storeFundBalances[s.id] = fb;
+      totalFundBalance += fb;
+    }
+
     // Per-store summary (only for admin without storeId filter)
     let stores: any[] = [];
     if (!storeId) {
@@ -79,7 +94,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
         const sc = 'AND store_id = ?';
         const si = q('收入', conds.cur + sc, [...conds.curP, s.id]);
         const se = q('支出', conds.cur + sc, [...conds.curP, s.id]);
-        return { id: s.id, name: s.name, address: s.address, is_open: s.is_open, income: si, expense: se, profit: si - se, margin: si > 0 ? (si - se) / si : 0 };
+        return { id: s.id, name: s.name, address: s.address, is_open: s.is_open, income: si, expense: se, profit: si - se, margin: si > 0 ? (si - se) / si : 0, fundBalance: storeFundBalances[s.id] || 0 };
       });
     }
 
@@ -87,7 +102,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       income: ci, expense: ce, profit: cp, margin: cm,
       comparison: { current: { income: ci, expense: ce, profit: cp, margin: cm }, previous: { income: pi, expense: pe, profit: pp, margin: pm }, changes: { incomeChange: pct(ci,pi), expenseChange: pct(ce,pe), profitChange: pct(cp,pp), marginChange: pct(cm,pm) } },
       yoy: { incomeChange: pct(ci,yi), expenseChange: pct(ce,ye), profitChange: pct(cp,yp), marginChange: cm !== 0 && yi > 0 ? (cm - (yi>0?(yi-ye)/yi:0)) / Math.abs(yi>0?(yi-ye)/yi:0||1) : 0 },
-      incomeByCategory, expenseByCategory, stores
+      incomeByCategory, expenseByCategory, stores, fundBalance: totalFundBalance
     });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

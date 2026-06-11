@@ -58,6 +58,8 @@ export default function StoreReportPage() {
   const incomeByCategory = data?.incomeByCategory || [];
   const expenseByCategory = data?.expenseByCategory || [];
   const comp = data?.comparison;
+  const fundBalance = data?.fundBalance ?? 0;
+  const isAdmin = role === 'ADMIN' || role === 'admin';
   const yoy = data?.yoy;
 
   const compData = comp ? [
@@ -71,10 +73,11 @@ export default function StoreReportPage() {
   ] : [];
 
   const metrics = [
+    ...(isAdmin ? [{ label: '资金余额', value: fundBalance, icon: DollarSign, color: fundBalance >= 0 ? 'text-sky-600' : 'text-rose-600', bg: 'bg-sky-50', change: undefined, yoyChange: undefined }] : []),
     { label: '收入', value: income, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', change: comp?.changes?.incomeChange, yoyChange: yoy?.incomeChange },
     { label: '支出', value: expense, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50', change: comp?.changes?.expenseChange, yoyChange: yoy?.expenseChange },
     { label: '净利润', value: profit, icon: DollarSign, color: profit >= 0 ? 'text-indigo-600' : 'text-rose-600', bg: 'bg-indigo-50', change: comp?.changes?.profitChange, yoyChange: yoy?.profitChange },
-    { label: '毛利率', value: margin * 100, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50', suffix: '%', change: comp?.changes?.marginChange, yoyChange: yoy?.marginChange },
+    { label: '利润率', value: margin * 100, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50', suffix: '%', change: comp?.changes?.marginChange, yoyChange: yoy?.marginChange },
   ];
 
   return (

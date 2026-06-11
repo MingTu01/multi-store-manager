@@ -5,6 +5,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { MoneyDisplay, formatMoney } from '../../lib/format';
 import { PeriodTabs, type Period } from '../../components/PeriodTabs';
+import { useStore } from '../../stores/data';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Store, ArrowRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
@@ -50,11 +51,16 @@ export default function DashboardPage() {
     { label: '去年同期', income: Math.max(0, yoyInc), expense: Math.max(0, yoyExp) },
   ];
 
+  const userRole = useStore((s: any) => s.user?.role);
+  const isAdmin = userRole === 'ADMIN' || userRole === 'admin';
+  const fundBalance = stats?.fundBalance ?? 0;
+
   const metrics = [
+    ...(isAdmin ? [{ label: '资金余额', value: fundBalance, icon: DollarSign, color: fundBalance >= 0 ? 'text-sky-600' : 'text-rose-600', bg: 'bg-sky-50', change: undefined, yoyChange: undefined }] : []),
     { label: '收入', value: income, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', change: comp?.changes?.incomeChange, yoyChange: yoy?.incomeChange },
     { label: '支出', value: expense, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50', change: comp?.changes?.expenseChange, yoyChange: yoy?.expenseChange },
     { label: '净利润', value: profit, icon: DollarSign, color: profit >= 0 ? 'text-indigo-600' : 'text-rose-600', bg: 'bg-indigo-50', change: comp?.changes?.profitChange, yoyChange: yoy?.profitChange },
-    { label: '毛利率', value: margin * 100, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50', suffix: '%', change: comp?.changes?.marginChange, yoyChange: yoy?.marginChange },
+    { label: '利润率', value: margin * 100, icon: Percent, color: 'text-amber-600', bg: 'bg-amber-50', suffix: '%', change: comp?.changes?.marginChange, yoyChange: yoy?.marginChange },
   ];
 
   return (
@@ -218,7 +224,7 @@ export default function DashboardPage() {
                 <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-400">员工 {s.staff_count ?? 0}</span>
-                    <span className="text-xs text-slate-400">毛利率 {(sm * 100).toFixed(1)}%</span>
+                    <span className="text-xs text-slate-400">利润率 {(sm * 100).toFixed(1)}%</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-slate-400" />
                 </div>
