@@ -1,4 +1,4 @@
-﻿import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'multi-store-secret-key-2024';
@@ -28,7 +28,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 
 export function signToken(payload: any) {
   const tokenExpiry = process.env.TOKEN_EXPIRY || '24h';
-  return jwt.sign(payload, SECRET, { expiresIn: tokenExpiry });
+  return jwt.sign(payload, SECRET, { expiresIn: tokenExpiry } as jwt.SignOptions);
 }
 
 // 关键操作时重新校验用户状态（S18）

@@ -1,11 +1,8 @@
 import db from './db.js';
+import { formatMoney } from './lib/utils';
 
 export function getSettings(): any {
   return db.prepare('SELECT * FROM notification_settings WHERE id = 1').get() || {};
-}
-
-
-  return amount.toFixed(2);
 }
 
 export function getStoreData(storeId: number) {

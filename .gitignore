@@ -37,3 +37,5 @@ _fulltest.js
 !apps/server/seed.ts
 !apps/server/src/seed.ts
 !apps/server/src/lib/utils.ts
+server_out.txt
+server_err.txt
