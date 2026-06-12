@@ -19,6 +19,7 @@ import dividendsRouter from './routes/dividends.js';
 import payrollRouter from './routes/payroll.js';
 import systemRouter from './routes/system.js';
 import logsRouter from './routes/logs.js';
+import healthCertRouter from './routes/health-cert.js';
 import reportsRouter from './routes/reports.js';
 import dashboardRouter from './routes/dashboard.js';
 import { requireStoreAccess } from './middleware/store-access.js';
@@ -54,6 +55,7 @@ app.use('/api/stores/:storeId/report', authMiddleware, requireStoreAccess, repor
 app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/users', authMiddleware, usersRouter);
 app.use('/api/system', authMiddleware, systemRouter);
+app.use('/api/health-cert', authMiddleware, healthCertRouter);
 app.use('/api/logs', authMiddleware, logsRouter);
 // S6: 报表接口加认证
 app.use('/api/reports', authMiddleware, reportsRouter);

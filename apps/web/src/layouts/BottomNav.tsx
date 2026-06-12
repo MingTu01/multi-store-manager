@@ -1,8 +1,9 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useStore } from '../stores/data';
 import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
+import { NotificationBadge } from '../components/NotificationBadge';
 import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User } from 'lucide-react';
 
 export function BottomNav() {
@@ -11,11 +12,23 @@ export function BottomNav() {
   const role = user?.role;
   const [showMore, setShowMore] = useState(false);
   const [storeOpen, setStoreOpen] = useState<boolean | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!storeId) { setStoreOpen(null); return; }
     api.get('/stores/' + storeId).then((d: any) => setStoreOpen(d.is_open === 1)).catch(() => setStoreOpen(true));
   }, [storeId]);
+
+  useEffect(() => {
+    const fetchCount = () => {
+      api.get('/notifications/unread-count').then((d: any) => {
+        setUnreadCount(d.count || 0);
+      }).catch(() => {});
+    };
+    fetchCount();
+    const timer = setInterval(fetchCount, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (storeId && storeOpen === false) return null;
   if (storeId && storeOpen === null) return null;
@@ -23,7 +36,7 @@ export function BottomNav() {
   const adminTabs = [
     { to: '/', icon: LayoutDashboard, label: '仪表盘', key: 'dashboard' },
     { to: '/stores', icon: Store, label: '门店', key: 'stores' },
-    { to: '/notifications', icon: Bell, label: '通知', key: 'notifications' },
+    { to: '/notifications', icon: Bell, label: '通知', key: 'notifications', badge: true },
     { to: '/upgrade', icon: Settings, label: '设置', key: 'upgrade' },
     { to: '/admin-settings', icon: User, label: '我的', key: 'adminSettings' },
   ];
@@ -52,7 +65,10 @@ export function BottomNav() {
   const navItem = (t: any) => (
     <NavLink key={t.to} to={t.to} end={'end' in t && t.end === true ? true : undefined} onClick={() => setShowMore(false)}
       className={({ isActive }) => 'flex flex-shrink-0 flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] transition-colors min-w-[56px] px-1 ' + (isActive ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
-      <t.icon className="h-5 w-5" />
+      <span className="relative">
+        <t.icon className="h-5 w-5" />
+        {t.badge && <NotificationBadge count={unreadCount} />}
+      </span>
       <span className="truncate max-w-[52px]">{t.label}</span>
     </NavLink>
   );

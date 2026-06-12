@@ -19,14 +19,24 @@ router.get('/', (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /notifications/unread-count - 轻量API，仅返回未读数量
+router.get('/unread-count', (req: AuthRequest, res: Response) => {
+  try {
+    const result = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any;
+    res.json({ count: result.count });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST / - 内部调用接口（由 triggerNotification 使用，外部不可直接调用）
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN', 'manager', 'MANAGER'].includes(req.user.role)) {
-      return res.status(403).json({ error: '无权限' });
-    }
-    const { user_id, title, link, content } = req.body;
+    const { user_id, title, link, content, type, store_id } = req.body;
     if (!user_id || !title) return res.status(400).json({ error: '参数不完整' });
-    const result = db.prepare('INSERT INTO notifications (user_id, title, link) VALUES (?,?,?)').run(user_id, title, link || content || '');
+    const result = db.prepare(
+      'INSERT INTO notifications (user_id, title, link, type, content, store_id, read, created_at) VALUES (?,?,?,?,?,?,0,datetime(\'now\',\'localtime\'))'
+    ).run(user_id, title, link || '', type || '', content || '', store_id || null);
     res.json({ id: result.lastInsertRowid, message: '通知发送成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
