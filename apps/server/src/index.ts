@@ -19,11 +19,13 @@ import dividendsRouter from './routes/dividends.js';
 import payrollRouter from './routes/payroll.js';
 import systemRouter from './routes/system.js';
 import logsRouter from './routes/logs.js';
-import healthCertRouter from './routes/health-cert.js';
 import reportsRouter from './routes/reports.js';
 import dashboardRouter from './routes/dashboard.js';
+import healthCertRouter from './routes/health-cert.js';
+import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, getSettings } from './notify.js';
+import { startHealthCertCheck } from './health-check.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +40,7 @@ app.use(express.json({ limit: jsonLimit }));
 
 app.use(express.static(join(process.cwd(), '..', 'web', 'dist')));
 app.use(express.static(join(process.cwd(), 'public')));
+app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
 // Public auth routes
 app.use('/api/auth', authRouter);
@@ -55,11 +58,12 @@ app.use('/api/stores/:storeId/report', authMiddleware, requireStoreAccess, repor
 app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/users', authMiddleware, usersRouter);
 app.use('/api/system', authMiddleware, systemRouter);
-app.use('/api/health-cert', authMiddleware, healthCertRouter);
 app.use('/api/logs', authMiddleware, logsRouter);
 // S6: 报表接口加认证
 app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
+startHealthCheckScheduler();
+app.use('/api/health-cert', authMiddleware, healthCertRouter);
 
 // S15: 全局错误处理 — 生产环境隐藏内部错误详情
 app.use((err: any, req: any, res: any, next: any) => {
@@ -132,6 +136,9 @@ function setupCron() {
 
 setupAutoBackup();
 setupCron();
+
+// 启动健康证到期检查
+startHealthCertCheck();
 
 app.get('{*splat}', (req, res) => {
   if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');
