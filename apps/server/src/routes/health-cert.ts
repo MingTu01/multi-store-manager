@@ -39,15 +39,23 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     let ocrExpiry = '';
 
     for (const line of lines) {
-      const nameMatch = line.match(/\u59d3\u540d[：:]\s*(.+)/);
-      if (nameMatch) ocrName = nameMatch[1].trim();
-      if (line.includes('\u6709\u6548\u671f') || line.includes('\u5230\u671f') || line.includes('\u671f\u9650')) {
-        const d = line.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
-        if (d) ocrExpiry = d[0];
+      if (line.includes('\u59d3') && line.includes('\u540d')) {
+        const afterName = line.split(/\u59d3\s*\u540d/)[1] || '';
+        const nameChars = afterName.match(/[\u4e00-\u9fff]/g);
+        if (nameChars && nameChars.length >= 2) {
+          const stopChars = ['\u6027', '\u522b', '\u8eab', '\u8bc1'];
+          let name = '';
+          for (const ch of nameChars) {
+            if (stopChars.includes(ch)) break;
+            name += ch;
+            if (name.length >= 4) break;
+          }
+          ocrName = name;
+        }
       }
-      if (!ocrExpiry) {
-        const allDates = line.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/g);
-        if (allDates && allDates.length > 0) ocrExpiry = allDates[allDates.length - 1];
+      const dateMatch = line.match(/(\d{4})\s*\u5e74\s*(\d{1,2})\s*\u6708\s*(\d{1,2})/);
+      if (dateMatch) {
+        ocrExpiry = dateMatch[1] + '-' + dateMatch[2].padStart(2, '0') + '-' + dateMatch[3].padStart(2, '0');
       }
     }
 
