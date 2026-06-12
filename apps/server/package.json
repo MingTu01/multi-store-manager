@@ -1,7 +1,7 @@
 {
   "description": "多店管理系统升级包",
   "name": "multi-store-manager",
-  "version": "2.10.2",
+  "version": "2.10.3",
   "dependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -17,6 +17,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "playwright": "^1.60.0",
+    "tesseract.js": "^7.0.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }

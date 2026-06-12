@@ -3,6 +3,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
+import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router({ mergeParams: true });
 
@@ -42,6 +43,14 @@ router.post('/', (req: AuthRequest, res: Response) => {
       const amount = totalRatio > 0 ? (total_amount * sh.ratio / totalRatio) : 0;
       stmt.run(dividendId, sh.name, sh.ratio, amount);
     }
+
+    triggerNotification({
+      type: 'dividend',
+      action: '创建分红',
+      storeId,
+      detail: '新分红已创建, 总金额 ¥' + Number(total_amount).toFixed(2) + (note ? ', 备注: ' + note : '')
+    });
+
     res.json({ id: dividendId, message: '分红创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -81,6 +90,14 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     db.prepare("UPDATE dividends SET status = 'archived' WHERE id = ?").run(req.params.id);
     db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '分红', dividend.total_amount, '分红支出 #' + req.params.id + ' ' + (dividend.note || ''), localDate(), req.user?.id);
     opLog(req.user.id, req.params.storeId, '归档分红', '归档分红 #' + req.params.id);
+
+    triggerNotification({
+      type: 'dividend',
+      action: '分红归档',
+      storeId: req.params.storeId,
+      detail: '分红 #' + req.params.id + ' 已归档, 金额 ¥' + dividend.total_amount.toFixed(2)
+    });
+
     res.json({ message: '分红已归档' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -94,7 +111,9 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM dividend_details WHERE dividend_id = ?').run(req.params.id);
     db.prepare('DELETE FROM dividends WHERE id = ?').run(req.params.id);
     res.json({ message: '分红已删除' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

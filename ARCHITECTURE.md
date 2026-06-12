@@ -36,6 +36,7 @@
 | 密码加密 | bcryptjs | - |
 | UI图标 | lucide-react | - |
 | CSS | Tailwind CSS | - |
+| OCR | Tesseract.js | 7.x |
 
 ## 目录结构
 
@@ -64,6 +65,8 @@ apps/server/src/
     ├── categories.ts  # 收支分类
     ├── users.ts       # 用户管理
     ├── handovers.ts   # 交接记录
+    ├── health-cert.ts    # 健康证上传/OCR/保存
+    ├── health-check.ts    # 健康证到期检查
     └── notifications.ts # 通知管理
 
 apps/web/src/
@@ -124,7 +127,11 @@ erDiagram
         text store_id FK
         text avatar
         real salary
-        text status "active/inactive"
+        text status
+        text health_cert_url
+        text health_cert_name
+        text health_cert_expiry
+        int health_cert_verified "active/inactive"
         text job_title
         text address
         text created_at

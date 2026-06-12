@@ -39,3 +39,6 @@ _fulltest.js
 !apps/server/src/lib/utils.ts
 server_out.txt
 server_err.txt
+# Test files
+ScreenShot_*.png
+*.traineddata

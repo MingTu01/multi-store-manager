@@ -3,6 +3,7 @@ import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
 import { localDate, localDateTime } from '../lib/utils.js';
+import { triggerNotification } from '../notify-trigger.js';
 
 function normalizeType(type: string): string {
   if (type === 'income') return '收入';
@@ -65,6 +66,14 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const nt = normalizeType(type);
     const result = db.prepare('INSERT INTO entries (store_id,type,category,category_id,amount,note,date,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(storeId, nt, categoryName, catId, amount, note||'', date||localDate(), user.id, localDateTime());
     opLog(user.id, storeId, '记账', '新增' + nt + ' ' + categoryName + ' ¥' + amount, req.ip);
+
+    triggerNotification({
+      type: 'entry',
+      action: '新增记账',
+      storeId,
+      detail: user.name + ' 在门店新增' + nt + ': ' + categoryName + ' ¥' + amount
+    });
+
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -88,6 +97,14 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
     const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
     opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }), req.ip);
+
+    triggerNotification({
+      type: 'entry',
+      action: '修改记账',
+      storeId,
+      detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + categoryName + ' ¥' + amount
+    });
+
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -105,6 +122,14 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM entries WHERE id=?').run(req.params.id);
     const detail = entry ? '删除记账 #' + req.params.id + ' ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount + ' (' + entry.date + ')' : '删除记账 #' + req.params.id;
     opLog(user.id, storeId, '记账', detail, req.ip);
+
+    triggerNotification({
+      type: 'entry',
+      action: '删除记账',
+      storeId,
+      detail: user.name + ' 删除了记账 #' + req.params.id + (entry ? ': ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount : '')
+    });
+
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

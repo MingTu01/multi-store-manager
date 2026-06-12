@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
+import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router({ mergeParams: true });
 
@@ -55,6 +56,13 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const action = type === 'open' ? '开店' : '关店';
     opLog(req.user.id, storeId, action, action + '操作' + (note ? ': ' + note : ''));
 
+    triggerNotification({
+      type: 'shift',
+      action,
+      storeId,
+      detail: (req.user.name || req.user.username) + ' 执行了' + action + '操作' + (note ? ': ' + note : '')
+    });
+
     res.json({ id: result.lastInsertRowid, message: action + '成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -62,10 +70,9 @@ router.post('/', (req: AuthRequest, res: Response) => {
 });
 
 
-// POST /open - convenience route for opening store
+// POST /open
 router.post('/open', (req: AuthRequest, res: Response) => {
   req.body.type = 'open';
-  // Forward to the main POST handler by calling the same logic
   try {
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
@@ -73,11 +80,19 @@ router.post('/open', (req: AuthRequest, res: Response) => {
     const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content) VALUES (?,?,?,?,?)').run(storeId, 'open', photosStr, note || '', handover_content || '');
     db.prepare('UPDATE stores SET is_open = 1 WHERE id = ?').run(storeId);
     opLog(req.user.id, storeId, '开店', '开店操作' + (note ? ': ' + note : ''));
+
+    triggerNotification({
+      type: 'shift',
+      action: '开店',
+      storeId,
+      detail: (req.user.name || req.user.username) + ' 执行了开店操作' + (note ? ': ' + note : '')
+    });
+
     res.json({ id: result.lastInsertRowid, message: '开店成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /close - convenience route for closing store
+// POST /close
 router.post('/close', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
@@ -86,12 +101,20 @@ router.post('/close', (req: AuthRequest, res: Response) => {
     const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content) VALUES (?,?,?,?,?)').run(storeId, 'close', photosStr, note || '', handover_content || '');
     db.prepare('UPDATE stores SET is_open = 0 WHERE id = ?').run(storeId);
     opLog(req.user.id, storeId, '关店', '关店操作' + (note ? ': ' + note : ''));
+
+    triggerNotification({
+      type: 'shift',
+      action: '关店',
+      storeId,
+      detail: (req.user.name || req.user.username) + ' 执行了关店操作' + (note ? ': ' + note : '')
+    });
+
     res.json({ id: result.lastInsertRowid, message: '关店成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 
-// GET /last-close-handover - get last close shift with handover content
+// GET /last-close-handover
 router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;

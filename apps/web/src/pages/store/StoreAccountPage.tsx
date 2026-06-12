@@ -83,8 +83,8 @@ export default function StoreAccountPage() {
 
       const ocrRes: any = await api.post('/health-cert/ocr', { url: uploadRes.url });
       setOcrResult({
-        name: ocrRes.name || '',
-        expiry: ocrRes.expiry || '',
+        name: ocrRes.ocrName || ocrRes.name || '',
+        expiry: ocrRes.realExpiry || ocrRes.expiry || '',
         match: ocrRes.match || false,
       });
       setShowOcrConfirm(true);

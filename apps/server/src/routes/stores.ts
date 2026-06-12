@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
+import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router();
 
@@ -55,6 +56,14 @@ router.post('/', (req: AuthRequest, res: Response) => {
       for (const sh of shBody) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
     }
     opLog(req.user.id, 0, '创建门店', '创建门店: ' + name);
+
+    triggerNotification({
+      type: 'store',
+      action: '创建门店',
+      storeId,
+      detail: '新门店已创建: ' + name
+    });
+
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -78,6 +87,14 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
       for (const sh of shBody) { stmt.run(req.params.storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
     }
     opLog(req.user.id, 0, '修改门店', '修改门店信息');
+
+    triggerNotification({
+      type: 'store',
+      action: '修改门店',
+      storeId: req.params.storeId,
+      detail: '门店信息已更新' + (name ? ': ' + name : '')
+    });
+
     res.json({ message: '门店更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -93,40 +110,40 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
       return res.status(401).json({ error: '密码错误' });
     }
-    const storeId = req.params.id;
-    db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM entries WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM inventory_items WHERE check_id IN (SELECT id FROM inventory_checks WHERE store_id = ?)').run(storeId);
-    db.prepare('DELETE FROM inventory_checks WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM store_opens WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM dividend_details WHERE dividend_id IN (SELECT id FROM dividends WHERE store_id = ?)').run(storeId);
-    db.prepare('DELETE FROM dividends WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM payroll_items WHERE payroll_id IN (SELECT id FROM payroll WHERE store_id = ?)').run(storeId);
-    db.prepare('DELETE FROM payroll WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM handovers WHERE store_id = ?').run(storeId);
-    db.prepare('DELETE FROM stores WHERE id = ?').run(storeId);
+    const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(req.params.id) as any;
+    if (!store) return res.status(404).json({ error: '门店不存在' });
+    db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM entries WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM inventory_checks WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM store_opens WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM dividends WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM payroll WHERE store_id = ?').run(req.params.id);
+    db.prepare('DELETE FROM handovers WHERE store_id = ?').run(req.params.id);
+    db.prepare("UPDATE users SET store_id = NULL WHERE store_id = ?").run(req.params.id);
+    db.prepare('DELETE FROM stores WHERE id = ?').run(req.params.id);
+    opLog(req.user.id, 0, '删除门店', '删除门店: ' + store.name);
+
+    triggerNotification({
+      type: 'store',
+      action: '删除门店',
+      storeId: req.params.id,
+      detail: '门店已删除: ' + store.name
+    });
+
     res.json({ message: '门店已删除' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:storeId/summary', (req: AuthRequest, res: Response) => {
+router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
-    const { date, dateFrom, dateTo, month, year } = req.query;
-    let dateCondition = '';
-    const params: any[] = [storeId];
-    if (date) { dateCondition = 'AND date = ?'; params.push(date); }
-    else if (dateFrom && dateTo) { dateCondition = 'AND date >= ? AND date <= ?'; params.push(dateFrom, dateTo); }
-    else if (month) { dateCondition = 'AND date LIKE ?'; params.push(month + '%'); }
-    else if (year) { dateCondition = 'AND date LIKE ?'; params.push(year + '%'); }
-    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' " + dateCondition).get(...params) as any).total;
-    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' " + dateCondition).get(...params) as any).total;
     const today = localDate();
-    const todayIncome = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '收入' AND date = ?").get(storeId, today) as any).total;
-    const todayExpense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id = ? AND type = '支出' AND date = ?").get(storeId, today) as any).total;
-    res.json({ income: income || 0, expense: expense || 0, profit: (income || 0) - (expense || 0) });
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
+    const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(storeId) as any).count || 0;
+    res.json({ income, expense, profit: income - expense, staffCount });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -149,6 +166,14 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     const passwordHash = bcrypt.hashSync(pw, 10);
     const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, role || 'STAFF', storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
     opLog(req.user.id, storeId, '添加员工', '添加员工: ' + name);
+
+    triggerNotification({
+      type: 'staff',
+      action: '添加员工',
+      storeId,
+      detail: '新员工已添加: ' + name + (position ? ' (' + position + ')' : '')
+    });
+
     res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -173,6 +198,14 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
       db.prepare('UPDATE users SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
     }
     opLog(req.user.id, req.params.storeId, '修改员工', '修改员工 #' + req.params.id);
+
+    triggerNotification({
+      type: 'staff',
+      action: '修改员工',
+      storeId: req.params.storeId,
+      detail: '员工 #' + req.params.id + ' 信息已更新' + (name ? ': ' + name : '')
+    });
+
     res.json({ message: '员工信息已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -191,9 +224,7 @@ router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     res.json(shareholders);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {

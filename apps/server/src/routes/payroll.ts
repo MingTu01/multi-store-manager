@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
+import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router({ mergeParams: true });
 
@@ -73,7 +74,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
   }
 });
 
-// POST /generate - auto-generate payroll with optional bonus/deduction per staff
+// POST /generate
 router.post('/generate', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
@@ -107,6 +108,14 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     for (const item of items) {
       stmt.run(payrollId, item.user_id, item.user_name, item.base_amount, item.bonus, item.deduction, item.total_amount, item.job_title);
     }
+
+    triggerNotification({
+      type: 'payroll',
+      action: '生成工资单',
+      storeId,
+      detail: '工资单已生成: ' + payrollPeriod + ', 总金额 ¥' + totalAmount.toFixed(2)
+    });
+
     res.json({ id: payrollId, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -120,13 +129,35 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
     db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(req.params.id);
     db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + req.params.id, (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(), req.user.id);
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
+
+    triggerNotification({
+      type: 'payroll',
+      action: '确认工资单',
+      storeId: req.params.storeId,
+      detail: '工资单 #' + req.params.id + ' 已确认, 周期: ' + payroll.period + ', 总金额 ¥' + payroll.total_amount.toFixed(2)
+    });
+
+    // 通知相关员工
+    const payrollItems = db.prepare('SELECT user_id FROM payroll_items WHERE payroll_id = ?').all(req.params.id) as any[];
+    for (const item of payrollItems) {
+      if (item.user_id) {
+        triggerNotification({
+          type: 'payroll',
+          action: '工资已确认',
+          storeId: req.params.storeId,
+          detail: '您的工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认',
+          targetUserId: item.user_id
+        });
+      }
+    }
+
     res.json({ message: '工资单已确认' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// DELETE /:id - delete draft payroll
+// DELETE /:id
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
