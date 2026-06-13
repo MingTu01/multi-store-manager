@@ -42,7 +42,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     const allText = lines.join(' ').replace(/[。\u201c\u201d"]/g, '').replace(/\s+/g, '');
 
     // Extract name: pattern like 姓名:XXX or 姓名 : XXX
-    const nameMatch = allText.match(/\u59d3\u540d[:：]?([^\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5]{2,8})[\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5]/);
+    const nameMatch = allText.match(/\u59d3\u540d[:：]?([^\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5\u4f53\u68c0\u53d1\u8bc1\u6709\u6548\u81f3\u671f\u673a\u5173]{2,8})[\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5\u4f53\u68c0\u53d1\u8bc1\u6709\u6548\u81f3\u671f\u673a\u5173]/);
     if (nameMatch) {
       ocrName = nameMatch[1].replace(/[^\u4e00-\u9fff]/g, '').slice(0, 4);
     }

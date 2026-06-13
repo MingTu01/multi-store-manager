@@ -24,6 +24,9 @@ export default function StoreAccountPage() {
   const [healthCert, setHealthCert] = useState<{ url: string; name: string; expiry: string; verified: boolean } | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState<{ name: string; expiry: string; match: boolean } | null>(null);
+  const [manualEdit, setManualEdit] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualDate, setManualDate] = useState('');
   const [showOcrConfirm, setShowOcrConfirm] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState('');
   const healthFileRef = useRef<HTMLInputElement>(null);
@@ -97,18 +100,23 @@ export default function StoreAccountPage() {
   };
 
   const confirmHealthCert = async () => {
-    if (!ocrResult) return;
+    const finalName = manualEdit ? manualName : (ocrResult?.name || '');
+    const finalDate = manualEdit ? manualDate : (ocrResult?.expiry || '');
+    if (!finalName && !finalDate) { showMsg(false, '请填写姓名或日期'); return; }
     setSaving(true);
     try {
       await api.put('/health-cert/save', {
         url: uploadedUrl,
-        name: ocrResult.name,
-        expiry: ocrResult.expiry,
-        verified: ocrResult.match,
+        name: finalName,
+        expiry: finalDate,
+        verified: manualEdit ? false : (ocrResult?.match || false),
       });
-      setHealthCert({ url: uploadedUrl, name: ocrResult.name, expiry: ocrResult.expiry, verified: ocrResult.match });
+      setHealthCert({ url: uploadedUrl || '', name: finalName, expiry: finalDate, verified: manualEdit ? false : (ocrResult?.match || false) });
       setShowOcrConfirm(false);
       setOcrResult(null);
+      setManualEdit(false);
+      setManualName('');
+      setManualDate('');
       showMsg(true, '健康证已保存');
     } catch (err: any) {
       showMsg(false, err.message || '保存失败');
@@ -251,12 +259,29 @@ export default function StoreAccountPage() {
               <img src={uploadedUrl} alt="健康证预览" className="w-full max-h-48 object-contain rounded-xl bg-slate-50" />
             </div>
           )}
-          {ocrResult && (
+          {/* 识别结果或手动输入 */}
+          {manualEdit ? (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-700 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                识别不准确？请手动输入信息
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">姓名</label>
+                <input value={manualName} onChange={e => setManualName(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-300" placeholder="请输入姓名" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-slate-500">体检日期</label>
+                <input type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-300" />
+                <div className="mt-1 text-xs text-slate-400">有效期将自动设为体检日期 +1 年</div>
+              </div>
+            </div>
+          ) : ocrResult && (
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <span className="text-sm text-slate-500">识别姓名</span>
                 <span className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-slate-800">{ocrResult.name || '未识别到'}</span>
+                  <span className="text-sm font-medium text-slate-800">{ocrResult.name || "未识别到"}</span>
                   {ocrResult.name && (
                     ocrResult.match
                       ? <span className="flex items-center gap-0.5 text-emerald-600 text-xs"><CheckCircle className="h-3.5 w-3.5" />与账户匹配</span>
@@ -269,6 +294,11 @@ export default function StoreAccountPage() {
                   <span className="text-sm text-slate-500">有效期至</span>
                   <span className="text-sm font-medium text-slate-800">{ocrResult.expiry}</span>
                 </div>
+              )}
+              {(!ocrResult.name || !ocrResult.expiry) && (
+                <button onClick={() => { setManualEdit(true); setManualName(ocrResult.name || ''); setManualDate(ocrResult.expiry || ''); }} className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm text-amber-700 hover:bg-amber-100">
+                  识别不完整？点击手动填写
+                </button>
               )}
               {(isExpired(ocrResult.expiry) || isExpiringSoon(ocrResult.expiry)) && (
                 <div className={'flex items-center gap-2 rounded-xl p-3 text-xs ' + (isExpired(ocrResult.expiry) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700')}>
