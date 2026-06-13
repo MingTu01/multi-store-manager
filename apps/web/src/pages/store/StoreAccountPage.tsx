@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { compressImage } from '../../lib/image';
 import { api } from '../../lib/api';
+import { showToast } from '../../components/Toast';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { User, Phone, MapPin, Shield, Camera, Lock, Save, LogOut, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { User, Phone, MapPin, Shield, Camera, Lock, Save, LogOut, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 
 const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
@@ -23,6 +24,9 @@ export default function StoreAccountPage() {
   // 健康证状态
   const [healthCert, setHealthCert] = useState<{ url: string; name: string; expiry: string; verified: boolean } | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<'idle'|'uploading'|'recognizing'|'done'>('idle');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showImageZoom, setShowImageZoom] = useState(false);
   const [ocrResult, setOcrResult] = useState<{ name: string; expiry: string; match: boolean } | null>(null);
   const [manualEdit, setManualEdit] = useState(false);
   const [manualName, setManualName] = useState('');
@@ -78,21 +82,25 @@ export default function StoreAccountPage() {
   const handleHealthUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setShowUploadModal(false);
     setHealthLoading(true);
+    setUploadPhase("uploading");
     try {
       const uploadRes: any = await api.upload('/health-cert/upload', file);
       if (!uploadRes.url) throw new Error('上传失败');
       setUploadedUrl(uploadRes.url);
-
+      setUploadPhase("recognizing");
       const ocrRes: any = await api.post('/health-cert/ocr', { url: uploadRes.url });
       setOcrResult({
         name: ocrRes.ocrName || ocrRes.name || '',
         expiry: ocrRes.realExpiry || ocrRes.expiry || '',
         match: ocrRes.match || false,
       });
+      setUploadPhase("done");
       setShowOcrConfirm(true);
     } catch (err: any) {
       showMsg(false, err.message || '健康证上传失败');
+      setUploadPhase("idle");
     } finally {
       setHealthLoading(false);
       if (e.target) e.target.value = '';
@@ -101,8 +109,15 @@ export default function StoreAccountPage() {
 
   const confirmHealthCert = async () => {
     const finalName = manualEdit ? manualName : (ocrResult?.name || '');
-    const finalDate = manualEdit ? manualDate : (ocrResult?.expiry || '');
-    if (!finalName && !finalDate) { showMsg(false, '请填写姓名或日期'); return; }
+    const rawDate = manualEdit ? manualDate : (ocrResult?.expiry || '');
+    if (!finalName && !rawDate) { showToast('请填写姓名或日期', 'error'); return; }
+    // 手动输入时：体检日期 +1 年 = 有效期
+    let finalDate = rawDate;
+    if (manualEdit && rawDate) {
+      const d = new Date(rawDate);
+      d.setFullYear(d.getFullYear() + 1);
+      finalDate = d.toISOString().slice(0, 10);
+    }
     setSaving(true);
     try {
       await api.put('/health-cert/save', {
@@ -117,9 +132,9 @@ export default function StoreAccountPage() {
       setManualEdit(false);
       setManualName('');
       setManualDate('');
-      showMsg(true, '健康证已保存');
+      showToast('健康证已保存', 'success');
     } catch (err: any) {
-      showMsg(false, err.message || '保存失败');
+      showToast(err.message || '保存失败', 'error');
     } finally { setSaving(false); }
   };
 
@@ -182,58 +197,65 @@ export default function StoreAccountPage() {
           <h3 className="text-base font-semibold text-slate-900">健康证</h3>
         </div>
 
-        {healthCert ? (
+        {/* 上传/识别中状态 */}
+        {healthLoading && (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+            <span className="text-sm text-slate-600">{uploadPhase === "uploading" ? "正在上传图片..." : "正在识别健康证..."}</span>
+            <span className="text-xs text-slate-400">请稍候，处理完成后会自动弹出确认</span>
+          </div>
+        )}
+
+        {!healthLoading && healthCert ? (
           <div className="space-y-3">
-            <div className="relative overflow-hidden rounded-xl">
-              <img src={healthCert.url} alt="健康证" className="w-full max-h-64 object-contain rounded-xl bg-slate-50" />
+            {/* 图片展示 — 点击放大弹窗 */}
+            <div className="relative overflow-hidden rounded-xl cursor-pointer group" onClick={() => setShowImageZoom(true)}>
+              <img src={healthCert.url} alt="健康证" className="w-full max-h-80 object-contain rounded-xl bg-slate-50 transition-transform group-hover:scale-[1.02]" />
+              <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-lg">点击放大</span>
+              </div>
             </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">识别姓名</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="font-medium text-slate-800">{healthCert.name || '未识别'}</span>
+
+            {/* 识别信息 — 姓名 + 到期日期 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">识别姓名</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-slate-800">{healthCert.name || "未识别"}</span>
                   {healthCert.name && (
                     healthCert.verified
-                      ? <span className="flex items-center gap-0.5 text-emerald-600 text-xs"><CheckCircle className="h-3.5 w-3.5" />匹配</span>
-                      : <span className="flex items-center gap-0.5 text-rose-600 text-xs"><XCircle className="h-3.5 w-3.5" />不匹配</span>
+                      ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                      : <XCircle className="h-3.5 w-3.5 text-rose-400" />
                   )}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">有效期至</div>
+                <span className={"text-sm font-semibold " + (isExpired(healthCert.expiry) ? "text-rose-600" : isExpiringSoon(healthCert.expiry) ? "text-amber-600" : "text-slate-800")}>
+                  {healthCert.expiry || "未识别"}
                 </span>
               </div>
-              {healthCert.expiry && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">有效期至</span>
-                    <span className="font-medium text-slate-800">{healthCert.expiry}</span>
-                  </div>
-                  {(isExpired(healthCert.expiry) || isExpiringSoon(healthCert.expiry)) && (
-                    <div className={'flex items-center gap-2 rounded-xl p-3 text-xs ' + (isExpired(healthCert.expiry) ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700')}>
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      {isExpired(healthCert.expiry) ? '健康证已过期，请及时更新' : '健康证将在30天内到期，请注意更新'}
-                    </div>
-                  )}
-                </>
-              )}
             </div>
-            <button onClick={() => healthFileRef.current?.click()} disabled={healthLoading}
+
+            {/* 过期提醒 */}
+            {(isExpired(healthCert.expiry) || isExpiringSoon(healthCert.expiry)) && (
+              <div className={"flex items-center gap-2 rounded-xl p-3 text-xs " + (isExpired(healthCert.expiry) ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700")}>
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {isExpired(healthCert.expiry) ? "健康证已过期，请及时更新" : "健康证将在30天内到期，请注意更新"}
+              </div>
+            )}
+
+            <button onClick={() => setShowUploadModal(true)} disabled={healthLoading}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-              <Upload className="h-4 w-4" />{healthLoading ? '上传中...' : '重新上传'}
+              <Upload className="h-4 w-4" />重新上传
             </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-8 text-center">
+        ) : !healthLoading && (
+          <div>
+            <div onClick={() => setShowUploadModal(true)} className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-8 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
               <FileCheck className="mb-2 h-10 w-10 text-slate-300" />
-              <p className="text-sm text-slate-400">请上传健康证</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => healthCameraRef.current?.click()} disabled={healthLoading}
-                className="flex items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
-                <Camera className="h-4 w-4" />拍照上传
-              </button>
-              <button onClick={() => healthFileRef.current?.click()} disabled={healthLoading}
-                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-                <Upload className="h-4 w-4" />选择文件
-              </button>
+              <p className="text-sm text-slate-400">点击上传健康证</p>
+              <p className="text-xs text-slate-300 mt-1">支持拍照或选择文件</p>
             </div>
           </div>
         )}
@@ -241,6 +263,41 @@ export default function StoreAccountPage() {
         <input ref={healthFileRef} type="file" accept="image/*" onChange={handleHealthUpload} className="hidden" />
         <input ref={healthCameraRef} type="file" accept="image/*" capture="environment" onChange={handleHealthUpload} className="hidden" />
       </GlassCard>
+
+      {/* 图片放大弹窗 */}
+      <Modal open={showImageZoom} onClose={() => setShowImageZoom(false)} title="健康证">
+        <div className="flex items-center justify-center">
+          {healthCert?.url && (
+            <img src={healthCert.url} alt="健康证" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+          )}
+        </div>
+        {healthCert?.name && (
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-lg bg-slate-50 px-3 py-2">
+              <span className="text-slate-500">姓名: </span>
+              <span className="font-medium">{healthCert.name}</span>
+            </div>
+            <div className="rounded-lg bg-slate-50 px-3 py-2">
+              <span className="text-slate-500">有效期: </span>
+              <span className="font-medium">{healthCert.expiry}</span>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* 上传健康证弹窗 */}
+      <Modal open={showUploadModal} onClose={() => setShowUploadModal(false)} title="上传健康证">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">请选择上传方式，系统将自动识别姓名和有效期。</p>
+          <button onClick={() => healthCameraRef.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-3 text-sm font-medium text-white hover:bg-indigo-600">
+            <Camera className="h-5 w-5" />拍照上传
+          </button>
+          <button onClick={() => healthFileRef.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            <Upload className="h-5 w-5" />选择文件
+          </button>
+          <p className="text-xs text-center text-slate-400">支持 JPG/PNG 格式</p>
+        </div>
+      </Modal>
 
       <div className="grid grid-cols-2 gap-3">
         <button onClick={() => { setProfileForm({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><User className="h-4 w-4" />编辑资料</button>
@@ -273,7 +330,9 @@ export default function StoreAccountPage() {
               <div>
                 <label className="mb-1 block text-xs text-slate-500">体检日期</label>
                 <input type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-300" />
-                <div className="mt-1 text-xs text-slate-400">有效期将自动设为体检日期 +1 年</div>
+                {manualDate && (
+                  <div className="mt-1 text-xs text-emerald-600">有效期将自动设为：{(() => { const d = new Date(manualDate); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0, 10); })()}</div>
+                )}
               </div>
             </div>
           ) : ocrResult && (

@@ -258,6 +258,9 @@ const migrations = [
   "ALTER TABLE stores ADD COLUMN photos TEXT DEFAULT '[]'",
   "ALTER TABLE users ADD COLUMN health_cert_expiry TEXT DEFAULT ''",
   "ALTER TABLE users ADD COLUMN health_cert_photo TEXT DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN health_cert_url TEXT DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN health_cert_name TEXT DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN health_cert_verified INTEGER DEFAULT 0",
 ];
 
 for (const sql of migrations) {

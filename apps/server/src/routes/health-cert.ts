@@ -38,34 +38,38 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     let ocrName = '';
     let ocrExpiry = '';
 
-    // Merge all lines, clean noise chars for better parsing
-    const allText = lines.join(' ').replace(/[。\u201c\u201d"]/g, '').replace(/\s+/g, '');
+    // 清洗：去标点、压缩空格、去除中文字符间空格
+    const cleaned = lines.join(' ')
+      .replace(/[。.,，、""''「」【】\(\)\[\]]/g, '')
+      .replace(/(\s+)/g, ' ')
+      .replace(/([\u4e00-\u9fff])\s+([\u4e00-\u9fff])/g, '$1$2')
+      .replace(/([\u4e00-\u9fff])\s+([\u4e00-\u9fff])/g, '$1$2');
 
-    // Extract name: pattern like 姓名:XXX or 姓名 : XXX
-    const nameMatch = allText.match(/\u59d3\u540d[:：]?([^\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5\u4f53\u68c0\u53d1\u8bc1\u6709\u6548\u81f3\u671f\u673a\u5173]{2,8})[\u6027\u522b\u8eab\u8bc1\u5e74\u6708\u65e5\u4f53\u68c0\u53d1\u8bc1\u6709\u6548\u81f3\u671f\u673a\u5173]/);
-    if (nameMatch) {
-      ocrName = nameMatch[1].replace(/[^\u4e00-\u9fff]/g, '').slice(0, 4);
-    }
-    // Fallback: try each line
+    // 姓名提取
+    const nameMatch = cleaned.match(/姓\s*名\s*[:：]?\s*([^性别身证年月日体检发机有至期关效]{2,4})/);
+    if (nameMatch) { ocrName = nameMatch[1]; }
     if (!ocrName) {
       for (const line of lines) {
-        const nm = line.match(/\u59d3\s*\u540d\s*[:：]?\s*([一-鿿]{2,4})/);
-        if (nm) { ocrName = nm[1].trim(); break; }
+        const nm = line.replace(/\s+/g, '').match(/姓名[:：]?([\u4e00-\u9fff]{2,4})/);
+        if (nm) { ocrName = nm[1]; break; }
       }
     }
 
-    // Extract date: YYYY年MM月DD日
-    const dateMatch = allText.match(/(\d{4})\u5e74(\d{1,2})\u6708(\d{1,2})\u65e5?/);
+    // 日期提取（修正常见OCR误识别）
+    const dateText = cleaned
+      .replace(/\s+/g, '')
+      .replace(/户/g, '月').replace(/扩/g, '日').replace(/目/g, '月');
+    const dateMatch = dateText.match(/(\d{4})年(\d{1,2})月(\d{1,2})日?/);
     if (dateMatch) {
       ocrExpiry = dateMatch[1] + '-' + dateMatch[2].padStart(2, '0') + '-' + dateMatch[3].padStart(2, '0');
     }
-    // Fallback: try each line
     if (!ocrExpiry) {
-      for (const line of lines) {
-        const dm = line.match(/(\d{4})\s*\u5e74\s*(\d{1,2})\s*\u6708\s*(\d{1,2})/);
-        if (dm) { ocrExpiry = dm[1] + '-' + dm[2].padStart(2, '0') + '-' + dm[3].padStart(2, '0'); break; }
-      }
-    }const user = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.id) as any;
+      const looseText = cleaned.replace(/户/g, '月').replace(/扩/g, '日');
+      const dm = looseText.match(/(\d{4})\s*年\s*(\d{1,2})\s*[月户]\s*(\d{1,2})\s*[日扩]?/);
+      if (dm) { ocrExpiry = dm[1] + '-' + dm[2].padStart(2, '0') + '-' + dm[3].padStart(2, '0'); }
+    }
+
+    const user = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.id) as any;
     // Fuzzy name matching: exact includes, or 2/3+ char overlap for OCR errors
     let match = false;
     if (ocrName && user?.name) {
