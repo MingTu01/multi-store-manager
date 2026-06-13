@@ -256,6 +256,8 @@ const migrations = [
   "ALTER TABLE entries ADD COLUMN category_id INTEGER",
   "ALTER TABLE payroll ADD COLUMN confirmed_at TEXT",
   "ALTER TABLE stores ADD COLUMN photos TEXT DEFAULT '[]'",
+  "ALTER TABLE users ADD COLUMN health_cert_expiry TEXT DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN health_cert_photo TEXT DEFAULT ''",
 ];
 
 for (const sql of migrations) {

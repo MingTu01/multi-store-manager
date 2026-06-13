@@ -1,11 +1,22 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { signToken, authMiddleware, AuthRequest } from '../auth.js';
 
 const router = Router();
 
-router.post('/login', (req, res) => {
+// 登录速率限制：同一IP每分钟最多10次登录尝试
+const loginLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: '登录尝试过于频繁，请1分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
+router.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: '请输入用户名和密码' });

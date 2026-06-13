@@ -145,4 +145,12 @@ app.get('{*splat}', (req, res) => {
   res.sendFile(join(process.cwd(), '..', 'web', 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));
+app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT))
+  .on('error', (err: any) => {
+    if (err.code === 'EACCES') {
+      console.error('端口 ' + PORT + ' 无权限，请尝试其他端口: PORT=3000 node --import tsx src/index.ts');
+    } else {
+      console.error('服务器启动失败:', err.message);
+    }
+    process.exit(1);
+  });
