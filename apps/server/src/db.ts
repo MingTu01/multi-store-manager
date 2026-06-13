@@ -205,6 +205,26 @@ CREATE TABLE IF NOT EXISTS notification_settings (
   updated_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+CREATE TABLE IF NOT EXISTS store_notification_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL UNIQUE,
+  method TEXT DEFAULT 'none',
+  pushplus_token TEXT DEFAULT '',
+  serverchan_key TEXT DEFAULT '',
+  wecom_corpid TEXT DEFAULT '',
+  wecom_agentid TEXT DEFAULT '',
+  wecom_secret TEXT DEFAULT '',
+  wecom_userid TEXT DEFAULT '',
+  wecom_proxy_url TEXT DEFAULT 'https://wx.908521.xyz/',
+  push_daily_report INTEGER DEFAULT 0,
+  push_weekly_report INTEGER DEFAULT 0,
+  push_monthly_report INTEGER DEFAULT 0,
+  push_review_reminder INTEGER DEFAULT 0,
+  push_alert INTEGER DEFAULT 0,
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+
 CREATE TABLE IF NOT EXISTS categories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,

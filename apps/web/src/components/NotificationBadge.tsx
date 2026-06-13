@@ -33,7 +33,7 @@ export function NotificationBadge({ count: propCount, poll = false, interval = 3
   const display = count > 99 ? '99+' : String(count);
 
   return (
-    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+    <span className="absolute -top-1 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white shadow-sm leading-none">
       {display}
     </span>
   );

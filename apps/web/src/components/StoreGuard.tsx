@@ -90,11 +90,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   if (!isOpen) {
     return (
       <div className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30 overflow-hidden">
-        {user?.role === 'ADMIN' && (
-          <button onClick={() => nav('/')} className="absolute left-4 top-4 z-[100] flex items-center gap-1 rounded-xl bg-white/80 px-3 py-2 text-sm text-slate-600 shadow-sm backdrop-blur-sm hover:bg-white">
-            <ArrowLeft className="h-4 w-4" />返回管理
-          </button>
-        )}
+        
 
         <Lock className="mb-4 h-16 w-16 text-slate-300" />
         <div className="mb-1 text-4xl font-mono font-bold text-slate-800">{timeStr}</div>

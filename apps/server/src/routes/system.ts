@@ -297,13 +297,13 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
 
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
+  if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
   try { res.json(getSettings()); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     Object.assign(s, req.body);
     const configPath = join(process.cwd(), 'data', 'notification-settings.json');
@@ -322,7 +322,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
 
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const type = req.query.type as string || 'daily';
     (() => {
       let title = '测试通知'; let content = '这是一条测试通知消息\n发送时间: ' + new Date().toLocaleString('zh-CN');

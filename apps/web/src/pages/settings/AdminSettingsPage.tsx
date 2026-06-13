@@ -5,12 +5,14 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save } from 'lucide-react';
+import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save, LogOut } from 'lucide-react';
 
-const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
+  STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
 export default function AdminSettingsPage() {
   const user = useStore((s) => s.user);
+  const logout = useStore((s) => s.logout);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -111,7 +113,7 @@ export default function AdminSettingsPage() {
 
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => { setProfileForm({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }}
+        <button onClick={() => { setProfileForm({ username: user?.username || '', phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }}
           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all">
           <User className="h-4 w-4" />编辑资料
         </button>
@@ -121,9 +123,19 @@ export default function AdminSettingsPage() {
         </button>
       </div>
 
+      <div className="mt-2">
+        <button onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/80 py-3 text-sm font-medium text-rose-600 hover:bg-rose-100 transition-all">
+          <LogOut className="h-4 w-4" />退出登录
+        </button>
+      </div>
+
       {/* Edit profile modal */}
       <Modal open={showProfile} onClose={() => setShowProfile(false)} title="编辑资料">
         <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600">账号</label>
+            <input value={profileForm.username} onChange={e => setProfileForm(f => ({ ...f, username: e.target.value }))} className={inputCls} placeholder="请输入账号" />
+          </div>
           <div>
             <label className="mb-1.5 block text-xs font-medium text-slate-600">手机号</label>
             <input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="请输入手机号" />

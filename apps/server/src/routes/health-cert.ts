@@ -80,7 +80,8 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
         for (let i = 0; i < ocrName.length; i++) {
           if (ocrName[i] === user.name[i]) sameCount++;
         }
-        match = sameCount >= Math.floor(ocrName.length * 0.6);
+        // Require: all chars match except 1 (for names >= 3 chars)
+        if (ocrName.length <= 3) { match = sameCount === ocrName.length; } else { match = sameCount >= ocrName.length - 1; }
       }
     }
 

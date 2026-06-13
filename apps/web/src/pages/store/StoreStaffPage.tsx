@@ -10,6 +10,7 @@ import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload } f
 import { compressImage } from '../../lib/image';
 
 const roles = [
+  { value: 'STORE_ADMIN', label: '店铺管理员' },
   { value: 'STAFF', label: '员工' },
   { value: 'MANAGER', label: '店长' },
   { value: 'SHAREHOLDER', label: '股东' },
@@ -115,8 +116,8 @@ export default function StoreStaffPage() {
   };
 
   const getRoleBadge = (role: string) => {
-    const m: Record<string, string> = { ADMIN: 'bg-indigo-50 text-indigo-600', MANAGER: 'bg-emerald-50 text-emerald-600', STAFF: 'bg-amber-50 text-amber-600', SHAREHOLDER: 'bg-violet-50 text-violet-600' };
-    const lm: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+    const m: Record<string, string> = { ADMIN: 'bg-indigo-50 text-indigo-600', STORE_ADMIN: 'bg-cyan-50 text-cyan-600', MANAGER: 'bg-emerald-50 text-emerald-600', STAFF: 'bg-amber-50 text-amber-600', SHAREHOLDER: 'bg-violet-50 text-violet-600' };
+    const lm: Record<string, string> = { ADMIN: '系统管理员', STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
     return { color: m[role] || m.STAFF, label: lm[role] || role };
   };
 

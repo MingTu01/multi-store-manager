@@ -31,7 +31,6 @@ function checkHealthCerts(): void {
           type: 'health_cert',
           action: '健康证已过期',
           detail: user.name + ' 的健康证已过期，到期日: ' + user.health_cert_expiry,
-          targetUserId: user.id,
           storeId: user.store_id || undefined
         });
       } else if (daysLeft <= 30) {
@@ -40,7 +39,6 @@ function checkHealthCerts(): void {
           type: 'health_cert',
           action: '健康证即将过期',
           detail: user.name + ' 的健康证将于' + daysLeft + '天后过期，到期日: ' + user.health_cert_expiry,
-          targetUserId: user.id,
           storeId: user.store_id || undefined
         });
       }

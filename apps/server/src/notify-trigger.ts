@@ -1,4 +1,5 @@
 import db from './db.js';
+import { sendNotification } from './notify.js';
 
 type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store';
 
@@ -61,6 +62,8 @@ export function triggerNotification(params: NotifyParams): void {
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', '/notifications', now);
     }
+    // External push (fire and forget)
+    sendNotification(title, content, type).catch(() => {});
   } catch (e) {
     console.error('triggerNotification error:', e);
   }

@@ -41,11 +41,16 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
 
 router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   try {
-    const { phone, address, avatar, oldPassword, newPassword } = req.body;
+    const { username, phone, address, avatar, oldPassword, newPassword } = req.body;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const updates: string[] = [];
     const vals: any[] = [];
+    if (username !== undefined && username !== user.username) {
+      const exists = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
+      if (exists) return res.status(400).json({ error: '账号已存在' });
+      updates.push('username=?'); vals.push(username);
+    }
     if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); }
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }

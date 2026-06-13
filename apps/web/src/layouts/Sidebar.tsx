@@ -6,7 +6,8 @@ import { NotificationBadge } from '../components/NotificationBadge';
 import { canAccess } from '../lib/permissions';
 import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft } from 'lucide-react';
 
-const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
+  STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
 export function Sidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -34,6 +35,8 @@ export function Sidebar() {
     { to: '/store/' + storeId + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
     { to: '/store/' + storeId + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
     { to: '/store/' + storeId + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
+    { to: '/store/' + storeId + '/notifications', icon: Bell, label: '消息通知', key: 'storeNotifications', badge: true },
+    { to: '/store/' + storeId + '/notification-settings', icon: Settings, label: '消息推送', key: 'storeAdminSettings' },
     { to: '/store/' + storeId + '/payroll', icon: DollarSign, label: '工资', key: 'storePayroll' },
     { to: '/store/' + storeId + '/dividends', icon: Divide, label: '分红', key: 'storeDividends' },
     { to: '/store/' + storeId + '/staff', icon: Users, label: '员工', key: 'storeStaff' },

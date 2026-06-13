@@ -2,6 +2,26 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 
+
+// Auto-cleanup: delete read notifications older than 48 hours
+function cleanupReadNotifications() {
+  try {
+    const result = db.prepare(
+      "DELETE FROM notifications WHERE read = 1 AND created_at < datetime('now', '-48 hours', 'localtime')"
+    ).run();
+    if (result.changes > 0) {
+      console.log('[通知清理] 已清除 ' + result.changes + ' 条已读通知(超过48小时)');
+    }
+  } catch (err) {
+    console.error('[通知清理] 清理失败:', err);
+  }
+}
+
+// Run cleanup every hour
+setInterval(cleanupReadNotifications, 3600000);
+// Run once on startup
+cleanupReadNotifications();
+
 const router = Router();
 
 router.get('/', (req: AuthRequest, res: Response) => {

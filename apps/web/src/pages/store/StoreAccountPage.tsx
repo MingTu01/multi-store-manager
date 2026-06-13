@@ -8,7 +8,8 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { User, Phone, MapPin, Shield, Camera, Lock, Save, LogOut, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-const roleLabels: Record<string, string> = { ADMIN: '管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
+  STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
 export default function StoreAccountPage() {
   const user = useStore((s) => s.user);
@@ -94,6 +95,7 @@ export default function StoreAccountPage() {
       setOcrResult({
         name: ocrRes.ocrName || ocrRes.name || '',
         expiry: ocrRes.realExpiry || ocrRes.expiry || '',
+        examDate: ocrRes.ocrExpiry || '',
         match: ocrRes.match || false,
       });
       setUploadPhase("done");
@@ -305,7 +307,7 @@ export default function StoreAccountPage() {
       </div>
 
       <div className="flex flex-1 items-end justify-center pb-6">
-        <button onClick={logout} className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/80 px-5 py-2 text-sm text-rose-600 hover:bg-rose-100"><LogOut className="h-4 w-4" />退出登录</button>
+        <button onClick={logout} className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50/80 py-3 text-sm font-medium text-rose-600 hover:bg-rose-100 transition-all"><LogOut className="h-4 w-4" />退出登录</button>
       </div>
 
       {/* OCR确认弹窗 */}
@@ -354,8 +356,8 @@ export default function StoreAccountPage() {
                   <span className="text-sm font-medium text-slate-800">{ocrResult.expiry}</span>
                 </div>
               )}
-              {(!ocrResult.name || !ocrResult.expiry) && (
-                <button onClick={() => { setManualEdit(true); setManualName(ocrResult.name || ''); setManualDate(ocrResult.expiry || ''); }} className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm text-amber-700 hover:bg-amber-100">
+              {(!ocrResult.name || !ocrResult.expiry || !ocrResult.match) && (
+                <button onClick={() => { setManualEdit(true); setManualName(ocrResult.name || ''); setManualDate(ocrResult.examDate || ''); }} className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm text-amber-700 hover:bg-amber-100">
                   识别不完整？点击手动填写
                 </button>
               )}

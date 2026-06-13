@@ -26,6 +26,7 @@ import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, getSettings } from './notify.js';
 import { startHealthCertCheck } from './health-check.js';
+import { startReportScheduler } from './report-scheduler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -139,10 +140,20 @@ setupCron();
 
 // 启动健康证到期检查
 startHealthCertCheck();
+startReportScheduler();
 
 app.get('{*splat}', (req, res) => {
   if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');
   res.sendFile(join(process.cwd(), '..', 'web', 'dist', 'index.html'));
+});
+
+// Prevent server crash on unhandled errors
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.message);
+  // Don't exit, keep server running
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled Rejection:', reason);
 });
 
 app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT))

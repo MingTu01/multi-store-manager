@@ -5,18 +5,6 @@ import { PageHeader } from '../../components/PageHeader';
 import { Bell, CheckCircle, AlertCircle, Info, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 
-const TYPE_FILTERS = [
-  { key: 'all', label: '全部' },
-  { key: 'entry', label: '记账' },
-  { key: 'payroll', label: '工资' },
-  { key: 'dividend', label: '分红' },
-  { key: 'inventory', label: '盘点' },
-  { key: 'staff', label: '员工' },
-  { key: 'health_cert', label: '健康证' },
-  { key: 'store', label: '门店' },
-  { key: 'shift', label: '开闭店' },
-];
-
 const TYPE_COLORS: Record<string, string> = {
   entry: 'bg-emerald-50 text-emerald-600',
   payroll: 'bg-indigo-50 text-indigo-600',
@@ -39,19 +27,17 @@ const TYPE_LABELS: Record<string, string> = {
   shift: '开闭店',
 };
 
-export default function NotificationsPage() {
+export default function StoreNotificationsPage() {
   const [list, setList] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
   const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState('all');
   const [showDetail, setShowDetail] = useState(false);
   const [detailItem, setDetailItem] = useState<any>(null);
   const pageSize = 20;
 
   const fetchList = () => {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    if (typeFilter !== 'all') params.set('type', typeFilter);
     api.get('/notifications?' + params.toString()).then((d) => {
       setList(d.notifications || []);
       setTotal(d.total || 0);
@@ -59,7 +45,7 @@ export default function NotificationsPage() {
     }).catch(() => {});
   };
 
-  useEffect(() => { fetchList(); }, [page, typeFilter]);
+  useEffect(() => { fetchList(); }, [page]);
 
   const openDetail = async (n: any) => {
     setDetailItem(n);
@@ -96,7 +82,6 @@ export default function NotificationsPage() {
     <div className="space-y-4">
       <PageHeader title="消息通知" subtitle={'共 ' + total + ' 条，未读 ' + unread + ' 条'} />
 
-      {/* Mark all read button */}
       {unread > 0 && (
         <button onClick={markAllRead}
           className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors">
@@ -104,18 +89,6 @@ export default function NotificationsPage() {
         </button>
       )}
 
-      {/* Type filter */}
-      <div className="flex flex-wrap gap-2">
-        {TYPE_FILTERS.map((f) => (
-          <button key={f.key} onClick={() => { setTypeFilter(f.key); setPage(1); }}
-            className={'rounded-lg px-3 py-1 text-xs font-medium transition-all ' +
-              (typeFilter === f.key ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-100')}>
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Notification list */}
       {list.length === 0 ? (
         <GlassCard className="py-12 text-center text-sm text-slate-400">
           <Bell className="mx-auto mb-2 h-8 w-8" />暂无通知
@@ -124,29 +97,28 @@ export default function NotificationsPage() {
         <GlassCard className="divide-y divide-slate-100">
           {list.map((n) => (
             <div key={n.id} onClick={() => openDetail(n)}
-              className={'flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ' + (n.read ? 'opacity-70' : 'bg-indigo-50/30')}>
+              className={'flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer ' + (n.read ? 'opacity-60' : 'bg-indigo-50/30')}>
               <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100">
                 {icon(n.type)}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className={'text-sm ' + (n.read ? 'text-slate-600' : 'font-medium text-slate-900')}>{n.title}</span>
+                  <span className={'text-sm ' + (n.read ? 'text-slate-500' : 'font-semibold text-slate-900')}>{n.title}</span>
                   <span className={'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ' + (TYPE_COLORS[n.type] || 'bg-slate-100 text-slate-600')}>
                     {TYPE_LABELS[n.type] || n.type}
                   </span>
                 </div>
-                {n.content && <div className="mt-0.5 text-xs text-slate-500">{n.content}</div>}
-                <div className="mt-1 text-xs text-slate-400">{n.created_at}</div>
+                {n.content && <div className="mt-0.5 text-xs text-slate-500 line-clamp-2">{n.content}</div>}
+                <div className="mt-1 text-[11px] text-slate-400">{n.created_at}</div>
               </div>
-              {!n.read && <div className="mt-2 h-2 w-2 rounded-full bg-indigo-500 shrink-0" />}
+              {!n.read && <div className="mt-2 h-2.5 w-2.5 rounded-full bg-indigo-500 shrink-0 animate-pulse" />}
             </div>
           ))}
         </GlassCard>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-3">
           <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
             className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-white/30 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
           <span className="text-sm text-slate-500">{page} / {totalPages}</span>

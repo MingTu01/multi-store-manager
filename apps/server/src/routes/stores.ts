@@ -72,7 +72,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:storeId', (req: AuthRequest, res: Response) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
+    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { name, address, initial_capital } = req.body;
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
@@ -229,7 +229,7 @@ router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
 
 router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
   try {
-    if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
+    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { shareholders } = req.body;
     if (!Array.isArray(shareholders)) return res.status(400).json({ error: '参数错误' });
@@ -242,5 +242,62 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+// 店铺通知设置 - GET
+router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.params.storeId;
+    const settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
+    if (!settings) {
+      db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
+      res.json(db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId));
+    } else {
+      res.json(settings);
+    }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// 店铺通知设置 - PUT
+router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.params.storeId;
+    const s = req.body;
+    const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);
+    if (!exists) {
+      db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
+    }
+    db.prepare(`UPDATE store_notification_settings SET
+      method=COALESCE(?, method), pushplus_token=COALESCE(?, pushplus_token),
+      serverchan_key=COALESCE(?, serverchan_key), wecom_corpid=COALESCE(?, wecom_corpid),
+      wecom_agentid=COALESCE(?, wecom_agentid), wecom_secret=COALESCE(?, wecom_secret),
+      wecom_userid=COALESCE(?, wecom_userid), wecom_proxy_url=COALESCE(?, wecom_proxy_url),
+      push_daily_report=COALESCE(?, push_daily_report), push_weekly_report=COALESCE(?, push_weekly_report),
+      push_monthly_report=COALESCE(?, push_monthly_report), push_review_reminder=COALESCE(?, push_review_reminder),
+      push_alert=COALESCE(?, push_alert), updated_at=datetime('now','localtime')
+      WHERE store_id=?`).run(
+      s.method, s.pushplus_token, s.serverchan_key, s.wecom_corpid, s.wecom_agentid,
+      s.wecom_secret, s.wecom_userid, s.wecom_proxy_url,
+      s.push_daily_report, s.push_weekly_report, s.push_monthly_report,
+      s.push_review_reminder, s.push_alert, storeId
+    );
+    res.json({ message: '通知设置已更新' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// 店铺通知测试
+router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.params.storeId;
+    const settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
+    if (!settings) return res.status(400).json({ error: '请先配置通知渠道' });
+    const { sendStoreNotification } = require('../notify.js');
+    sendStoreNotification(storeId, '测试通知', '这是一条测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN'), settings)
+      .then(() => res.json({ message: '测试通知已发送' }))
+      .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+
 
 export default router;

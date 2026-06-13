@@ -15,80 +15,131 @@ export function getStoreData(storeId: string) {
   const monthEntries = db.prepare(
     'SELECT type, SUM(amount) as total FROM entries WHERE store_id = ? AND date LIKE ? GROUP BY type'
   ).all(storeId, month + '%') as any[];
-
   let todayIncome = 0, todayExpense = 0, monthIncome = 0, monthExpense = 0;
   for (const e of todayEntries) {
-    if (e.type === '\u6536\u5165') todayIncome = e.total;
+    if (e.type === '收入') todayIncome = e.total;
     else todayExpense = e.total;
   }
   for (const e of monthEntries) {
-    if (e.type === '\u6536\u5165') monthIncome = e.total;
+    if (e.type === '收入') monthIncome = e.total;
     else monthExpense = e.total;
   }
-
   return { store, todayIncome, todayExpense, monthIncome, monthExpense };
 }
 
 export async function sendPushPlus(title: string, content: string): Promise<void> {
   const s = getSettings();
-  if (!s.pushplus_token) return;
-  try {
-    await fetch('https://www.pushplus.plus/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: s.pushplus_token, title, content, template: 'txt' })
-    });
-  } catch (e) { console.error('PushPlus error:', e); }
+  if (!s.pushplus_token) throw new Error('PushPlus Token 未配置');
+  const res = await fetch('https://www.pushplus.plus/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: s.pushplus_token, title, content, template: 'txt' })
+  });
+  const data = await res.json() as any;
+  if (data.code !== 200) throw new Error('PushPlus: ' + (data.msg || '发送失败'));
 }
 
 export async function sendServerChan(title: string, content: string): Promise<void> {
   const s = getSettings();
-  if (!s.serverchan_key) return;
-  try {
-    await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, desp: content })
-    });
-  } catch (e) { console.error('ServerChan error:', e); }
+  if (!s.serverchan_key) throw new Error('Server酱 Key 未配置');
+  const res = await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, desp: content })
+  });
+  const data = await res.json() as any;
+  if (data.code !== 0) throw new Error('Server酱: ' + (data.message || '发送失败'));
 }
 
 export async function sendWeCom(title: string, content: string): Promise<void> {
   const s = getSettings();
-  if (!s.wecom_corpid || !s.wecom_agentid || !s.wecom_secret) return;
-  try {
-    const proxyUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz').replace(/\/?$/, '/');
-    const tokenRes = await fetch(proxyUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
-    const tokenData = await tokenRes.json() as any;
-    if (!tokenData.access_token) {
-      console.error('WeCom get token failed:', JSON.stringify(tokenData));
-      return;
-    }
-    const accessToken = tokenData.access_token;
-    const msgBody = {
-      touser: s.wecom_userid || '@all',
-      msgtype: 'text',
-      agentid: parseInt(s.wecom_agentid),
-      text: { content: title + '\n\n' + content }
-    };
-    console.log('WeCom sending to:', s.wecom_userid || '@all');
-    const sendRes = await fetch(proxyUrl + 'cgi-bin/message/send?access_token=' + accessToken, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(msgBody)
-    });
-    const sendData = await sendRes.json() as any;
-    console.log('WeCom result:', sendData.errcode, sendData.errmsg);
-  } catch (e) { console.error('WeCom error:', e); }
+  if (!s.wecom_corpid || !s.wecom_agentid || !s.wecom_secret) throw new Error('企业微信配置不完整');
+  const proxyUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
+  const tokenRes = await fetch(proxyUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
+  const tokenData = await tokenRes.json() as any;
+  if (!tokenData.access_token) throw new Error('企业微信获取token失败: ' + (tokenData.errmsg || '请检查CorpID和Secret'));
+  const accessToken = tokenData.access_token;
+  const msgBody = {
+    touser: s.wecom_userid || '@all',
+    msgtype: 'text',
+    agentid: parseInt(s.wecom_agentid),
+    text: { content: title + '\n\n' + content }
+  };
+  const sendRes = await fetch(proxyUrl + 'cgi-bin/message/send?access_token=' + accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(msgBody)
+  });
+  const sendData = await sendRes.json() as any;
+  if (sendData.errcode !== 0) throw new Error('企业微信发送失败: ' + (sendData.errmsg || '错误码' + sendData.errcode));
 }
 
 export async function sendNotification(title: string, content: string, type?: string): Promise<void> {
   const s = getSettings();
-  const method = s.method || 'none';
-  if (method === 'pushplus') await sendPushPlus(title, content);
-  else if (method === 'serverchan') await sendServerChan(title, content);
-  else if (method === 'wecom') await sendWeCom(title, content);
+  const method = s.method;
+  const results: string[] = [];
+  const errors: string[] = [];
+  const sendOne = async (key: string, fn: () => Promise<void>) => {
+    try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
+  };
+  if (method && method !== 'none') {
+    if (method === 'pushplus') await sendOne('PushPlus', () => sendPushPlus(title, content));
+    else if (method === 'serverchan') await sendOne('Server酱', () => sendServerChan(title, content));
+    else if (method === 'wecom') await sendOne('企业微信', () => sendWeCom(title, content));
+  } else {
+    if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content));
+    if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content));
+    if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content));
+  }
+  if (results.length === 0 && errors.length === 0) {
+    throw new Error('未配置任何推送渠道，请先配置至少一个渠道');
+  }
+  if (errors.length > 0 && results.length === 0) {
+    throw new Error('推送失败: ' + errors.join('; '));
+  }
 }
+
+
+export async function sendStoreNotification(storeId: string, title: string, content: string, settings?: any): Promise<void> {
+  const s = settings || {};
+  const results: string[] = [];
+  const errors: string[] = [];
+  const sendOne = async (key: string, fn: () => Promise<void>) => {
+    try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
+  };
+  if (s.pushplus_token) await sendOne('PushPlus', async () => {
+    const r = await fetch('https://www.pushplus.plus/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: s.pushplus_token, title, content, template: 'txt' })
+    });
+    const d = await r.json() as any;
+    if (d.code !== 200) throw new Error(d.msg || 'fail');
+  });
+  if (s.serverchan_key) await sendOne('ServerChan', async () => {
+    const r = await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, desp: content })
+    });
+    const d = await r.json() as any;
+    if (d.code !== 0) throw new Error(d.message || 'fail');
+  });
+  if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('WeCom', async () => {
+    const pUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
+    const tRes = await fetch(pUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
+    const tData = await tRes.json() as any;
+    if (!tData.access_token) throw new Error('token failed: ' + (tData.errmsg || ''));
+    const sRes = await fetch(pUrl + 'cgi-bin/message/send?access_token=' + tData.access_token, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ touser: s.wecom_userid || '@all', msgtype: 'text', agentid: parseInt(s.wecom_agentid), text: { content: title + '\n\n' + content } })
+    });
+    const sData = await sRes.json() as any;
+    if (sData.errcode !== 0) throw new Error('send failed: ' + (sData.errmsg || sData.errcode));
+  });
+  if (results.length === 0 && errors.length === 0) throw new Error('未配置任何推送渠道');
+  if (errors.length > 0 && results.length === 0) throw new Error('推送失败: ' + errors.join('; '));
+}
+
+
 
 function todayStr(): string {
   const now = new Date();

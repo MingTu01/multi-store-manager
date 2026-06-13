@@ -28,12 +28,13 @@ export default function SettingsPage() {
   const backupFileRef = useRef<HTMLInputElement>(null);
   const [notifSettings, setNotifSettings] = useState<any>({});
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [notifSaving, setNotifSaving] = useState(false);
-  const [testType, setTestType] = useState('');
   const [editingChannel, setEditingChannel] = useState<string | null>(null);
   const [channelForm, setChannelForm] = useState<any>({});
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
 
+  const [channelStatus, setChannelStatus] = useState<Record<string, boolean>>({});
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   // Upgrade states
   const [upgradeFile, setUpgradeFile] = useState<File | null>(null);
   const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
@@ -55,7 +56,12 @@ export default function SettingsPage() {
       api.get('/system/auto-backup').then(setAutoBackup).catch(() => {});
       api.get('/system/backups').then((d: any) => setBackups(d.backups || [])).catch(() => {});
     }
-    if (tab === 'notif') api.get('/system/notification-settings').then(setNotifSettings).catch(() => {});
+      if (tab === 'notif') api.get('/system/notification-settings').then((d: any) => {
+        setNotifSettings(d);
+        const status: Record<string, boolean> = {};
+        channels.forEach(ch => { status[ch.key] = ch.fields.every(f => d[f.f]); });
+        setChannelStatus(status);
+      }).catch(() => {});
   }, [tab]);
 
   // === Backup ===
@@ -236,25 +242,45 @@ export default function SettingsPage() {
   };
 
   // === Notifications ===
-  const handleSaveNotif = async () => {
-    setNotifSaving(true);
-    try { await api.put('/system/notification-settings', notifSettings); showMsg(true, '推送设置已保存'); }
-    catch (e: any) { showMsg(false, e.message || '保存失败'); }
-    finally { setNotifSaving(false); }
-  };
-  const handleTestNotif = async (type: string) => {
-    setTestType(type);
-    try { const d: any = await api.post('/system/notification-settings/test?type=' + type, {}); showMsg(true, d.message || '测试成功'); }
-    catch (e: any) { showMsg(false, e.message || '发送失败'); }
-    finally { setTestType(''); }
-  };
-  const openEditChannel = (key: string) => { setEditingChannel(key); setChannelForm({ ...notifSettings }); setShowSecret({}); };
+  const openEditChannel = (key: string) => { setEditingChannel(key); setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: notifSettings[f.f] || '' }), {}) || {}); setShowSecret({}); setTestResult(null); };
   const saveChannel = async () => {
-    const updated = { ...notifSettings, ...channelForm };
+    try {
+      const updated = { ...notifSettings, ...channelForm };
+      await api.put('/system/notification-settings', updated);
+      setNotifSettings(updated);
+      const ch = channels.find(c => c.key === editingChannel);
+      const hasConfig = ch?.fields.every(f => channelForm[f.f]) || false;
+      setChannelStatus(s => ({ ...s, [editingChannel!]: hasConfig }));
+      setEditingChannel(null);
+      showMsg(true, '配置已保存');
+    } catch (e: any) { showMsg(false, e.message || '保存失败'); }
+  };
+  const handleTestChannel = async () => {
+    const ch = channels.find(c => c.key === editingChannel);
+    if (!ch) return;
+    const hasConfig = ch.fields.every(f => channelForm[f.f]);
+    if (!hasConfig) { setTestResult({ ok: false, text: '请先填写所有必填配置项' }); return; }
+    setTesting(true);
+    setTestResult(null);
+    const updated = { ...notifSettings, ...channelForm, method: editingChannel };
+    try {
+      await api.put('/system/notification-settings', updated);
+      await api.post('/system/notification-settings/test?type=daily');
+      setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
+      setTestResult({ ok: true, text: '测试成功，推送已发送' });
+    } catch (e: any) {
+      setTestResult({ ok: false, text: e.message || '测试失败，请检查配置' });
+    } finally {
+      const restored = { ...updated, method: 'none' };
+      await api.put('/system/notification-settings', restored).catch(() => {});
+      setNotifSettings(restored);
+      setTesting(false);
+    }
+  };
+  const handleToggleNotif = async (key: string) => {
+    const updated = { ...notifSettings, [key]: !notifSettings[key] };
     setNotifSettings(updated);
-    setEditingChannel(null);
-    try { await api.put('/system/notification-settings', updated); showMsg(true, '通道配置已保存'); }
-    catch (e: any) { showMsg(false, e.message || '保存失败'); }
+    try { await api.put('/system/notification-settings', updated); } catch {}
   };
 
   const channels = [
@@ -408,39 +434,38 @@ export default function SettingsPage() {
       {tab === 'notif' && (
         <div className="space-y-3">
           <GlassCard className="p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700"><Send className="h-4 w-4 text-indigo-500" />推送通道</h3>
+            <h3 className="mb-4 text-sm font-semibold text-slate-700">渠道配置</h3>
             <div className="space-y-3">
               {channels.map((ch) => {
-                const isActive = ch.fields.some(f => notifSettings[f.f]);
+                const configured = channelStatus[ch.key];
                 return (
-                  <div key={ch.key} className="rounded-xl border border-slate-200 bg-white/80 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-2.5 w-2.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                        <span className="text-sm font-medium text-slate-800">{ch.label}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleTestNotif(ch.key)} disabled={!!testType || !isActive} className="rounded-lg px-2 py-1 text-xs text-indigo-500 hover:bg-indigo-50 disabled:opacity-50">{testType === ch.key ? '发送中..' : '测试'}</button>
-                        <button onClick={() => openEditChannel(ch.key)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-50"><Edit2 className="h-4 w-4" /></button>
+                  <div key={ch.key} className={`flex items-center justify-between rounded-xl p-3 transition-all ${configured ? 'bg-emerald-50/80 border border-emerald-200' : 'bg-white/40'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`h-2.5 w-2.5 rounded-full ${configured ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <div>
+                        <div className="text-sm font-medium text-slate-700">{ch.label}</div>
+                        <div className="text-xs text-slate-400">{configured ? '已配置' : '未配置'}</div>
                       </div>
                     </div>
-                    {isActive && <div className="mt-1 text-xs text-emerald-600">已配置</div>}
+                    <button onClick={() => openEditChannel(ch.key)} className="rounded-lg bg-white/60 p-2 text-slate-500 hover:bg-white/80"><Edit2 className="h-4 w-4" /></button>
                   </div>
                 );
               })}
             </div>
+            <p className="mt-3 text-xs text-slate-400">配置了多个渠道时，消息将同时推送到所有已配置的渠道。</p>
           </GlassCard>
           <GlassCard className="p-4">
-            <h3 className="mb-3 text-sm font-semibold text-slate-700">推送内容</h3>
+            <h3 className="mb-4 text-sm font-semibold text-slate-700">推送内容</h3>
             <div className="space-y-2">
               {reportOptions.map((opt) => (
-                <label key={opt.key} className="flex cursor-pointer items-center gap-3 rounded-xl p-2 hover:bg-slate-50">
-                  <input type="checkbox" checked={!!notifSettings[opt.key]} onChange={e => setNotifSettings((s: any) => ({ ...s, [opt.key]: e.target.checked ? 1 : 0 }))} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                <label key={opt.key} className="flex cursor-pointer items-center justify-between rounded-xl bg-white/40 p-3 hover:bg-white/60 transition-all">
                   <span className="text-sm text-slate-700">{opt.label}</span>
+                  <div className={`relative h-6 w-11 rounded-full transition-colors ${notifSettings[opt.key] ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => handleToggleNotif(opt.key)}>
+                    <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${notifSettings[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </div>
                 </label>
               ))}
             </div>
-            <button onClick={handleSaveNotif} disabled={notifSaving} className="btn mt-4 w-full text-sm disabled:opacity-50"><Save className="mr-1.5 h-4 w-4" />{notifSaving ? '保存中..' : '保存推送设置'}</button>
           </GlassCard>
         </div>
       )}
@@ -579,12 +604,23 @@ export default function SettingsPage() {
             <div key={f.f}>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">{f.label}</label>
               <div className="relative">
-                <input type={f.secret && !showSecret[f.f] ? 'password' : 'text'} value={channelForm[f.f] || ''} onChange={e => setChannelForm((s: any) => ({ ...s, [f.f]: e.target.value }))} className={inputCls} placeholder={'请输入' + f.label} />
+                <input type={f.secret && !showSecret[f.f] ? 'password' : 'text'} value={channelForm[f.f] || ''} onChange={e => setChannelForm((s: any) => ({ ...s, [f.f]: e.target.value }))} className={inputCls} placeholder={'请输入 ' + f.label} />
                 {f.secret && <button onClick={() => setShowSecret(s => ({ ...s, [f.f]: !s[f.f] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showSecret[f.f] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>}
               </div>
             </div>
           ))}
-          <button onClick={saveChannel} className="btn w-full"><Check className="mr-1.5 h-4 w-4" />保存配置</button>
+          {testResult && (
+            <div className={`flex items-center gap-2 rounded-xl p-3 text-sm ${testResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+              {testResult.ok ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+              {testResult.text}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button onClick={saveChannel} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">保存</button>
+            <button onClick={handleTestChannel} disabled={testing} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
+              {testing ? <><Loader2 className="h-4 w-4 animate-spin" />测试中...</> : <><Send className="h-4 w-4" />测试</>}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>
