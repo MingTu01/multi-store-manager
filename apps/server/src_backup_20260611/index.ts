@@ -1,0 +1,122 @@
+process.env.TZ = 'Asia/Shanghai';
+import express from 'express';
+import cors from 'cors';
+import { join } from 'path';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'fs';
+import { authMiddleware } from './auth.js';
+import authRouter from './routes/auth.js';
+import storesRouter from './routes/stores.js';
+import entriesRouter from './routes/entries.js';
+import categoriesRouter from './routes/categories.js';
+import reportRouter from './routes/report.js';
+import notificationsRouter from './routes/notifications.js';
+import usersRouter from './routes/users.js';
+import inventoryRouter from './routes/inventory.js';
+import handoversRouter from './routes/handovers.js';
+import shiftsRouter from './routes/shifts.js';
+import dividendsRouter from './routes/dividends.js';
+import payrollRouter from './routes/payroll.js';
+import systemRouter from './routes/system.js';
+import logsRouter from './routes/logs.js';
+import reportsRouter from './routes/reports.js';
+import dashboardRouter from './routes/dashboard.js';
+import { sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, getSettings } from './notify.js';
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static(join(process.cwd(), '..', 'web', 'dist')));
+app.use(express.static(join(process.cwd(), 'public')));
+
+// Public auth routes
+app.use('/api/auth', authRouter);
+
+// Protected routes
+app.use('/api/stores', authMiddleware, storesRouter);
+app.use('/api/stores/:storeId/entries', authMiddleware, entriesRouter);
+app.use('/api/stores/:storeId/categories', authMiddleware, categoriesRouter);
+app.use('/api/stores/:storeId/inventory', authMiddleware, inventoryRouter);
+app.use('/api/stores/:storeId/handovers', authMiddleware, handoversRouter);
+app.use('/api/stores/:storeId/shifts', authMiddleware, shiftsRouter);
+app.use('/api/stores/:storeId/dividends', authMiddleware, dividendsRouter);
+app.use('/api/stores/:storeId/payrolls', authMiddleware, payrollRouter);
+app.use('/api/stores/:storeId/report', authMiddleware, reportRouter);
+app.use('/api/notifications', authMiddleware, notificationsRouter);
+app.use('/api/users', authMiddleware, usersRouter);
+app.use('/api/system', authMiddleware, systemRouter);
+app.use('/api/logs', authMiddleware, logsRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/dashboard', authMiddleware, dashboardRouter);
+
+// Auto backup scheduler
+function setupAutoBackup() {
+  setInterval(() => {
+    try {
+      const configPath = join(process.cwd(), 'data', 'auto-backup.json');
+      if (!existsSync(configPath)) return;
+      const config = JSON.parse(require('fs').readFileSync(configPath, 'utf-8'));
+      if (!config.enabled) return;
+
+      const now = new Date();
+      const lastKey = 'lastBackup_' + config.interval;
+      const lastStr = config[lastKey];
+      if (lastStr) {
+        const last = new Date(lastStr);
+        const diff = now.getTime() - last.getTime();
+        const intervalMs = config.interval === 'hourly' ? 3600000 : config.interval === 'daily' ? 86400000 : 604800000;
+        if (diff < intervalMs) return;
+      }
+
+      const backupDir = join(process.cwd(), 'backups');
+      mkdirSync(backupDir, { recursive: true });
+      const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = 'auto-backup-' + config.interval + '-' + ts + '.db';
+      copyFileSync(join(process.cwd(), 'data', 'store.db'), join(backupDir, filename));
+
+      config[lastKey] = now.toISOString();
+      require('fs').writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+      // Cleanup old auto backups (keep max 30)
+      const files = readdirSync(backupDir).filter(f => f.startsWith('auto-backup-')).sort();
+      while (files.length > 30) { const old = files.shift()!; require('fs').unlinkSync(join(backupDir, old)); }
+
+      console.log('Auto backup created:', filename);
+    } catch (err) { console.error('Auto backup error:', err); }
+  }, 300000); // Check every 5 minutes
+}
+
+// Notification cron
+function setupCron() {
+  setInterval(() => {
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes(), day = now.getDay();
+    if (h === 22 && m === 0) {
+      const s = getSettings();
+      if (s.push_daily_report) sendNotification('每日营业简报', buildDailyReport()).catch(console.error);
+    }
+    if (day === 1 && h === 9 && m === 0) {
+      const s = getSettings();
+      if (s.push_weekly_report) sendNotification('每周周报', buildWeeklyReport()).catch(console.error);
+    }
+    if (now.getDate() === 1 && h === 9 && m === 0) {
+      const s = getSettings();
+      if (s.push_monthly_report) sendNotification('月度报告', buildMonthlyReport()).catch(console.error);
+    }
+    if (h === 9 && m === 0) {
+      const s = getSettings();
+      if (s.push_review_reminder) sendNotification('待审核提醒', buildReviewReminder()).catch(console.error);
+    }
+  }, 60000);
+}
+
+setupAutoBackup();
+setupCron();
+
+app.get('{*splat}', (req, res) => {
+  if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');
+  res.sendFile(join(process.cwd(), '..', 'web', 'dist', 'index.html'));
+});
+
+app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT));
