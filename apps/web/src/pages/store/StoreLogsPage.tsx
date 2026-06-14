@@ -56,13 +56,11 @@ function highlightDetail(detail: string) {
           <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 10px',borderRadius:'8px',background:'#f0fdf4',fontSize:'12px'}}>
               <span style={{color:'#94a3b8',fontWeight:500,minWidth:'18px'}}>{'原'}</span>
-              <span style={{color:'#475569'}}>{data.before.type} {'·'} {data.before.category}</span>
-              <span style={{marginLeft:'auto',fontWeight:700,color:'#059669'}}>{yen + Number(data.before.amount).toLocaleString()}</span>
+              <span style={{color:'#475569'}}>{data.before.type} {'·'} {data.before.category} <span style={{fontWeight:700,color:'#059669'}}>{yen + Number(data.before.amount).toLocaleString()}</span></span>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 10px',borderRadius:'8px',background:'#fff1f2',fontSize:'12px'}}>
               <span style={{color:'#e11d48',fontWeight:500,minWidth:'18px'}}>{'改'}</span>
-              <span style={{color:'#475569'}}>{data.after.type} {'·'} {data.after.category}</span>
-              <span style={{marginLeft:'auto',fontWeight:700,color:'#e11d48'}}>{yen + Number(data.after.amount).toLocaleString()}</span>
+              <span style={{color:'#475569'}}>{data.after.type} {'·'} {data.after.category} <span style={{fontWeight:700,color:'#e11d48'}}>{yen + Number(data.after.amount).toLocaleString()}</span></span>
             </div>
           </div>
         );
