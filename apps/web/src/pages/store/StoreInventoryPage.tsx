@@ -70,6 +70,7 @@ export default function StoreInventoryPage() {
   const [checkActive, setCheckActive] = useState(false);
   const [checkIndex, setCheckIndex] = useState(0);
   const [lastCheckResults, setLastCheckResults] = useState<Record<number, { expected: number; consumption: number; actual: number; status: StatusType }>>({});
+  const [manuallyEdited, setManuallyEdited] = useState<Set<number>>(new Set());
   const [checkResults, setCheckResults] = useState<Record<number, {
     consumption: number;
     actual: number;
@@ -182,6 +183,9 @@ export default function StoreInventoryPage() {
         photo: editForm.photo,
         status: autoSt,
       });
+      if (newQty !== showEditItem.quantity) {
+        setManuallyEdited((prev) => new Set(prev).add(showEditItem.id));
+      }
       setShowEditItem(null);
       loadItems();
     } catch (e: any) {
