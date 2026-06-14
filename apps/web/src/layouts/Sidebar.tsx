@@ -49,8 +49,8 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/30 bg-white/50 backdrop-blur-2xl lg:flex">
       <div className="flex h-16 items-center gap-2 border-b border-white/30 px-5">
-        <img src="/logo.png" alt="Logo" className="h-9 w-9 rounded-xl object-cover" />
-        <span className="rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 px-3 py-1 text-sm font-bold text-indigo-700">Multi Shop Link</span>
+        <img src="/logo.png" alt="Logo" className="h-11 w-11 rounded-xl object-cover shrink-0" />
+        <span className="rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 flex-1 px-4 py-2 text-base font-bold text-indigo-700 text-center">Multi Shop Link</span>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {storeId && isAdmin && (
