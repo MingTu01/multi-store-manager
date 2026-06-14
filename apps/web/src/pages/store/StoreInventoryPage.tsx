@@ -174,10 +174,13 @@ export default function StoreInventoryPage() {
   const handleSaveEdit = async () => {
     if (!showEditItem) return;
     try {
+      const newQty = parseFloat(editForm.quantity) || 0;
+      const autoSt = newQty <= 0 ? 'restocking' : 'normal';
       await api.put('/stores/' + storeId + '/inventory/items/' + showEditItem.id, {
         name: editForm.name,
-        quantity: parseFloat(editForm.quantity) || 0,
+        quantity: newQty,
         photo: editForm.photo,
+        status: autoSt,
       });
       setShowEditItem(null);
       loadItems();
