@@ -50,7 +50,7 @@ router.get('/', (req, res) => {
 
     const total = (db.prepare('SELECT COUNT(*) as count FROM op_logs o' + whereClause).get(...countParams) as any).count;
 
-    const sql = 'SELECT o.id, o.user_id, o.user_name, o.action, o.detail, o.created_at, o.target, s.name AS store_name FROM op_logs o LEFT JOIN stores s ON o.target = s.id' + whereClause + ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
+    const sql = 'SELECT o.id, o.user_id, o.user_name, o.action, o.detail, o.created_at, o.target, o.ip, s.name AS store_name FROM op_logs o LEFT JOIN stores s ON o.target = s.id' + whereClause + ' ORDER BY o.created_at DESC LIMIT ? OFFSET ?';
     queryParams.push(ps, offset);
     const rows = db.prepare(sql).all(...queryParams);
 

@@ -284,6 +284,7 @@ const migrations = [
   "ALTER TABLE notifications ADD COLUMN content TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN store_id TEXT DEFAULT ''",
+  "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
 ];
 
 for (const sql of migrations) {

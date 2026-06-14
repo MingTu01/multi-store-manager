@@ -46,21 +46,22 @@ function getActionConfig(action: string) {
 
 // Highlight amounts in detail text - #43 fix: direct Chinese instead of String.fromCharCode
 function highlightDetail(detail: string) {
-  const yen = '\u00a5';
-  if (detail.charAt(0) === '{') {
+  const yen = '¥';
+  const cleanDetail = detail.replace(/\s*\[IP:[^\]]*\]\s*$/, '');
+  if (cleanDetail.charAt(0) === '{') {
     try {
-      const data = JSON.parse(detail);
+      const data = JSON.parse(cleanDetail);
       if (data.action === 'modify' && data.before && data.after) {
         return (
           <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
             <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 10px',borderRadius:'8px',background:'#f0fdf4',fontSize:'12px'}}>
-              <span style={{color:'#94a3b8',fontWeight:500,minWidth:'18px'}}>{'\u539F'}</span>
-              <span style={{color:'#475569'}}>{data.before.type} {'\u00b7'} {data.before.category}</span>
+              <span style={{color:'#94a3b8',fontWeight:500,minWidth:'18px'}}>{'原'}</span>
+              <span style={{color:'#475569'}}>{data.before.type} {'·'} {data.before.category}</span>
               <span style={{marginLeft:'auto',fontWeight:700,color:'#059669'}}>{yen + Number(data.before.amount).toLocaleString()}</span>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:'8px',padding:'6px 10px',borderRadius:'8px',background:'#fff1f2',fontSize:'12px'}}>
-              <span style={{color:'#e11d48',fontWeight:500,minWidth:'18px'}}>{'\u6539'}</span>
-              <span style={{color:'#475569'}}>{data.after.type} {'\u00b7'} {data.after.category}</span>
+              <span style={{color:'#e11d48',fontWeight:500,minWidth:'18px'}}>{'改'}</span>
+              <span style={{color:'#475569'}}>{data.after.type} {'·'} {data.after.category}</span>
               <span style={{marginLeft:'auto',fontWeight:700,color:'#e11d48'}}>{yen + Number(data.after.amount).toLocaleString()}</span>
             </div>
           </div>
@@ -68,10 +69,10 @@ function highlightDetail(detail: string) {
       }
     } catch (e) { /* not JSON */ }
   }
-  const parts = detail.split(new RegExp('(' + yen + '[0-9,.]+)', 'g'));
+  const parts = cleanDetail.split(new RegExp('(' + yen + '[0-9,.]+)', 'g'));
   return parts.map(function(part: string, i: number) {
     if (part.charAt(0) === yen) {
-      const isExp = detail.includes('支出') || detail.includes('删除');
+      const isExp = cleanDetail.includes('支出') || cleanDetail.includes('删除');
       return <span key={i} style={{fontWeight:700,color:isExp ? '#e11d48' : '#059669'}}>{part}</span>;
     }
     return <span key={i}>{part}</span>;

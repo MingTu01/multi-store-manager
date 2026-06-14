@@ -11,7 +11,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
-const fmtMoney = (v: any) => '\u00a5' + Number(v).toLocaleString();
+const fmtMoney = (v: any) => '¥' + Number(v).toLocaleString();
 const pctStr = (v: number) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
 
 export default function DashboardPage() {
@@ -111,7 +111,7 @@ export default function DashboardPage() {
                       <Pie data={section.data} dataKey="amount" nameKey="category" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
                         {section.data.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: any) => '\u00a5' + Number(v).toLocaleString()} />
+                      <Tooltip formatter={(v: any) => '¥' + Number(v).toLocaleString()} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>

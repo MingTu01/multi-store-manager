@@ -145,10 +145,10 @@ export default function StoreSettingsPage() {
         photos: store?.photos || [],
         shareholders: store?.shareholders || [],
       });
-      showMsg(true, '\u57fa\u672c\u4fe1\u606f\u4fdd\u5b58\u6210\u529f');
+      showMsg(true, '基本信息保存成功');
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u4fdd\u5b58\u5931\u8d25');
+      showMsg(false, e.message || '保存失败');
     } finally {
       setSavingInfo(false);
     }
@@ -173,17 +173,17 @@ export default function StoreSettingsPage() {
         photos: updated,
         shareholders: store?.shareholders || [],
       });
-      showMsg(true, '\u7167\u7247\u4e0a\u4f20\u6210\u529f');
+      showMsg(true, '照片上传成功');
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u4e0a\u4f20\u5931\u8d25');
+      showMsg(false, e.message || '上传失败');
     } finally {
       setUploadingPhoto(false);
     }
   };
 
   const handleDeletePhoto = async (idx: number) => {
-    if (!confirm('\u786e\u8ba4\u5220\u9664\u8be5\u7167\u7247\uff1f')) return;
+    if (!confirm('确认删除该照片？')) return;
     try {
       const updated = (store?.photos || []).filter((_, i) => i !== idx);
       await api.put('/stores/' + storeId, {
@@ -194,10 +194,10 @@ export default function StoreSettingsPage() {
         photos: updated,
         shareholders: store?.shareholders || [],
       });
-      showMsg(true, '\u7167\u7247\u5df2\u5220\u9664');
+      showMsg(true, '照片已删除');
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u5220\u9664\u5931\u8d25');
+      showMsg(false, e.message || '删除失败');
     }
   };
 
@@ -217,7 +217,7 @@ export default function StoreSettingsPage() {
 
   const handleSaveShareholder = async () => {
     if (!shareholderForm.name) {
-      showMsg(false, '\u8bf7\u8f93\u5165\u80a1\u4e1c\u59d3\u540d');
+      showMsg(false, '请输入股东姓名');
       return;
     }
     setSavingShareholder(true);
@@ -237,17 +237,17 @@ export default function StoreSettingsPage() {
         shareholders: list,
       });
       setShowShareholderModal(false);
-      showMsg(true, editShareholderIdx !== null ? '\u80a1\u4e1c\u4fe1\u606f\u5df2\u66f4\u65b0' : '\u80a1\u4e1c\u5df2\u6dfb\u52a0');
+      showMsg(true, editShareholderIdx !== null ? '股东信息已更新' : '股东已添加');
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u4fdd\u5b58\u5931\u8d25');
+      showMsg(false, e.message || '保存失败');
     } finally {
       setSavingShareholder(false);
     }
   };
 
   const handleDeleteShareholder = async (idx: number) => {
-    if (!confirm('\u786e\u8ba4\u5220\u9664\u8be5\u80a1\u4e1c\uff1f')) return;
+    if (!confirm('确认删除该股东？')) return;
     try {
       const list = (store?.shareholders || []).filter((_, i) => i !== idx);
       await api.put('/stores/' + storeId, {
@@ -258,10 +258,10 @@ export default function StoreSettingsPage() {
         photos: store?.photos || [],
         shareholders: list,
       });
-      showMsg(true, '\u80a1\u4e1c\u5df2\u5220\u9664');
+      showMsg(true, '股东已删除');
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u5220\u9664\u5931\u8d25');
+      showMsg(false, e.message || '删除失败');
     }
   };
 
@@ -290,19 +290,19 @@ export default function StoreSettingsPage() {
       setShowCatModal(false);
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u4fdd\u5b58\u5931\u8d25');
+      showMsg(false, e.message || '保存失败');
     } finally {
       setSavingCat(false);
     }
   };
 
   const handleDeleteCat = async (id: number, name: string) => {
-    if (!confirm('\u786e\u8ba4\u5220\u9664\u5206\u7c7b ' + name + ' \uff1f')) return;
+    if (!confirm('确认删除分类 ' + name + ' ？')) return;
     try {
       await api.del('/stores/' + storeId + '/categories/' + id);
       load();
     } catch (e: any) {
-      showMsg(false, e.message || '\u5220\u9664\u5931\u8d25');
+      showMsg(false, e.message || '删除失败');
     }
   };
 
@@ -312,7 +312,7 @@ export default function StoreSettingsPage() {
   /* render */
   return (
     <div className="space-y-4">
-      <PageHeader title="\u95e8\u5e97\u8bbe\u7f6e" subtitle={store?.name || ''} />
+      <PageHeader title="门店设置" subtitle={store?.name || ''} />
 
       {msg && (
         <div
@@ -327,45 +327,45 @@ export default function StoreSettingsPage() {
 
       {/* === 1. basic info === */}
       <CollapseCard
-        title="\u57fa\u672c\u4fe1\u606f"
+        title="基本信息"
         icon={<Building2 className="h-4 w-4 text-indigo-500" />}
         defaultOpen={true}
       >
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-slate-500">\u95e8\u5e97\u540d\u79f0</label>
+            <label className="mb-1 block text-xs text-slate-500">门店名称</label>
             <input
               value={infoForm.name}
               onChange={(e) => setInfoForm({ ...infoForm, name: e.target.value })}
               disabled={!canEdit}
               className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400"
-              placeholder="\u95e8\u5e97\u540d\u79f0"
+              placeholder="门店名称"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">\u5730\u5740</label>
+            <label className="mb-1 block text-xs text-slate-500">地址</label>
             <input
               value={infoForm.address}
               onChange={(e) => setInfoForm({ ...infoForm, address: e.target.value })}
               disabled={!canEdit}
               className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 disabled:bg-slate-50 disabled:text-slate-400"
-              placeholder="\u95e8\u5e97\u5730\u5740"
+              placeholder="门店地址"
             />
           </div>
           {role === 'ADMIN' && (
             <>
               <div>
-                <label className="mb-1 block text-xs text-slate-500">\u521d\u59cb\u8d44\u91d1</label>
+                <label className="mb-1 block text-xs text-slate-500">初始资金</label>
                 <input
                   type="number"
                   value={infoForm.initial_capital}
                   onChange={(e) => setInfoForm({ ...infoForm, initial_capital: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                  placeholder="\u521d\u59cb\u8d44\u91d1"
+                  placeholder="初始资金"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-slate-500">\u95e8\u5e97\u72b6\u6001</label>
+                <label className="mb-1 block text-xs text-slate-500">门店状态</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setInfoForm({ ...infoForm, status: 'active' })}
@@ -376,7 +376,7 @@ export default function StoreSettingsPage() {
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
                     }
                   >
-                    \u6b63\u5e38
+                    正常
                   </button>
                   <button
                     onClick={() => setInfoForm({ ...infoForm, status: 'paused' })}
@@ -387,7 +387,7 @@ export default function StoreSettingsPage() {
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
                     }
                   >
-                    \u6682\u505c
+                    暂停
                   </button>
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function StoreSettingsPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
-              {savingInfo ? '\u4fdd\u5b58\u4e2d...' : '\u4fdd\u5b58\u57fa\u672c\u4fe1\u606f'}
+              {savingInfo ? '保存中...' : '保存基本信息'}
             </button>
           )}
         </div>
@@ -408,7 +408,7 @@ export default function StoreSettingsPage() {
 
       {/* === 2. photos === */}
       <CollapseCard
-        title="\u95e8\u5e97\u7167\u7247"
+        title="门店照片"
         icon={<ImageIcon className="h-4 w-4 text-indigo-500" />}
         defaultOpen={true}
         action={
@@ -419,14 +419,14 @@ export default function StoreSettingsPage() {
                 className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
               >
                 <Camera className="h-3.5 w-3.5" />
-                \u62cd\u7167
+                拍照
               </button>
               <button
                 onClick={() => photoInputRef.current?.click()}
                 className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
               >
                 <Upload className="h-3.5 w-3.5" />
-                \u4e0a\u4f20
+                上传
               </button>
             </div>
           ) : undefined
@@ -452,7 +452,7 @@ export default function StoreSettingsPage() {
         {uploadingPhoto && (
           <div className="mb-3 flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs text-indigo-600">
             <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-            \u6b63\u5728\u4e0a\u4f20\u7167\u7247...
+            正在上传照片...
           </div>
         )}
 
@@ -460,7 +460,7 @@ export default function StoreSettingsPage() {
           <div className="grid grid-cols-3 gap-2">
             {store.photos.map((photo: string, idx: number) => (
               <div key={idx} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100">
-                <img src={photo} alt={'\u7167\u7247 ' + (idx + 1)} className="h-full w-full object-cover" />
+                <img src={photo} alt={'照片 ' + (idx + 1)} className="h-full w-full object-cover" />
                 {canEdit && (
                   <button
                     onClick={() => handleDeletePhoto(idx)}
@@ -475,14 +475,14 @@ export default function StoreSettingsPage() {
         ) : (
           <div className="flex flex-col items-center py-6 text-slate-400">
             <ImageIcon className="mb-2 h-8 w-8" />
-            <span className="text-sm">\u6682\u65e0\u7167\u7247</span>
+            <span className="text-sm">暂无照片</span>
           </div>
         )}
       </CollapseCard>
 
       {/* === 3. shareholders === */}
       <CollapseCard
-        title="\u80a1\u4e1c\u4fe1\u606f"
+        title="股东信息"
         icon={<Users className="h-4 w-4 text-indigo-500" />}
         defaultOpen={true}
         action={
@@ -495,7 +495,7 @@ export default function StoreSettingsPage() {
               className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
             >
               <Plus className="h-3.5 w-3.5" />
-              \u6dfb\u52a0
+              添加
             </button>
           ) : undefined
         }
@@ -544,14 +544,14 @@ export default function StoreSettingsPage() {
         ) : (
           <div className="flex flex-col items-center py-6 text-slate-400">
             <Users className="mb-2 h-8 w-8" />
-            <span className="text-sm">\u6682\u65e0\u80a1\u4e1c\u4fe1\u606f</span>
+            <span className="text-sm">暂无股东信息</span>
           </div>
         )}
       </CollapseCard>
 
       {/* === 4. categories === */}
       <CollapseCard
-        title="\u5206\u7c7b\u7ba1\u7406"
+        title="分类管理"
         icon={<Tags className="h-4 w-4 text-indigo-500" />}
         defaultOpen={true}
         action={
@@ -564,7 +564,7 @@ export default function StoreSettingsPage() {
               className="flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
             >
               <Plus className="h-3.5 w-3.5" />
-              \u6dfb\u52a0
+              添加
             </button>
           ) : undefined
         }
@@ -573,7 +573,7 @@ export default function StoreSettingsPage() {
           <div className="mb-4">
             <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
               <ArrowUpCircle className="h-3.5 w-3.5" />
-              \u6536\u5165\u5206\u7c7b
+              收入分类
             </div>
             <div className="space-y-2">
               {incomeCategories.map((cat: any) => (
@@ -608,7 +608,7 @@ export default function StoreSettingsPage() {
           <div>
             <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-rose-600">
               <ArrowDownCircle className="h-3.5 w-3.5" />
-              \u652f\u51fa\u5206\u7c7b
+              支出分类
             </div>
             <div className="space-y-2">
               {expenseCategories.map((cat: any) => (
@@ -640,7 +640,7 @@ export default function StoreSettingsPage() {
         )}
 
         {categories.length === 0 && (
-          <div className="py-6 text-center text-sm text-slate-400">\u6682\u65e0\u5206\u7c7b</div>
+          <div className="py-6 text-center text-sm text-slate-400">暂无分类</div>
         )}
       </CollapseCard>
 
@@ -648,31 +648,31 @@ export default function StoreSettingsPage() {
       <Modal
         open={showShareholderModal}
         onClose={() => setShowShareholderModal(false)}
-        title={editShareholderIdx !== null ? '\u7f16\u8f91\u80a1\u4e1c' : '\u6dfb\u52a0\u80a1\u4e1c'}
+        title={editShareholderIdx !== null ? '编辑股东' : '添加股东'}
       >
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-xs text-slate-500">
-              {'\u80a1\u4e1c\u59d3\u540d'} <span className="text-rose-400">{'*'}</span>
+              {'股东姓名'} <span className="text-rose-400">{'*'}</span>
             </label>
             <input
               value={shareholderForm.name}
               onChange={(e) => setShareholderForm({ ...shareholderForm, name: e.target.value })}
               className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-              placeholder={'\u8bf7\u8f93\u5165\u59d3\u540d'}
+              placeholder={'请输入姓名'}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">{'\u7535\u8bdd'}</label>
+            <label className="mb-1 block text-xs text-slate-500">{'电话'}</label>
             <input
               value={shareholderForm.phone}
               onChange={(e) => setShareholderForm({ ...shareholderForm, phone: e.target.value })}
               className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-              placeholder={'\u8bf7\u8f93\u5165\u7535\u8bdd\u53f7\u7801'}
+              placeholder={'请输入电话号码'}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">{'\u6301\u80a1\u6bd4\u4f8b (%)'}</label>
+            <label className="mb-1 block text-xs text-slate-500">{'持股比例 (%)'}</label>
             <input
               type="number"
               min="0"
@@ -691,7 +691,7 @@ export default function StoreSettingsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
-            {savingShareholder ? '\u4fdd\u5b58\u4e2d...' : '\u4fdd\u5b58'}
+            {savingShareholder ? '保存中...' : '保存'}
           </button>
         </div>
       </Modal>
@@ -700,20 +700,20 @@ export default function StoreSettingsPage() {
       <Modal
         open={showCatModal}
         onClose={() => setShowCatModal(false)}
-        title={editCat ? '\u7f16\u8f91\u5206\u7c7b' : '\u6dfb\u52a0\u5206\u7c7b'}
+        title={editCat ? '编辑分类' : '添加分类'}
       >
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs text-slate-500">{'\u5206\u7c7b\u540d\u79f0'}</label>
+            <label className="mb-1 block text-xs text-slate-500">{'分类名称'}</label>
             <input
               value={catForm.name}
               onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
               className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-              placeholder={'\u5206\u7c7b\u540d\u79f0'}
+              placeholder={'分类名称'}
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-slate-500">{'\u7c7b\u578b'}</label>
+            <label className="mb-1 block text-xs text-slate-500">{'类型'}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setCatForm({ ...catForm, type: 'income' })}
@@ -724,7 +724,7 @@ export default function StoreSettingsPage() {
                     : 'bg-slate-100 text-slate-600')
                 }
               >
-                {'\u6536\u5165'}
+                {'收入'}
               </button>
               <button
                 onClick={() => setCatForm({ ...catForm, type: 'expense' })}
@@ -735,7 +735,7 @@ export default function StoreSettingsPage() {
                     : 'bg-slate-100 text-slate-600')
                 }
               >
-                {'\u652f\u51fa'}
+                {'支出'}
               </button>
             </div>
           </div>
@@ -745,7 +745,7 @@ export default function StoreSettingsPage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
-            {savingCat ? '\u4fdd\u5b58\u4e2d...' : '\u4fdd\u5b58'}
+            {savingCat ? '保存中...' : '保存'}
           </button>
         </div>
       </Modal>
