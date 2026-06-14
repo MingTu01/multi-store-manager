@@ -1,14 +1,21 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Database
 *.db
 *.db-shm
 *.db-wal
-*.log
-*.bat
-*.zip
-_*.mjs
 
-# Uploads and backups
+# Logs
+*.log
+
+# Archives
+*.zip
+
+# Server data (preserved on server, not in git)
 apps/server/uploads/
 apps/server/backups/
 apps/server/data/
@@ -31,34 +38,19 @@ _check_*/
 stdout.txt
 stderr.txt
 _fulltest.js
-
-# Keep important files
-!apps/web/vite.config.*
-!apps/server/seed.ts
-!apps/server/src/seed.ts
-!apps/server/src/lib/utils.ts
-server_out.txt
-server_err.txt
-# Test files
-ScreenShot_*.png
-*.traineddata
-
-# Tesseract models (installed via npm)
-*.traineddata
-
-# Generated restore script
-apps/server/data/_restore.js
-
-# Test files
 test-browser.js
 test-*.js
 
-# Build info
-*.tsbuildinfo
+# Screenshots
+ScreenShot_*.png
 
-# Lock files (keep only one)
-package-lock.json
+# Tesseract models
+*.traineddata
 
-# Temp data
+# Generated files
+apps/server/data/_restore.js
 apps/server/data/auto-backup.json
 apps/server/data/notification-settings.json
+
+# Lock files
+package-lock.json
