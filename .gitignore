@@ -54,3 +54,6 @@ apps/server/data/notification-settings.json
 
 # Lock files
 package-lock.json
+
+# Staging
+_staging*/
