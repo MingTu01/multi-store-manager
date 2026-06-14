@@ -106,7 +106,7 @@ refactor: 重构
 - 版本号记录在 `apps/server/data/version.json`
 - 使用语义化版本：`v{major}.{minor}.{patch}`
 - 每次修改都要更新版本号
-- Git标签：`git tag v2.10.0`
+- Git标签：`git tag v0.5.0`
 
 ## 测试账号
 
