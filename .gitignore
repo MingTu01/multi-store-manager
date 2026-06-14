@@ -42,3 +42,23 @@ server_err.txt
 # Test files
 ScreenShot_*.png
 *.traineddata
+
+# Tesseract models (installed via npm)
+*.traineddata
+
+# Generated restore script
+apps/server/data/_restore.js
+
+# Test files
+test-browser.js
+test-*.js
+
+# Build info
+*.tsbuildinfo
+
+# Lock files (keep only one)
+package-lock.json
+
+# Temp data
+apps/server/data/auto-backup.json
+apps/server/data/notification-settings.json

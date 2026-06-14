@@ -25,7 +25,6 @@ import healthCertRouter from './routes/health-cert.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, getSettings } from './notify.js';
-import { startHealthCertCheck } from './health-check.js';
 import { startReportScheduler } from './report-scheduler.js';
 
 const app = express();
@@ -139,7 +138,6 @@ setupAutoBackup();
 setupCron();
 
 // 启动健康证到期检查
-startHealthCertCheck();
 startReportScheduler();
 
 app.get('{*splat}', (req, res) => {
