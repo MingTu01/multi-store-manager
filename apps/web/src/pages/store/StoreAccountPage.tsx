@@ -126,7 +126,7 @@ export default function StoreAccountPage() {
         url: uploadedUrl,
         name: finalName,
         expiry: finalDate,
-        verified: manualEdit ? false : (ocrResult?.match || false),
+        verified: manualEdit ? (manualName === (user?.name || '')) : (ocrResult?.match || false),
       });
       setHealthCert({ url: uploadedUrl || '', name: finalName, expiry: finalDate, verified: manualEdit ? false : (ocrResult?.match || false) });
       setShowOcrConfirm(false);
@@ -212,7 +212,7 @@ export default function StoreAccountPage() {
           <div className="space-y-3">
             {/* 图片展示 — 点击放大弹窗 */}
             <div className="relative overflow-hidden rounded-xl cursor-pointer group" onClick={() => setShowImageZoom(true)}>
-              <img src={healthCert.url} alt="健康证" className="w-full max-h-80 object-contain rounded-xl bg-slate-50 transition-transform group-hover:scale-[1.02]" />
+              <img src={healthCert.url} alt="健康证" className="w-full h-64 object-cover object-center rounded-xl bg-slate-50 transition-transform group-hover:scale-[1.02]" />
               <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="text-white text-xs bg-black/60 px-2 py-1 rounded-lg">点击放大</span>
               </div>
@@ -270,7 +270,7 @@ export default function StoreAccountPage() {
       <Modal open={showImageZoom} onClose={() => setShowImageZoom(false)} title="健康证">
         <div className="flex items-center justify-center">
           {healthCert?.url && (
-            <img src={healthCert.url} alt="健康证" className="max-w-full max-h-[80vh] object-contain rounded-xl" />
+            <img src={healthCert.url} alt="健康证" className="max-w-full max-h-[85vh] object-contain rounded-xl cursor-zoom-in" onClick={(e) => { const img = e.currentTarget; if (img.style.transform === 'scale(2)') { img.style.transform = 'scale(1)'; img.style.cursor = 'zoom-in'; } else { img.style.transform = 'scale(2)'; img.style.cursor = 'zoom-out'; } }} />
           )}
         </div>
         {healthCert?.name && (
