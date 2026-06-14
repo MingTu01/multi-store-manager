@@ -114,7 +114,7 @@ export default function StoreInventoryPage() {
               const results: Record<number, { expected: number; consumption: number; actual: number; status: StatusType }> = {};
               (detail.items || []).forEach((item: any) => {
                 results[item.master_id] = {
-                  expected: item.expected_qty,
+                  expected: (list.find((it: any) => it.id === item.master_id) || item).quantity,
                   consumption: item.consumption || 0,
                   actual: item.actual_qty || 0,
                   status: item.status || 'normal'
@@ -182,10 +182,6 @@ export default function StoreInventoryPage() {
         photo: editForm.photo,
         status: autoSt,
       });
-      // Clear diff when quantity is manually edited
-      if (newQty !== showEditItem.quantity) {
-        setLastCheckResults((prev) => { const next = { ...prev }; delete next[showEditItem.id]; return next; });
-      }
       setShowEditItem(null);
       loadItems();
     } catch (e: any) {
