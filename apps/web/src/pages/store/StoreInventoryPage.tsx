@@ -114,6 +114,8 @@ export default function StoreInventoryPage() {
             .then((detail) => {
               const results: Record<number, { expected: number; consumption: number; actual: number; status: StatusType }> = {};
               (detail.items || []).forEach((item: any) => {
+                const currentItem = list.find((it: any) => it.id === item.master_id);
+                if (currentItem && currentItem.quantity !== (item.actual_qty || 0)) return;
                 results[item.master_id] = {
                   expected: item.expected_qty,
                   consumption: item.consumption || 0,
