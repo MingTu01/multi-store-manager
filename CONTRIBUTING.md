@@ -13,7 +13,7 @@
 
 ### 安装依赖
 ```bash
-git clone https://github.com/MingTu01/multi-store-manager.git
+git clone https://github.com/MingTu01/multi-shop-link.git
 cd multi-shop-link
 pnpm install
 ```
@@ -106,7 +106,7 @@ refactor: 重构
 - 版本号记录在 `apps/server/data/version.json`
 - 使用语义化版本：`v{major}.{minor}.{patch}`
 - 每次修改都要更新版本号
-- Git标签：`git tag v0.5.0`
+- Git标签：`git tag v1.0.0`
 
 ## 测试账号
 
@@ -144,7 +144,7 @@ cp package.json dist-upgrade/
 cd dist-upgrade && zip -r ../multi-store-upgrade-vX.X.X.zip . && cd ..
 ```
 
-### PM2管理
+### 1Panel Node.js 运行环境管理
 ```bash
 pm2 start "node --import tsx src/index.ts" --name multi-store -w apps/server
 pm2 logs multi-store    # 查看日志
