@@ -9,7 +9,7 @@ import { Modal } from '../../components/Modal';
 import { Plus, Edit2, Trash2, Store, ArrowRight, Camera, Upload, X } from 'lucide-react';
 
 interface Shareholder { name: string; phone: string; ratio: number; }
-interface StoreItem { id: string; name: string; address: string; initial_capital: number; is_open: number; status: string; photo?: string; shareholders?: Shareholder[]; staff_count?: number; }
+interface StoreItem { id: string; name: string; address: string; initial_capital: number; is_open: number; status: string; photo?: string; photos?: string[]; shareholders?: Shareholder[]; staff_count?: number; }
 
 export default function StoresPage() {
   const [stores, setStores] = useState<StoreItem[]>([]);
@@ -42,8 +42,8 @@ export default function StoresPage() {
       name: s.name || '',
       address: s.address || '',
       initial_capital: String(s.initial_capital || ''),
-      photos: s.photos ? (typeof s.photos === 'string' ? JSON.parse(s.photos) : s.photos) : (s.photo ? [s.photo] : []),
-      shareholders: (s.shareholders || []).map(sh => ({ name: sh.name, phone: sh.phone || '', ratio: sh.ratio })),
+      photos: s.photo ? [s.photo] : [],
+      shareholders: (s.shareholders || []).map((sh: any) => ({ name: sh.name, phone: sh.phone || '', ratio: sh.ratio })),
     });
     setShowModal(true);
   };
@@ -115,10 +115,10 @@ export default function StoresPage() {
           return (
             <GlassCard key={s.id} className="cursor-pointer overflow-hidden transition-all hover:shadow-xl" onClick={() => nav('/store/' + s.id)}>
               {(() => {
-                const sp = s.photos ? (typeof s.photos === "string" ? JSON.parse(s.photos) : s.photos) : (s.photo ? [s.photo] : []);
+                const sp: any[] = s.photo ? [s.photo] : [];
                 return sp.length > 0 ? (
                   <div className="h-32 w-full overflow-hidden bg-slate-100 flex gap-0.5">
-                    {sp.slice(0, 3).map((p, i) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover"  loading="lazy" />)}
+                    {sp.slice(0, 3).map((p: string, i: number) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover"  loading="lazy" />)}
                   </div>
                 ) : (
                   <div className="flex h-32 w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">

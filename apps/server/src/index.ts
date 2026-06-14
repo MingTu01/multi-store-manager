@@ -3,7 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { join } from 'path';
-import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync } from 'fs';
+import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import db from './db.js';
 import { authMiddleware } from './auth.js';
 import authRouter from './routes/auth.js';
@@ -27,6 +27,12 @@ import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings } from './notify.js';
 import { startReportScheduler } from './report-scheduler.js';
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const BASE_DIR = __dirname;
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -65,7 +71,20 @@ app.use(cors({ origin: corsOrigin === '*' ? '*' : corsOrigin.split(',') }));
 const jsonLimit = process.env.JSON_LIMIT || '30mb';
 app.use(express.json({ limit: jsonLimit }));
 
-app.use(express.static(join(process.cwd(), '..', 'web', 'dist'), {
+// Smart path detection for web dist
+const POSSIBLE_WEB_DIST = [
+  join(BASE_DIR, '..', 'public', 'web-dist'),
+  join(BASE_DIR, '..', 'web', 'dist'),
+  join(BASE_DIR, '..', '..', 'web', 'dist'),
+  join(BASE_DIR, '..', '..', 'apps', 'web', 'dist'),
+  join(BASE_DIR, 'web', 'dist'),
+  join(BASE_DIR, '..', 'apps', 'web', 'dist'),
+  join('/app', 'apps', 'web', 'dist'),
+];
+const WEB_DIST_PATH = POSSIBLE_WEB_DIST.find(p => existsSync(join(p, 'index.html'))) || POSSIBLE_WEB_DIST[0];
+console.log('[PATH] Web dist:', WEB_DIST_PATH);
+
+app.use(express.static(WEB_DIST_PATH, {
     maxAge: '7d',
     etag: true,
     lastModified: true,
@@ -79,8 +98,8 @@ app.use(express.static(join(process.cwd(), '..', 'web', 'dist'), {
       }
     }
   }));
-app.use(express.static(join(process.cwd(), 'public')));
-app.use('/uploads', express.static(join(process.cwd(), 'uploads'), { maxAge: '1d', etag: true }));
+app.use(express.static(join(BASE_DIR, 'public')));
+app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '1d', etag: true }));
 
 // Public auth routes
 app.use('/api/auth', authRouter);
@@ -116,7 +135,7 @@ app.use((err: any, req: any, res: any, next: any) => {
 function setupAutoBackup() {
   setInterval(() => {
     try {
-      const configPath = join(process.cwd(), 'data', 'auto-backup.json');
+      const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
       if (!existsSync(configPath)) return;
       const config = JSON.parse(readFileSync(configPath, 'utf-8'));
       if (!config.enabled) return;
@@ -131,19 +150,19 @@ function setupAutoBackup() {
         if (diff < intervalMs) return;
       }
 
-      const backupDir = join(process.cwd(), 'backups');
+      const backupDir = join(BASE_DIR, 'backups');
       mkdirSync(backupDir, { recursive: true });
       const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const filename = 'auto-backup-' + config.interval + '-' + ts + '.db';
       // Q8: 备份前执行 WAL checkpoint
       db.pragma('wal_checkpoint(TRUNCATE)');
-      copyFileSync(join(process.cwd(), 'data', 'store.db'), join(backupDir, filename));
+      copyFileSync(join(BASE_DIR, 'data', 'store.db'), join(backupDir, filename));
 
       config[lastKey] = now.toISOString();
-      require('fs').writeFileSync(configPath, JSON.stringify(config, null, 2));
+      writeFileSync(configPath, JSON.stringify(config, null, 2));
 
       const files = readdirSync(backupDir).filter(f => f.startsWith('auto-backup-')).sort();
-      while (files.length > 30) { const old = files.shift()!; require('fs').unlinkSync(join(backupDir, old)); }
+      while (files.length > 30) { const old = files.shift()!; unlinkSync(join(backupDir, old)); }
 
       console.log('Auto backup created:', filename);
     } catch (err) { console.error('Auto backup error:', err); }
@@ -182,7 +201,7 @@ startReportScheduler();
 
 app.get('{*splat}', (req, res) => {
   if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');
-  res.sendFile(join(process.cwd(), '..', 'web', 'dist', 'index.html'));
+  res.sendFile(join(WEB_DIST_PATH, 'index.html'));
 });
 
 // Prevent server crash on unhandled errors
@@ -194,7 +213,7 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled Rejection:', reason);
 });
 
-app.listen(PORT, () => console.log('Server running on http://localhost:' + PORT))
+app.listen(PORT, '0.0.0.0', () => console.log('Server running on http://0.0.0.0:' + PORT))
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {
       console.error('端口 ' + PORT + ' 无权限，请尝试其他端口: PORT=3000 node --import tsx src/index.ts');

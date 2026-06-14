@@ -34,7 +34,7 @@ function PieLegend({ data, color }: { data: any[]; color: string }) {
 
 export default function StoreReportPage() {
   const { storeId } = useParams();
-  const role = useStore((s) => s.user?.role);
+  const role = useStore((s) => s.user?.role) as string | undefined;
   const [period, setPeriod] = useState<Period>('day');
   const [date, setDate] = useState(new Date());
   const [data, setData] = useState<any>(null);
@@ -59,7 +59,7 @@ export default function StoreReportPage() {
   const expenseByCategory = data?.expenseByCategory || [];
   const comp = data?.comparison;
   const fundBalance = data?.fundBalance ?? 0;
-  const isAdmin = (role === 'ADMIN' || role === 'admin') && period === 'all';
+  const isAdmin = role === 'ADMIN' && period === 'all';
   const yoy = data?.yoy;
 
   const compData = comp ? [

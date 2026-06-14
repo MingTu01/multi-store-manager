@@ -1,5 +1,5 @@
 import db from './db.js';
-import { formatMoney } from './lib/utils';
+import { formatMoney } from './lib/utils.js';
 
 export function getSettings(): any {
   return db.prepare('SELECT * FROM notification_settings WHERE id = 1').get() || {};

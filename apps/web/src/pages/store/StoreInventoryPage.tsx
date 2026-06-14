@@ -20,6 +20,7 @@ type InventoryItem = {
   photo: string;
   quantity: number;
   sort_order: number;
+  status?: string;
 };
 
 type StatusType = 'normal' | 'diff' | 'lost' | 'scrap' | 'empty' | 'restocking' | 'pending';
@@ -520,7 +521,7 @@ export default function StoreInventoryPage() {
                           {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                           {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                         </div>
-                        <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
+                        <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
@@ -558,7 +559,7 @@ export default function StoreInventoryPage() {
                         {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                         {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                       </div>
-                      <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
+                      <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <SortableDragHandle id={item.id} />

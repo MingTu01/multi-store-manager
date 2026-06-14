@@ -30,38 +30,38 @@ const inputCls = 'w-full rounded-xl border border-white/40 bg-white/50 px-4 py-2
 
 export default function StoreNotificationSettingsPage() {
   const { storeId } = useParams();
-  const [settings, setSettings] = useState({});
-  const [channelStatus, setChannelStatus] = useState({});
-  const [msg, setMsg] = useState(null);
-  const [editingChannel, setEditingChannel] = useState(null);
-  const [channelForm, setChannelForm] = useState({});
-  const [showSecret, setShowSecret] = useState({});
+  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [channelStatus, setChannelStatus] = useState<Record<string, boolean>>({});
+  const [msg, setMsg] = useState<{ok: boolean; text: string} | null>(null);
+  const [editingChannel, setEditingChannel] = useState<string | null>(null);
+  const [channelForm, setChannelForm] = useState<Record<string, string>>({});
+  const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
+  const [testResult, setTestResult] = useState<{ok: boolean; text: string} | null>(null);
 
-  const showMsg = (ok, text) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
+  const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
 
   useEffect(() => {
     api.get('/stores/' + storeId + '/notification-settings').then((d) => {
       setSettings(d);
-      const status = {};
-      channels.forEach(ch => {
-        const hasConfig = ch.fields.every(f => d[f.f]);
+      const status: Record<string, boolean> = {};
+      channels.forEach((ch: any) => {
+        const hasConfig = ch.fields.every((f: any) => (d as any)[f.f]);
         status[ch.key] = hasConfig;
       });
       setChannelStatus(status);
     }).catch(() => {});
   }, []);
 
-  const handleToggle = async (key) => {
+  const handleToggle = async (key: string) => {
     const updated = { ...settings, [key]: !settings[key] };
     setSettings(updated);
     try { await api.put('/stores/' + storeId + '/notification-settings', updated); } catch {}
   };
 
-  const openEditChannel = (ch) => {
+  const openEditChannel = (ch: any) => {
     setEditingChannel(ch.key);
-    setChannelForm(ch.fields.reduce((a, f) => ({ ...a, [f.f]: settings[f.f] || '' }), {}));
+    setChannelForm(ch.fields.reduce((a: any, f: any) => ({ ...a, [f.f]: settings[f.f] || '' }), {}));
     setShowSecret({});
     setTestResult(null);
   };
@@ -72,16 +72,16 @@ export default function StoreNotificationSettingsPage() {
       await api.put('/stores/' + storeId + '/notification-settings', updated);
       setSettings(updated);
       const ch = channels.find(c => c.key === editingChannel);
-      const hasConfig = ch.fields.every(f => channelForm[f.f]);
-      setChannelStatus(s => ({ ...s, [editingChannel]: hasConfig }));
+      const hasConfig = ch?.fields.every((f: any) => (channelForm as any)[f.f]) ?? false;
+      setChannelStatus(s => ({ ...s, [editingChannel!]: hasConfig }));
       setEditingChannel(null);
       showMsg(true, '配置已保存');
-    } catch (e) { showMsg(false, e.message || '保存失败'); }
+    } catch (e: any) { showMsg(false, e.message || '保存失败'); }
   };
 
   const handleTest = async () => {
     const ch = channels.find(c => c.key === editingChannel);
-    const hasConfig = ch.fields.every(f => channelForm[f.f]);
+    const hasConfig = ch?.fields.every((f: any) => (channelForm as any)[f.f]) ?? false;
     if (!hasConfig) {
       setTestResult({ ok: false, text: '请先填写所有必填配置项' });
       return;
@@ -91,10 +91,10 @@ export default function StoreNotificationSettingsPage() {
     const updated = { ...settings, ...channelForm, method: editingChannel };
     try {
       await api.put('/stores/' + storeId + '/notification-settings', updated);
-      await api.post('/stores/' + storeId + '/notification-settings/test?type=daily');
-      setChannelStatus(s => ({ ...s, [editingChannel]: true }));
+      await api.post('/stores/' + storeId + '/notification-settings/test?type=daily', {});
+      setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
       setTestResult({ ok: true, text: '测试成功，推送已发送' });
-    } catch (e) {
+    } catch (e: any) {
       setTestResult({ ok: false, text: e.message || '测试失败，请检查配置' });
     } finally {
       const restored = { ...updated, method: 'none' };
@@ -118,7 +118,7 @@ export default function StoreNotificationSettingsPage() {
         <h3 className="mb-4 text-sm font-semibold text-slate-700">渠道配置</h3>
         <div className="space-y-3">
           {channels.map(ch => {
-            const configured = channelStatus[ch.key];
+            const configured = (channelStatus as Record<string, boolean>)[ch.key];
             return (
               <div key={ch.key} className={`flex items-center justify-between rounded-xl p-3 transition-all ${configured ? 'bg-emerald-50/80 border border-emerald-200' : 'bg-white/40'}`}>
                 <div className="flex items-center gap-3">
@@ -142,8 +142,8 @@ export default function StoreNotificationSettingsPage() {
           {pushOptions.map(opt => (
             <label key={opt.key} className="flex cursor-pointer items-center justify-between rounded-xl bg-white/40 p-3 hover:bg-white/60 transition-all">
               <span className="text-sm text-slate-700">{opt.label}</span>
-              <div className={`relative h-6 w-11 rounded-full transition-colors ${settings[opt.key] ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => handleToggle(opt.key)}>
-                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${settings[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              <div className={`relative h-6 w-11 rounded-full transition-colors ${(settings as Record<string, any>)[opt.key] ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => handleToggle(opt.key)}>
+                <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${(settings as Record<string, any>)[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </div>
             </label>
           ))}
@@ -156,16 +156,16 @@ export default function StoreNotificationSettingsPage() {
             <div key={f.f}>
               <label className="mb-1.5 block text-xs font-medium text-slate-600">{f.label}</label>
               <div className="relative">
-                <input type={f.secret && !showSecret[f.f] ? 'password' : 'text'} value={channelForm[f.f] || ''} onChange={e => setChannelForm((s) => ({ ...s, [f.f]: e.target.value }))} className={inputCls} placeholder={'请输入 ' + f.label} />
-                {f.secret && <button onClick={() => setShowSecret(s => ({ ...s, [f.f]: !s[f.f] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showSecret[f.f] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>}
+                <input type={f.secret && !(showSecret as any)[f.f] ? 'password' : 'text'} value={(channelForm as any)[f.f] || ''} onChange={e => setChannelForm((s) => ({ ...s, [f.f]: e.target.value }))} className={inputCls} placeholder={'请输入 ' + f.label} />
+                {f.secret && <button onClick={() => setShowSecret(s => ({ ...s, [f.f]: !s[f.f] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{(showSecret as any)[f.f] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>}
               </div>
             </div>
           ))}
 
           {testResult && (
             <div className={`flex items-center gap-2 rounded-xl p-3 text-sm ${testResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-              {testResult.ok ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-              {testResult.text}
+              {(testResult as any).ok ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+              {(testResult as any).text}
             </div>
           )}
 

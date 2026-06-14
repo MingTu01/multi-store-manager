@@ -17,7 +17,7 @@ function setCache(key: string, data: any) {
   // Limit cache size
   if (cache.size > 100) {
     const oldest = cache.keys().next().value;
-    cache.delete(oldest);
+    if (oldest !== undefined) cache.delete(oldest);
   }
 }
 

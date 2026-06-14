@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
-import { localDate } from '../lib/utils';
+import { localDate } from '../lib/utils.js';
 import { AuthRequest } from '../auth.js';
 
 

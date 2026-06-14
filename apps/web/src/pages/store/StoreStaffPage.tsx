@@ -251,7 +251,7 @@ export default function StoreStaffPage() {
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5">
                 <div className="text-[10px] text-slate-400 mb-0.5">角色</div>
-                <div className="text-sm font-medium text-slate-800">{{ADMIN:'系统管理员',STORE_ADMIN:'店铺管理员',MANAGER:'店长',STAFF:'员工',SHAREHOLDER:'股东'}[showDetail.role] || showDetail.role}</div>
+                <div className="text-sm font-medium text-slate-800">{({ADMIN:'系统管理员',STORE_ADMIN:'店铺管理员',MANAGER:'店长',STAFF:'员工',SHAREHOLDER:'股东'} as Record<string,string>)[showDetail.role] || showDetail.role}</div>
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5">
                 <div className="text-[10px] text-slate-400 mb-0.5">入职时间</div>

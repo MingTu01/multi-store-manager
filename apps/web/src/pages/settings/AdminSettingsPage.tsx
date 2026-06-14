@@ -17,7 +17,7 @@ export default function AdminSettingsPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
-  const [profileForm, setProfileForm] = useState({ phone: user?.phone || '', address: (user as any)?.address || '' });
+  const [profileForm, setProfileForm] = useState({ username: user?.username || '', phone: user?.phone || '', address: user?.address || '' });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -99,8 +99,8 @@ export default function AdminSettingsPage() {
       <GlassCard className="divide-y divide-slate-100">
         {[
           { icon: User, label: '用户名', value: user?.username },
-          { icon: Phone, label: '手机号', value: (user as any)?.phone || '未设置' },
-          { icon: MapPin, label: '联系地址', value: (user as any)?.address || '未设置' },
+          { icon: Phone, label: '手机号', value: user?.phone || '未设置' },
+          { icon: MapPin, label: '联系地址', value: user?.address || '未设置' },
           { icon: Shield, label: '角色', value: roleLabels[user?.role || ''] || user?.role },
         ].map((item) => (
           <div key={item.label} className="flex items-center gap-3 px-4 py-3.5">
@@ -113,7 +113,7 @@ export default function AdminSettingsPage() {
 
       {/* Action buttons */}
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => { setProfileForm({ username: user?.username || '', phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }}
+        <button onClick={() => { setProfileForm({ username: user?.username || '', phone: user?.phone || '', address: user?.address || '' }); setShowProfile(true); }}
           className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all">
           <User className="h-4 w-4" />编辑资料
         </button>

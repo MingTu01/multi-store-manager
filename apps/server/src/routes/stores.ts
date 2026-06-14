@@ -5,6 +5,7 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
 import { triggerNotification } from '../notify-trigger.js';
+import { sendStoreNotification } from '../notify.js';
 
 const router = Router();
 
@@ -305,7 +306,7 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
     const storeId = req.params.storeId;
     const settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
     if (!settings) return res.status(400).json({ error: '请先配置通知渠道' });
-    const { sendStoreNotification } = require('../notify.js');
+    // imported at top
     sendStoreNotification(storeId, '测试通知', '这是一条测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN'), settings)
       .then(() => res.json({ message: '测试通知已发送' }))
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));

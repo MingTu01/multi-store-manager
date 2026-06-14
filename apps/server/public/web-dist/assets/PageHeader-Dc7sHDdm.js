@@ -1,0 +1,1 @@
+import{t as e}from"./vendor-react-BHG1uaA9.js";var t=e();function n({title:e,subtitle:n,action:r}){return(0,t.jsxs)(`div`,{className:`flex items-center justify-between`,children:[(0,t.jsxs)(`div`,{children:[(0,t.jsx)(`h1`,{className:`text-xl font-bold text-slate-900`,children:e}),n&&(0,t.jsx)(`p`,{className:`mt-0.5 text-sm text-slate-500`,children:n})]}),r]})}export{n as t};

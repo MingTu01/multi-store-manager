@@ -1,4 +1,9 @@
 import { Router, Response } from 'express';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const BASE_DIR = join(__dirname, '..');
 import { join } from 'path';
 import { existsSync, mkdirSync, renameSync } from 'fs';
 import multer from 'multer';
@@ -7,7 +12,7 @@ import { AuthRequest } from '../auth.js';
 import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router();
-const upload = multer({ dest: join(process.cwd(), 'uploads') });
+const upload = multer({ dest: join(BASE_DIR, 'uploads') });
 
 router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) => {
   try {
@@ -15,7 +20,7 @@ router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) 
     if (!file) return res.status(400).json({ error: '\u8bf7\u9009\u62e9\u6587\u4ef6' });
     const ext = file.originalname.split('.').pop() || 'jpg';
     const newName = 'health_' + req.user.id + '_' + Date.now() + '.' + ext;
-    const destDir = join(process.cwd(), 'uploads');
+    const destDir = join(BASE_DIR, 'uploads');
     if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
     renameSync(file.path, join(destDir, newName));
     res.json({ url: '/uploads/' + newName, filename: newName });
@@ -26,10 +31,10 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: '\u8bf7\u63d0\u4f9b\u56fe\u7247\u8def\u5f84' });
-    const imagePath = join(process.cwd(), url.replace(/^\//, ''));
+    const imagePath = join(BASE_DIR, url.replace(/^\//, ''));
     if (!existsSync(imagePath)) return res.status(404).json({ error: '\u56fe\u7247\u4e0d\u5b58\u5728' });
 
-    const { createWorker } = require('tesseract.js');
+    const { createWorker } = await import('tesseract.js');
     // OCR with 60s timeout
     let text = '';
     try {

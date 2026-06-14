@@ -2,9 +2,14 @@ import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import { mkdirSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const BASE_DIR = __dirname;
 
-mkdirSync(join(process.cwd(), 'data'), { recursive: true });
-const dbPath = join(process.cwd(), 'data', 'store.db');
+mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
+const dbPath = join(BASE_DIR, 'data', 'store.db');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');

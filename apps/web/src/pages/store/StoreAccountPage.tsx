@@ -28,7 +28,7 @@ export default function StoreAccountPage() {
   const [uploadPhase, setUploadPhase] = useState<'idle'|'uploading'|'recognizing'|'done'>('idle');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showImageZoom, setShowImageZoom] = useState(false);
-  const [ocrResult, setOcrResult] = useState<{ name: string; expiry: string; match: boolean } | null>(null);
+  const [ocrResult, setOcrResult] = useState<{ name: string; expiry: string; match: boolean; examDate?: string } | null>(null);
   const [manualEdit, setManualEdit] = useState(false);
   const [manualName, setManualName] = useState('');
   const [manualDate, setManualDate] = useState('');
@@ -87,7 +87,8 @@ export default function StoreAccountPage() {
     setHealthLoading(true);
     setUploadPhase("uploading");
     try {
-      const uploadRes: any = await api.upload('/health-cert/upload', file);
+      const fd = new FormData(); fd.append('file', file);
+      const uploadRes: any = await api.upload('/health-cert/upload', fd);
       if (!uploadRes.url) throw new Error('上传失败');
       setUploadedUrl(uploadRes.url);
       setUploadPhase("recognizing");
@@ -162,7 +163,7 @@ export default function StoreAccountPage() {
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600 overflow-hidden">
-              {user?.avatar ? <img src={user.avatar} className="h-full w-full object-cover"  loading="lazy" /> : (user?.name?.[0] || '?')}
+              {(user as any)?.avatar ? <img src={(user as any).avatar} className="h-full w-full object-cover"  loading="lazy" /> : (user?.name?.[0] || '?')}
             </div>
             <button onClick={() => fileRef.current?.click()} className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600">
               <Camera className="h-3.5 w-3.5" />
@@ -364,7 +365,7 @@ export default function StoreAccountPage() {
                 </div>
               )}
               {(!ocrResult.name || !ocrResult.expiry || !ocrResult.match) && (
-                <button onClick={() => { setManualEdit(true); setManualName(ocrResult.name || ''); setManualDate(ocrResult.examDate || ''); }} className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm text-amber-700 hover:bg-amber-100">
+                <button onClick={() => { setManualEdit(true); setManualName(ocrResult.name || ''); setManualDate((ocrResult as any).examDate || ''); }} className="w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm text-amber-700 hover:bg-amber-100">
                   识别不完整？点击手动填写
                 </button>
               )}

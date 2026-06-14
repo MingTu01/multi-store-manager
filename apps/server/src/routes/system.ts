@@ -1,5 +1,11 @@
 import { Router, Response } from 'express';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { join } from 'path';
+const BASE_DIR = join(__dirname, '..');
+import { exec } from 'child_process';
 import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import os from 'os';
 import multer from 'multer';
@@ -10,7 +16,7 @@ import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, bui
 import { safePath } from '../middleware/store-access.js';
 
 const router = Router();
-const upload = multer({ dest: join(process.cwd(), 'uploads') });
+const upload = multer({ dest: join(BASE_DIR, 'uploads') });
 
 // SSE clients for upgrade progress
 const sseClients: Set<Response> = new Set();
@@ -30,13 +36,13 @@ router.get('/info', (req: AuthRequest, res: Response) => {
     const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as any).count;
     const storeCount = (db.prepare('SELECT COUNT(*) as count FROM stores').get() as any).count;
     const entryCount = (db.prepare('SELECT COUNT(*) as count FROM entries').get() as any).count;
-    const dbSize = existsSync(join(process.cwd(), 'data', 'store.db')) ? statSync(join(process.cwd(), 'data', 'store.db')).size : 0;
+    const dbSize = existsSync(join(BASE_DIR, 'data', 'store.db')) ? statSync(join(BASE_DIR, 'data', 'store.db')).size : 0;
     const cpus = os.cpus();
     const cpuUsage = cpus.length > 0 ? Math.round(cpus.reduce((s: number, c: any) => s + (c.times.user + c.times.nice + c.times.sys + c.times.irq) / (c.times.user + c.times.nice + c.times.sys + c.times.irq + c.times.idle) * 100, 0) / cpus.length) : 0;
     const totalMem = os.totalmem();
     const usedMem = totalMem - os.freemem();
     let version = '1.0.0';
-    try { version = JSON.parse(readFileSync(join(process.cwd(), 'data', 'version.json'), 'utf-8')).version; } catch {}
+    try { version = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
     res.json({ version, userCount, storeCount, entryCount, dbSize: (dbSize / 1024 / 1024).toFixed(2) + ' MB', uptime: process.uptime(), cpu: cpuUsage + '%', memory: Math.round(usedMem / 1048576) + ' / ' + Math.round(totalMem / 1048576) + ' MB', nodeVersion: process.version });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -45,12 +51,12 @@ router.get('/info', (req: AuthRequest, res: Response) => {
 router.post('/backup', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const backupDir = join(process.cwd(), 'backups');
+    const backupDir = join(BASE_DIR, 'backups');
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = 'manual-' + now + '.zip';
     db.pragma('wal_checkpoint(TRUNCATE)');
-    const dbDir = join(process.cwd(), 'data');
+    const dbDir = join(BASE_DIR, 'data');
     const zipPath = join(backupDir, filename);
     const zip = new AdmZip();
     zip.addLocalFile(join(dbDir, 'store.db'), '', 'store.db');
@@ -66,7 +72,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
 router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const filepath = safePath(join(process.cwd(), 'backups'), req.params.filename);
+    const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const stats = statSync(filepath);
     res.json({ filename: req.params.filename, size: (stats.size / 1024).toFixed(1) + ' KB', sizeBytes: stats.size, date: stats.mtime.toISOString() });
@@ -77,7 +83,7 @@ router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
 router.get('/backups', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const backupDir = join(process.cwd(), 'backups');
+    const backupDir = join(BASE_DIR, 'backups');
     if (!existsSync(backupDir)) return res.json({ backups: [] });
     const files = readdirSync(backupDir).filter(f => f.endsWith('.zip') || f.endsWith('.db')).map(f => {
       const stats = statSync(join(backupDir, f));
@@ -90,7 +96,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
 // S9+3: 备份下载 — ADMIN + 路径安全
 router.get('/backups/:filename/download', (req: AuthRequest, res: Response) => {
   if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-  const filepath = safePath(join(process.cwd(), 'backups'), req.params.filename);
+  const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
   if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
   res.download(filepath, req.params.filename);
 });
@@ -102,7 +108,7 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请上传备份文件' });
     if (!file.originalname.endsWith('.db') && !file.originalname.endsWith('.zip')) return res.status(400).json({ error: '请上传.db或.zip格式的备份文件' });
-    const backupDir = join(process.cwd(), 'backups');
+    const backupDir = join(BASE_DIR, 'backups');
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const ext = file.originalname.split('.').pop() || 'db';
@@ -117,9 +123,9 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
 router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const filepath = safePath(join(process.cwd(), 'backups'), req.params.filename);
+    const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
-    const dbDir = join(process.cwd(), 'data');
+    const dbDir = join(BASE_DIR, 'data');
     // S2: 使用 JSON.stringify 安全转义路径，防止代码注入
     const safeDbDir = JSON.stringify(dbDir);
     const safeFilepath = JSON.stringify(filepath);
@@ -142,15 +148,15 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
       '  },1000);',
       '},1000);'
     ].join('\n');
-    const restorePath = join(process.cwd(), 'data', '_restore.js');
+    const restorePath = join(BASE_DIR, 'data', '_restore.js');
     writeFileSync(restorePath, restoreScript);
     res.json({ message: '备份恢复成功，服务器即将重启...' });
     setTimeout(() => {
-      const { exec } = require('child_process');
+      ;
       const cmd = process.platform === 'win32'
-        ? 'start /b cmd /c "cd /d ' + process.cwd() + ' && node data/_restore.js"'
-        : 'cd ' + process.cwd() + ' && nohup node data/_restore.js > /dev/null 2>&1 &';
-      exec(cmd, { cwd: process.cwd(), windowsHide: true });
+        ? 'start /b cmd /c "cd /d ' + BASE_DIR + ' && node data/_restore.js"'
+        : 'cd ' + BASE_DIR + ' && nohup node data/_restore.js > /dev/null 2>&1 &';
+      exec(cmd, { cwd: BASE_DIR, windowsHide: true });
       setTimeout(() => process.exit(0), 500);
     }, 200);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -160,7 +166,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
 router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const filepath = safePath(join(process.cwd(), 'backups'), req.params.filename);
+    const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     unlinkSync(filepath);
     res.json({ message: '备份已删除' });
@@ -172,7 +178,7 @@ router.get('/auto-backup', (req: AuthRequest, res: Response, next) => {
   if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); next(); }),
 router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
-    const configPath = join(process.cwd(), 'data', 'auto-backup.json');
+    const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -181,8 +187,8 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
 router.put('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const configPath = join(process.cwd(), 'data', 'auto-backup.json');
-    mkdirSync(join(process.cwd(), 'data'), { recursive: true });
+    const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
+    mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     writeFileSync(configPath, JSON.stringify(req.body, null, 2));
     res.json({ message: '自动备份设置已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -227,19 +233,19 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
     (async () => {
       try {
         upgradeState = { step: 1, message: '正在备份数据库...', complete: false }; broadcastProgress('progress', { step: 1, total: 5, message: '正在备份数据库...' });
-        const backupDir = join(process.cwd(), 'backups');
+        const backupDir = join(BASE_DIR, 'backups');
         mkdirSync(backupDir, { recursive: true });
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         db.pragma('wal_checkpoint(TRUNCATE)');
         const preZip = new AdmZip();
-        preZip.addLocalFile(join(process.cwd(), 'data', 'store.db'), '', 'store.db');
-        if (existsSync(join(process.cwd(), 'data', 'store.db-wal'))) preZip.addLocalFile(join(process.cwd(), 'data', 'store.db-wal'), '', 'store.db-wal');
-        if (existsSync(join(process.cwd(), 'data', 'store.db-shm'))) preZip.addLocalFile(join(process.cwd(), 'data', 'store.db-shm'), '', 'store.db-shm');
+        preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db'), '', 'store.db');
+        if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
+        if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
         preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
         upgradeState = { step: 1, message: '数据库备份完成', complete: false }; broadcastProgress('progress', { step: 1, total: 5, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 2, message: '正在解压升级包...', complete: false }; broadcastProgress('progress', { step: 2, total: 5, message: '正在解压升级包...' });
-        const extractDir = join(process.cwd(), 'uploads', 'extract-' + Date.now());
+        const extractDir = join(BASE_DIR, 'uploads', 'extract-' + Date.now());
         mkdirSync(extractDir, { recursive: true });
         const zip = new AdmZip(file.path);
         zip.extractAllTo(extractDir, true);
@@ -250,7 +256,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
           if (existsSync(pkgPath)) {
             const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-            writeFileSync(join(process.cwd(), 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
+            writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
           }
         } catch {}
         upgradeState = { step: 3, message: '版本信息已更新', complete: false }; broadcastProgress('progress', { step: 3, total: 5, message: '版本信息已更新', done: true });
@@ -266,9 +272,9 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         };
         const webDist = join(extractDir, 'web-dist');
-        if (existsSync(webDist)) copyDir(webDist, join(process.cwd(), '..', 'web', 'dist'));
+        if (existsSync(webDist)) copyDir(webDist, join(BASE_DIR, '..', 'web', 'dist'));
         const serverSrc = join(extractDir, 'server-src');
-        if (existsSync(serverSrc)) copyDir(serverSrc, join(process.cwd(), 'src'));
+        if (existsSync(serverSrc)) copyDir(serverSrc, join(BASE_DIR, 'src'));
         upgradeState = { step: 4, message: '文件覆盖完成', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '文件覆盖完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 5, message: '升级完成', complete: true }; broadcastProgress('progress', { step: 5, total: 5, message: '升级完成', done: true });
@@ -286,11 +292,11 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
     setTimeout(() => {
-      const { exec } = require('child_process');
+      ;
       const cmd = process.platform === 'win32'
-        ? 'start /b cmd /c "cd /d ' + process.cwd() + ' && node --import tsx src/index.ts"'
-        : 'cd ' + process.cwd() + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &';
-      exec(cmd, { cwd: process.cwd(), windowsHide: true });
+        ? 'start /b cmd /c "cd /d ' + BASE_DIR + ' && node --import tsx src/index.ts"'
+        : 'cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &';
+      exec(cmd, { cwd: BASE_DIR, windowsHide: true });
       setTimeout(() => process.exit(0), 500);
     }, 200);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -307,8 +313,8 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     Object.assign(s, req.body);
-    const configPath = join(process.cwd(), 'data', 'notification-settings.json');
-    mkdirSync(join(process.cwd(), 'data'), { recursive: true });
+    const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
+    mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
       s.method || 'none', s.pushplus_token || '', s.serverchan_key || '',
       s.wecom_corpid || '', s.wecom_agentid || '', s.wecom_secret || '',
@@ -336,6 +342,28 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
     })()
       .then(() => res.json({ message: '测试通知已发送' }))
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+
+// Cleanup upgrade files
+router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
+  try {
+    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    const uploadsDir = join(BASE_DIR, 'uploads');
+    if (existsSync(uploadsDir)) {
+      const items = readdirSync(uploadsDir);
+      for (const item of items) {
+        if (item.startsWith('extract-')) {
+          const extractPath = join(uploadsDir, item);
+          try {
+            fs.rmSync(extractPath, { recursive: true, force: true });
+            console.log('[Cleanup] Removed:', item);
+          } catch (e) { console.error('[Cleanup] Failed to remove:', item, e); }
+        }
+      }
+    }
+    res.json({ message: '娓呯悊瀹屾垚' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

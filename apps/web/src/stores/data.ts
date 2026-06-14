@@ -8,6 +8,9 @@ export interface User {
   role: 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
   store_id?: number | null;
   store_name?: string;
+  phone?: string;
+  avatar?: string;
+  address?: string;
 }
 
 interface AppState {

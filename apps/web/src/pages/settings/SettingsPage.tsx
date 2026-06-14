@@ -44,6 +44,8 @@ export default function SettingsPage() {
   const [upgradeSteps, setUpgradeSteps] = useState<{ msg: string; done: boolean }[]>([]);
   const [upgradeComplete, setUpgradeComplete] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
@@ -265,7 +267,7 @@ export default function SettingsPage() {
     const updated = { ...notifSettings, ...channelForm, method: editingChannel };
     try {
       await api.put('/system/notification-settings', updated);
-      await api.post('/system/notification-settings/test?type=daily');
+      await api.post('/system/notification-settings/test?type=daily', {});
       setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
       setTestResult({ ok: true, text: '测试成功，推送已发送' });
     } catch (e: any) {
@@ -560,9 +562,20 @@ export default function SettingsPage() {
       </Modal>
 
       {/* === Upgrade Progress Modal === */}
-      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || !upgrading) { setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title="系统升级">
+      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || !upgrading) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title="系统升级">
         <div className="space-y-4">
-          {upgradeSteps.map((step, i) => (
+          {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>上传中...</span>
+                  <span>{uploadProgress}% {uploadSpeed && '| ' + uploadSpeed}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 rounded-full transition-all" style={{width: uploadProgress + '%'}} />
+                </div>
+              </div>
+            )}
+            {uploadProgress >= 100 && upgradeSteps.map((step, i) => (
             <div key={i} className="flex items-center gap-3">
               <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-all ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                 {step.done ? <Check className="h-4 w-4" /> : i + 1}
@@ -587,6 +600,7 @@ export default function SettingsPage() {
                 <Check className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
                 <div className="text-lg font-bold text-emerald-700">升级完成</div>
                 <div className="text-xs text-emerald-500 mt-1">系统已更新到最新版本</div>
+                <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); }} className="btn mt-3">确认</button>
               </div>
               <button onClick={handleRefreshPage} className="btn w-full flex items-center justify-center gap-2">
                 <RefreshCw className="h-4 w-4" />确认并刷新页面
