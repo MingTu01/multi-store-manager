@@ -32,7 +32,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const offset = (p - 1) * ps;
     const total = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ?').get(req.user.id) as any).count;
     const unread = (db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any).count;
-    const notifications = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(req.user.id, ps, offset);
+    const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(req.user.id, ps, offset);
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
