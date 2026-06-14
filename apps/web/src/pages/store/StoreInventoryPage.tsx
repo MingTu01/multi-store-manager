@@ -70,7 +70,7 @@ export default function StoreInventoryPage() {
   const [checkActive, setCheckActive] = useState(false);
   const [checkIndex, setCheckIndex] = useState(0);
   const [lastCheckResults, setLastCheckResults] = useState<Record<number, { expected: number; consumption: number; actual: number; status: StatusType }>>({});
-  const [manuallyEdited, setManuallyEdited] = useState<Set<number>>(new Set());
+  
   const [checkResults, setCheckResults] = useState<Record<number, {
     consumption: number;
     actual: number;
@@ -183,9 +183,6 @@ export default function StoreInventoryPage() {
         photo: editForm.photo,
         status: autoSt,
       });
-      if (newQty !== showEditItem.quantity) {
-        setManuallyEdited((prev) => new Set(prev).add(showEditItem.id));
-      }
       setShowEditItem(null);
       loadItems();
     } catch (e: any) {
@@ -510,7 +507,7 @@ export default function StoreInventoryPage() {
                     <div className="text-sm font-medium text-slate-800">{item.name}</div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs">
                       <span className="text-slate-400">库存: {item.quantity}</span>
-                      {lastCheckResults[item.id] && lastCheckResults[item.id].expected === item.quantity && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - item.quantity; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
+                      {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                       {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                     </div>
                     <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
