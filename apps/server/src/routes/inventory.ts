@@ -17,11 +17,16 @@ router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
     const items = db.prepare('SELECT * FROM inventory_master WHERE store_id = ? ORDER BY sort_order ASC, id ASC').all(storeId);
-    const checks = db.prepare('SELECT * FROM inventory_checks WHERE store_id = ? ORDER BY created_at DESC LIMIT 20').all(storeId);
+    const p = parseInt(req.query.page as string) || 1;
+    const ps = parseInt(req.query.pageSize as string) || 20;
+    const offset = (p - 1) * ps;
+    const total = (db.prepare('SELECT COUNT(*) as count FROM inventory_checks WHERE store_id = ?').get(storeId) as any).count || 0;
+    const totalPages = Math.ceil(total / ps);
+    const checks = db.prepare('SELECT * FROM inventory_checks WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
     for (const c of checks as any[]) {
       c.items_count = (db.prepare('SELECT COUNT(*) as cnt FROM inventory_check_items WHERE check_id = ?').get(c.id) as any).cnt || 0;
     }
-    res.json({ items, checks });
+    res.json({ items, checks, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

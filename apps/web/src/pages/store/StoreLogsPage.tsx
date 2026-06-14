@@ -4,6 +4,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../lib/api';
 import { Clock, Search, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, Store, Users, ClipboardCheck, Wallet, Building, Calendar } from 'lucide-react';
+import { Pagination } from '../../components/Pagination';
 
 // Action type config
 const ACTION_TYPES: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
@@ -259,28 +260,14 @@ export default function StoreLogsPage() {
       )}
 
       {/* Pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 px-4 py-2.5 text-xs text-slate-500 backdrop-blur-sm">
-        <span>共 {total} 条</span>
-        <div className="flex items-center gap-2">
-          <span>每页</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none">
-            <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
-          </select>
-          <span>条</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}
-            className="rounded px-2 py-1 hover:bg-slate-100 disabled:opacity-30">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span>{page} / {totalPages}</span>
-          <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
-            className="rounded px-2 py-1 hover:bg-slate-100 disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <Pagination
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        pageSizeOptions={[10, 20, 50]}
+        onChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { Pagination } from '../../components/Pagination';
 import { Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 // 获取本地日期
 function getLocalDate(): string {
@@ -143,21 +144,13 @@ export default function StoreEntriesPage() {
         ))}
       </GlassCard>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 px-4 py-2.5 text-xs text-slate-500 backdrop-blur-sm">
-        <span>共 {total} 条</span>
-        <div className="flex items-center gap-2">
-          <span>每页</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none">
-            <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option>
-          </select>
-          <span>条</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="rounded px-2 py-1 hover:bg-slate-100 disabled:opacity-30">‹</button>
-          <span>{page} / {Math.max(1, Math.ceil(total / pageSize))}</span>
-          <button onClick={() => setPage(p => Math.min(Math.ceil(total / pageSize), p + 1))} disabled={page >= Math.ceil(total / pageSize)} className="rounded px-2 py-1 hover:bg-slate-100 disabled:opacity-30">›</button>
-        </div>
-      </div>
+      <Pagination
+        total={total}
+        page={page}
+        pageSize={pageSize}
+        onChange={setPage}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+      />
 
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? '编辑记账' : '新增记账'}>
         <div className="space-y-4">

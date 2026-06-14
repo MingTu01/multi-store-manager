@@ -209,7 +209,7 @@ router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: 
     let version = '未知';
     try {
       const zip = new AdmZip(file.path);
-      const pkgEntry = zip.getEntries().find(e => e.entryName === 'package.json');
+      const pkgEntry = zip.getEntries().find(e => e.entryName === 'apps/web/package.json') || zip.getEntries().find(e => e.entryName === 'apps/server/package.json') || zip.getEntries().find(e => e.entryName === 'package.json');
       if (pkgEntry) { const pkg = JSON.parse(pkgEntry.getData().toString('utf8')); version = pkg.version || '未知'; }
     } catch (e: any) { return res.status(400).json({ error: '无法解析升级包: ' + e.message }); }
     // Q15: 清理临时文件
@@ -247,7 +247,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 3, message: '正在更新版本信息...', complete: false }; broadcastProgress('progress', { step: 3, total: 5, message: '正在更新版本信息...' });
         try {
-          const pkgPath = join(extractDir, 'package.json');
+          const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
           if (existsSync(pkgPath)) {
             const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
             writeFileSync(join(process.cwd(), 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));

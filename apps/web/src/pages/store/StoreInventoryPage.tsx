@@ -10,6 +10,7 @@ import {
   GripVertical, ArrowUp, ArrowDown, ArrowLeft, ChevronRight, RotateCcw, Loader2
 } from 'lucide-react';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { VirtualList } from '../../components/VirtualList';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -41,6 +42,8 @@ const STATUS_OPTIONS: { v: StatusType; l: string }[] = [
   { v: 'empty', l: '空' },
   { v: 'restocking', l: '补货中' },
 ];
+
+const VIRTUAL_THRESHOLD = 30;
 
 function SortableItem({ id, children }: { id: number; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -348,7 +351,7 @@ export default function StoreInventoryPage() {
         <GlassCard className="p-5">
           <div className="mb-4 flex items-center gap-4">
             {currentItem.photo ? (
-              <img src={currentItem.photo} alt={currentItem.name} className="h-20 w-20 rounded-xl object-cover" />
+              <img src={currentItem.photo} alt={currentItem.name} className="h-20 w-20 rounded-xl object-cover"  loading="lazy" />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-indigo-50 text-2xl font-bold text-indigo-400">
                 {currentItem.name[0]}
@@ -487,47 +490,90 @@ export default function StoreInventoryPage() {
           <RotateCcw className="mx-auto mb-2 h-8 w-8 text-slate-300" />
           <div className="text-sm text-slate-400">暂无物品，点击下方按钮添加</div>
         </GlassCard>
-      ) : (
-        <div className="space-y-2">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-          {items.map((item, index) => {
-            const hasResult = !!checkResults[item.id];
-            const result = checkResults[item.id];
-            const st = result ? STATUS_MAP[result.status] : null;
-            const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
-            return (
-              <SortableItem key={item.id} id={item.id}>
-              <GlassCard className="p-4">
-                <div className="flex items-center gap-3">
-                  {item.photo ? (
-                    <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" />
-                  ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-slate-800">{item.name}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs">
-                      <span className="text-slate-400">库存: {item.quantity}</span>
-                      {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
-                      {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
-                    </div>
-                    <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <SortableDragHandle id={item.id} />
-                    <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
-                    <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
-                    <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
-                  </div>
-                </div>
+      ) : items.length >= VIRTUAL_THRESHOLD ? (
+          <VirtualList
+            items={items}
+            overscan={3}
+            emptyContent={
+              <GlassCard className="py-12 text-center">
+                <RotateCcw className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+                <div className="text-sm text-slate-400">暂无物品，点击下方按钮添加</div>
               </GlassCard>
-              </SortableItem>
-            );
-          })}
-          </SortableContext>
-          </DndContext>
-        </div>
+            }
+            renderItem={(item, index) => {
+              const result = checkResults[item.id];
+              const st = result ? STATUS_MAP[result.status] : null;
+              const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
+              return (
+                <div key={item.id} className="mb-2">
+                  <GlassCard className="p-4">
+                    <div className="flex items-center gap-3">
+                      {item.photo ? (
+                        <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" loading="lazy" />
+                      ) : (
+                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-800">{item.name}</div>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs">
+                          <span className="text-slate-400">库存: {item.quantity}</span>
+                          {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
+                          {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
+                        </div>
+                        <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
+                        <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                      </div>
+                    </div>
+                  </GlassCard>
+                </div>
+              );
+            }}
+          />
+      ) : (
+          <div className="space-y-2">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+            {items.map((item, index) => {
+              const hasResult = !!checkResults[item.id];
+              const result = checkResults[item.id];
+              const st = result ? STATUS_MAP[result.status] : null;
+              const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
+              return (
+                <SortableItem key={item.id} id={item.id}>
+                <GlassCard className="p-4">
+                  <div className="flex items-center gap-3">
+                    {item.photo ? (
+                      <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover"  loading="lazy" />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-slate-800">{item.name}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-xs">
+                        <span className="text-slate-400">库存: {item.quantity}</span>
+                        {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
+                        {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
+                      </div>
+                      <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[item.status || 'normal'].color)}>{st ? st.label : STATUS_MAP[item.status || 'normal'].label}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <SortableDragHandle id={item.id} />
+                      <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
+                      <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
+                      <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                </GlassCard>
+                </SortableItem>
+              );
+            })}
+            </SortableContext>
+            </DndContext>
+          </div>
       )}
 
       {/* Add Item Modal */}
@@ -583,7 +629,7 @@ export default function StoreInventoryPage() {
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleAddPhoto} className="hidden" />
             {addForm.photo && (
-              <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
+              <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
             )}
           </div>
           <button onClick={handleAddItem} className="btn w-full">添加</button>
@@ -642,7 +688,7 @@ export default function StoreInventoryPage() {
               </div>
               <input ref={editFileRef} type="file" accept="image/*" onChange={handleEditPhoto} className="hidden" />
               {editForm.photo && (
-                <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover" />
+                <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
               )}
             </div>
             <button onClick={handleSaveEdit} className="btn w-full">保存</button>
@@ -655,7 +701,7 @@ export default function StoreInventoryPage() {
         {showTakeout && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              {showTakeout.photo ? <img src={showTakeout.photo} className="h-12 w-12 rounded-lg object-cover" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-400">{showTakeout.name[0]}</div>}
+              {showTakeout.photo ? <img src={showTakeout.photo} className="h-12 w-12 rounded-lg object-cover"  loading="lazy" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-400">{showTakeout.name[0]}</div>}
               <div>
                 <div className="text-sm font-medium text-slate-800">{showTakeout.name}</div>
                 <div className="text-xs text-slate-400">当前库存: {showTakeout.quantity}</div>

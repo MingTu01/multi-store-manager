@@ -51,7 +51,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const qp = [...params];
     let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id' + whereClause + ' ORDER BY e.created_at DESC';
     if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
-    res.json({ entries: db.prepare(sql).all(...qp), total });
+    const totalPages = Math.ceil(total / ps);
+    res.json({ data: db.prepare(sql).all(...qp), total, page: p, pageSize: ps, totalPages });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

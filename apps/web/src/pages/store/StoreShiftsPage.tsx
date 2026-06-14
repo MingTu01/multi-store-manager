@@ -77,7 +77,7 @@ export default function StoreShiftsPage() {
         <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.multiple = true; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Upload className="h-4 w-4" />上传</button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
-      {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0" />)}</div>}
+      {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>}
     </div>
   );
 
@@ -106,7 +106,7 @@ export default function StoreShiftsPage() {
                 <div className="mt-3 space-y-2">
                   {s.handover_content && <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{s.handover_content}</div>}
                   {s.photos && s.photos.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto">{s.photos.map((p: string, i: number) => <img key={i} src={p} className="h-20 w-20 rounded-lg object-cover shrink-0" />)}</div>
+                    <div className="flex gap-2 overflow-x-auto">{s.photos.map((p: string, i: number) => <img key={i} src={p} className="h-20 w-20 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>
                   )}
                   {!s.handover_content && (!s.photos || s.photos.length === 0) && (
                     <div className="text-xs text-slate-400">无交接内容</div>

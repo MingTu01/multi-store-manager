@@ -54,7 +54,8 @@ router.get('/', (req, res) => {
     queryParams.push(ps, offset);
     const rows = db.prepare(sql).all(...queryParams);
 
-    res.json({ logs: rows, total, page: p, pageSize: ps });
+    const totalPages = Math.ceil(total / ps);
+    res.json({ data: rows, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -301,7 +301,7 @@ export default function StorePayrollPage() {
               {/* Employee Info */}
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-indigo-600 text-lg font-bold shrink-0">
-                  {currentEmployee.avatar ? <img src={currentEmployee.avatar} className="h-full w-full object-cover" alt="" /> : (currentEmployee.user_display_name || currentEmployee.user_name || '?')[0]}
+                  {currentEmployee.avatar ? <img src={currentEmployee.avatar} className="h-full w-full object-cover" alt=""  loading="lazy" /> : (currentEmployee.user_display_name || currentEmployee.user_name || '?')[0]}
                 </div>
                 <div>
                   <div className="text-base font-semibold text-slate-800">{currentEmployee.user_display_name || currentEmployee.user_name || '-'}</div>

@@ -460,7 +460,7 @@ export default function StoreSettingsPage() {
           <div className="grid grid-cols-3 gap-2">
             {store.photos.map((photo: string, idx: number) => (
               <div key={idx} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100">
-                <img src={photo} alt={'照片 ' + (idx + 1)} className="h-full w-full object-cover" />
+                <img src={photo} alt={'照片 ' + (idx + 1)} className="h-full w-full object-cover"  loading="lazy" />
                 {canEdit && (
                   <button
                     onClick={() => handleDeletePhoto(idx)}

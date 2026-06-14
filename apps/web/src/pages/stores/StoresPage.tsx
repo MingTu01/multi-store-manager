@@ -118,7 +118,7 @@ export default function StoresPage() {
                 const sp = s.photos ? (typeof s.photos === "string" ? JSON.parse(s.photos) : s.photos) : (s.photo ? [s.photo] : []);
                 return sp.length > 0 ? (
                   <div className="h-32 w-full overflow-hidden bg-slate-100 flex gap-0.5">
-                    {sp.slice(0, 3).map((p, i) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover" />)}
+                    {sp.slice(0, 3).map((p, i) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover"  loading="lazy" />)}
                   </div>
                 ) : (
                   <div className="flex h-32 w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">
@@ -164,7 +164,7 @@ export default function StoresPage() {
             <div className="flex flex-wrap gap-2">
               {form.photos.map((p, i) => (
                 <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl">
-                  <img src={p} className="h-full w-full object-cover" alt="" />
+                  <img src={p} className="h-full w-full object-cover" alt=""  loading="lazy" />
                   <button onClick={() => removePhoto(i)} className="absolute right-0.5 top-0.5 rounded-full bg-black/50 p-0.5"><X className="h-3 w-3 text-white" /></button>
                 </div>
               ))}

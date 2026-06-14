@@ -6,7 +6,7 @@ export function isImageFile(file: File): boolean {
 }
 
 /** 压缩图片，返回 base64 dataURL */
-export function compressImage(file: File, maxWidth = 800, quality = 0.6): Promise<string> {
+export function compressImage(file: File, maxWidth = 600, quality = 0.5): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!isImageFile(file)) {
       reject(new Error('只能上传图片文件'));
@@ -39,7 +39,7 @@ export function compressImage(file: File, maxWidth = 800, quality = 0.6): Promis
 }
 
 /** 处理文件输入变化，返回压缩后的 base64 数组 */
-export async function handleImageFiles(files: FileList | File[], maxWidth = 800, quality = 0.6): Promise<string[]> {
+export async function handleImageFiles(files: FileList | File[], maxWidth = 600, quality = 0.5): Promise<string[]> {
   const results: string[] = [];
   for (const file of Array.from(files)) {
     if (!isImageFile(file)) continue;

@@ -1,6 +1,7 @@
 process.env.TZ = 'Asia/Shanghai';
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { join } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync } from 'fs';
 import db from './db.js';
@@ -32,15 +33,54 @@ const PORT = process.env.PORT || 3001;
 
 // S7: CORS 可配置，默认 * 向后兼容
 const corsOrigin = process.env.CORS_ORIGIN || '*';
+app.use(compression({ level: 6, threshold: 1024 }));
+// 安全HTTP头
+app.use((req, res, next) => {
+  // 防止点击劫持
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  // 防止MIME类型嗅探
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // XSS保护
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  // 防止信息泄露
+  res.removeHeader('X-Powered-By');
+  // CSP - 允许内联样式（Tailwind需要），禁止外部脚本
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: blob:; " +
+    "font-src 'self' data:; " +
+    "connect-src 'self' ws: wss:; " +
+    "frame-ancestors 'self';"
+  );
+  // Referrer策略
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 app.use(cors({ origin: corsOrigin === '*' ? '*' : corsOrigin.split(',') }));
 
 // P5: JSON body 大小限制可配置，默认从 50MB 降到 5MB
 const jsonLimit = process.env.JSON_LIMIT || '30mb';
 app.use(express.json({ limit: jsonLimit }));
 
-app.use(express.static(join(process.cwd(), '..', 'web', 'dist')));
+app.use(express.static(join(process.cwd(), '..', 'web', 'dist'), {
+    maxAge: '7d',
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, path) => {
+      if (path.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      } else if (path.match(/\.(js|css|woff2?|ttf|eot)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      } else if (path.match(/\.(png|jpe?g|gif|svg|webp|ico)$/)) {
+        res.setHeader('Cache-Control', 'public, max-age=2592000');
+      }
+    }
+  }));
 app.use(express.static(join(process.cwd(), 'public')));
-app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(join(process.cwd(), 'uploads'), { maxAge: '1d', etag: true }));
 
 // Public auth routes
 app.use('/api/auth', authRouter);
