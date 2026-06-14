@@ -481,6 +481,7 @@ export default function StoreSettingsPage() {
       </CollapseCard>
 
       {/* === 3. shareholders === */}
+      {role !== 'MANAGER' && (
       <CollapseCard
         title="股东信息"
         icon={<Users className="h-4 w-4 text-indigo-500" />}
@@ -548,6 +549,7 @@ export default function StoreSettingsPage() {
           </div>
         )}
       </CollapseCard>
+      )}
 
       {/* === 4. categories === */}
       <CollapseCard
@@ -645,6 +647,7 @@ export default function StoreSettingsPage() {
       </CollapseCard>
 
       {/* shareholder modal */}
+      {role !== 'MANAGER' && (
       <Modal
         open={showShareholderModal}
         onClose={() => setShowShareholderModal(false)}
@@ -695,6 +698,7 @@ export default function StoreSettingsPage() {
           </button>
         </div>
       </Modal>
+      )}
 
       {/* category modal */}
       <Modal
