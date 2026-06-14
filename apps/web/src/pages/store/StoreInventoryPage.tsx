@@ -182,6 +182,10 @@ export default function StoreInventoryPage() {
         photo: editForm.photo,
         status: autoSt,
       });
+      // Clear diff when quantity is manually edited
+      if (newQty !== showEditItem.quantity) {
+        setLastCheckResults((prev) => { const next = { ...prev }; delete next[showEditItem.id]; return next; });
+      }
       setShowEditItem(null);
       loadItems();
     } catch (e: any) {
