@@ -115,7 +115,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
       action: '生成工资单',
       storeId,
       detail: '工资单已生成: ' + payrollPeriod + ', 总金额 ¥' + totalAmount.toFixed(2)
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: payrollId, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -136,7 +136,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
       action: '确认工资单',
       storeId: req.params.storeId,
       detail: '工资单 #' + req.params.id + ' 已确认, 周期: ' + payroll.period + ', 总金额 ¥' + payroll.total_amount.toFixed(2)
-    });
+    , operatorName: req.user.name || req.user.username});
 
     // 通知相关员工
     const payrollItems = db.prepare('SELECT user_id FROM payroll_items WHERE payroll_id = ?').all(req.params.id) as any[];
@@ -148,7 +148,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
           storeId: req.params.storeId,
           detail: '您的工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认',
           targetUserId: item.user_id
-        });
+        , operatorName: req.user.name || req.user.username});
       }
     }
 

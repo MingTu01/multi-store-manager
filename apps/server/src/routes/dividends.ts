@@ -49,7 +49,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       action: '创建分红',
       storeId,
       detail: '新分红已创建, 总金额 ¥' + Number(total_amount).toFixed(2) + (note ? ', 备注: ' + note : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: dividendId, message: '分红创建成功' });
   } catch (err: any) {
@@ -98,7 +98,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
       action: '分红归档',
       storeId: req.params.storeId,
       detail: '分红 #' + req.params.id + ' 已归档, 金额 ¥' + dividend.total_amount.toFixed(2)
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '分红已归档' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

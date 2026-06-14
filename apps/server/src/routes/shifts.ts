@@ -61,7 +61,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       action,
       storeId,
       detail: (req.user.name || req.user.username) + ' 执行了' + action + '操作' + (note ? ': ' + note : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: action + '成功' });
   } catch (err: any) {
@@ -86,7 +86,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
       action: '开店',
       storeId,
       detail: (req.user.name || req.user.username) + ' 执行了开店操作' + (note ? ': ' + note : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '开店成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -107,7 +107,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
       action: '关店',
       storeId,
       detail: (req.user.name || req.user.username) + ' 执行了关店操作' + (note ? ': ' + note : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '关店成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

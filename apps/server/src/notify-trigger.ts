@@ -52,9 +52,10 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
 
 export function triggerNotification(params: NotifyParams): void {
   try {
-    const { type, action, storeId, detail, targetUserId } = params;
+    const { type, action, storeId, detail, targetUserId, operatorName } = params;
     const title = getNotifyTitle(type);
-    const content = action + (detail ? ': ' + detail : '');
+    const operator = operatorName ? '[' + operatorName + '] ' : '';
+    const content = operator + action + (detail ? ': ' + detail : '');
     const targets = getTargetUsers(type, storeId, targetUserId);
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 

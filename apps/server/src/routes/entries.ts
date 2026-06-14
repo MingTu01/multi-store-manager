@@ -75,7 +75,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       action: '新增记账',
       storeId,
       detail: user.name + ' 在门店新增' + nt + ': ' + categoryName + ' ¥' + amount
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -107,7 +107,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       action: '修改记账',
       storeId,
       detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + categoryName + ' ¥' + amount
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -132,7 +132,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       action: '删除记账',
       storeId,
       detail: user.name + ' 删除了记账 #' + req.params.id + (entry ? ': ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

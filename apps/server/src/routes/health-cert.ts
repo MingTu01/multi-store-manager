@@ -122,9 +122,9 @@ router.put('/save', (req: AuthRequest, res: Response) => {
       const exp = new Date(realExpiry);
       const daysLeft = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       if (daysLeft <= 0) {
-        triggerNotification({ type: 'health_cert', action: '健康证已过期', targetUserId: req.user.id, detail: '已过期' + Math.abs(daysLeft) + '天，请立即处理' });
+        triggerNotification({ type: 'health_cert', action: '健康证已过期', targetUserId: req.user.id, detail: '已过期' + Math.abs(daysLeft) + '天，请立即处理' , operatorName: req.user.name || req.user.username});
       } else if (daysLeft <= 30) {
-        triggerNotification({ type: 'health_cert', action: '健康证即将到期', targetUserId: req.user.id, detail: '还剩' + daysLeft + '天到期，请尽快体检' });
+        triggerNotification({ type: 'health_cert', action: '健康证即将到期', targetUserId: req.user.id, detail: '还剩' + daysLeft + '天到期，请尽快体检' , operatorName: req.user.name || req.user.username});
       }
     }
     res.json({ message: '健康证信息已保存' });

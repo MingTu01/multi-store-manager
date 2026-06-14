@@ -69,7 +69,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       action: '创建门店',
       storeId,
       detail: '新门店已创建: ' + name
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
@@ -100,7 +100,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
       action: '修改门店',
       storeId: req.params.storeId,
       detail: '门店信息已更新' + (name ? ': ' + name : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店更新成功' });
   } catch (err: any) {
@@ -135,7 +135,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       action: '删除门店',
       storeId: req.params.id,
       detail: '门店已删除: ' + store.name
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店已删除' });
   } catch (err: any) {
@@ -184,7 +184,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
       action: '添加员工',
       storeId,
       detail: '新员工已添加: ' + name + (position ? ' (' + position + ')' : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -216,7 +216,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
       action: '修改员工',
       storeId: req.params.storeId,
       detail: '员工 #' + req.params.id + ' 信息已更新' + (name ? ': ' + name : '')
-    });
+    , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '员工信息已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

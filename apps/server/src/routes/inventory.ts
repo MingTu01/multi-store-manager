@@ -34,7 +34,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     const maxOrder = (db.prepare('SELECT MAX(sort_order) as m FROM inventory_master WHERE store_id = ?').get(storeId) as any)?.m || 0;
     const result = db.prepare('INSERT INTO inventory_master (store_id, name, quantity, photo, status, sort_order) VALUES (?,?,?,?,?,?)').run(storeId, name, quantity || 0, photo || '', 'normal', sort_order ?? maxOrder + 1);
     opLog(req.user.id, storeId, '盘点', '添加物品: ' + name);
-    triggerNotification({ type: 'inventory', action: '新增盘点条目', storeId, detail: name });
+    triggerNotification({ type: 'inventory', action: '新增盘点条目', storeId, detail: name , operatorName: req.user.name || req.user.username});
     res.json({ id: result.lastInsertRowid, message: '物品添加成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
