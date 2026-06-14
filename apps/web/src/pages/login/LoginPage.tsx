@@ -36,8 +36,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-4">
       <GlassCard className="w-full max-w-sm p-8">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500 text-2xl font-bold text-white shadow-lg shadow-indigo-200">店</div>
-          <h1 className="text-xl font-bold text-slate-900">多店管理系统</h1>
+          <img src="/logo.png" alt="Logo" className="mx-auto mb-3 h-16 w-16 rounded-2xl object-cover shadow-lg shadow-indigo-200" />
+          <h1 className="text-xl font-bold text-slate-900">Multi Shop Link</h1>
           <p className="mt-1 text-sm text-slate-500">请登录以继续</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

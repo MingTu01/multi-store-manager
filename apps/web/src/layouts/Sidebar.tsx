@@ -49,8 +49,8 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-white/30 bg-white/50 backdrop-blur-2xl lg:flex">
       <div className="flex h-16 items-center gap-2 border-b border-white/30 px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500 text-sm font-bold text-white">店</div>
-        <span className="text-base font-bold text-slate-900">多店管理系统</span>
+        <div className="h-9 w-9 rounded-xl object-cover" />
+        <span className="text-base font-bold text-slate-900">Multi Shop Link</span>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {storeId && isAdmin && (
