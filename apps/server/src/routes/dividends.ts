@@ -61,6 +61,8 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
     const { total_amount, note } = req.body;
+    if (!total_amount || isNaN(Number(total_amount)) || Number(total_amount) <= 0) return res.status(400).json({ error: '请输入有效分红金额' });
+    if (Number(total_amount) > 9999999) return res.status(400).json({ error: '分红金额不能超过999万' });
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档的分红不能修改' });

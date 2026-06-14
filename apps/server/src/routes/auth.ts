@@ -71,6 +71,7 @@ router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
   try {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
+    if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) return res.status(404).json({ error: '用户不存在' });
     if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });

@@ -32,6 +32,7 @@ export function signToken(payload: any) {
 }
 
 // 关键操作时重新校验用户状态（S18）
+// DEPRECATED: 此函数当前未被任何路由调用，保留供未来使用
 export function requireFreshUser(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.user?.id) return res.status(401).json({ error: '未认证' });
   const freshUser = (globalThis as any).__db?.prepare('SELECT id, role, store_id, status FROM users WHERE id = ?')

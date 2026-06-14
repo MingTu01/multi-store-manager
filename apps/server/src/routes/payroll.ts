@@ -29,6 +29,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
     const { period, items } = req.body;
+    if (items && Array.isArray(items)) { for (const item of items) { if (item.base_amount < 0 || item.bonus < 0 || item.deduction < 0) return res.status(400).json({ error: '工资金额不能为负数' }); } }
     if (!period) return res.status(400).json({ error: '请输入工资周期' });
     let totalAmount = 0;
     if (Array.isArray(items)) {

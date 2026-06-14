@@ -32,6 +32,13 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.get('/:storeId', (req: AuthRequest, res: Response) => {
   try {
+    const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
+    const storeId = req.params.storeId;
+    if (user.role !== 'admin' && user.role !== 'ADMIN' && user.role !== 'manager' && user.role !== 'MANAGER' && String(user.store_id) !== String(storeId)) {
+      // 检查是否是股东
+      const sh = db.prepare('SELECT id FROM shareholders WHERE store_id = ? AND name = ?').get(storeId, user.username) as any;
+      if (!sh) return res.status(403).json({ error: '无权访问该门店' });
+    }
     const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(req.params.storeId) as any;
     if (!store) return res.status(404).json({ error: '门店不存在' });
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(store.id) as any).count || 0;
@@ -138,6 +145,8 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
 
 router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
   try {
+    const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
+    if (user.role !== 'admin' && user.role !== 'ADMIN' && user.role !== 'manager' && user.role !== 'MANAGER' && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const today = localDate();
     const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
@@ -149,6 +158,8 @@ router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
 
 router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
   try {
+    const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
+    if (user.role !== 'admin' && user.role !== 'ADMIN' && user.role !== 'manager' && user.role !== 'MANAGER' && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at FROM users WHERE store_id = ?').all(storeId);
     res.json({ staff });
@@ -162,9 +173,10 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
     if (!name || !phone) return res.status(400).json({ error: '请填写姓名和手机号' });
     const username = phone;
+    if (password && password.length < 6) return res.status(400).json({ error: '密码至少6位' });
     const pw = (password && password.length > 0) ? password : '123456';
     const passwordHash = bcrypt.hashSync(pw, 10);
-    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, role || 'STAFF', storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
+    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, (['STAFF','MANAGER'].includes((role||'').toUpperCase()) ? role.toUpperCase() : 'STAFF'), storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
     opLog(req.user.id, storeId, '添加员工', '添加员工: ' + name);
 
     triggerNotification({
@@ -221,6 +233,8 @@ router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
 
 router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
   try {
+    const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
+    if (user.role !== 'admin' && user.role !== 'ADMIN' && user.role !== 'manager' && user.role !== 'MANAGER' && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     res.json(shareholders);

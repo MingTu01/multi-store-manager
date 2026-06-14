@@ -55,6 +55,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     }
     const { username, password, name, phone, role, store_id, avatar, salary, status, job_title, address } = req.body;
     if (!username || !password) return res.status(400).json({ error: '用户名和密码必填' });
+    if (password.length < 6) return res.status(400).json({ error: '密码至少6位' });
     const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (existing) return res.status(400).json({ error: '用户名已存在' });
     // 角色大小写统一为大写（S19）

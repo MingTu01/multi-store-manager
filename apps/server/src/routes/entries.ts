@@ -59,6 +59,9 @@ router.post('/', (req: AuthRequest, res: Response) => {
   try {
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
+    if (amount === undefined || amount === null || isNaN(Number(amount))) return res.status(400).json({ error: '请输入有效金额' });
+    if (Number(amount) < 0) return res.status(400).json({ error: '金额不能为负数' });
+    if (Number(amount) > 9999999) return res.status(400).json({ error: '金额不能超过999万' });
     const user = (req as any).user;
     let categoryName = category || '';
     let catId = category_id || null;
@@ -85,6 +88,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     if (user.role === 'STAFF' || user.role === 'staff') return res.status(403).json({ error: '员工无权修改记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
+    if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) < 0 || Number(amount) > 9999999)) return res.status(400).json({ error: '金额必须在0-999万之间' });
     const original = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
     if (original && String(original.store_id) !== String(storeId)) {
       return res.status(404).json({ error: '记录不存在' });
