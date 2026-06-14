@@ -161,7 +161,7 @@ router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
     const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
     if (!['admin','ADMIN','store_admin','STORE_ADMIN','manager','MANAGER'].includes(user.role) && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
-    const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at FROM users WHERE store_id = ?').all(storeId);
+    const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at, health_cert_url, health_cert_name, health_cert_expiry, health_cert_verified FROM users WHERE store_id = ?').all(storeId);
     res.json({ staff });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

@@ -6,7 +6,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useStore } from '../../stores/data';
-import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload } from 'lucide-react';
+import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle } from 'lucide-react';
 import { compressImage } from '../../lib/image';
 
 const roles = [
@@ -32,6 +32,7 @@ export default function StoreStaffPage() {
   const [form, setForm] = useState({ name: '', phone: '', position: '', address: '', monthly_salary: '', role: 'STAFF', password: '', avatar: '', status: 'active' });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [showDetail, setShowDetail] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
@@ -144,7 +145,7 @@ export default function StoreStaffPage() {
             const status = getStatusBadge(s.status);
             const shareholder = s.role === 'SHAREHOLDER';
             return (
-              <GlassCard key={s.id} className="p-4">
+              <GlassCard key={s.id} className="p-4 cursor-pointer hover:ring-2 hover:ring-indigo-200 transition-all" onClick={() => setShowDetail(s)}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
                     {s.avatar ? <img src={s.avatar} className="h-full w-full object-cover" /> : <span className="text-xl font-bold text-indigo-400">{s.name?.[0] || '?'}</span>}
@@ -219,7 +220,93 @@ export default function StoreStaffPage() {
         </div>
       </Modal>
 
-      {canEdit && <FloatingActionButton label="添加员工" onClick={() => setShowModal(true)} />}
+      
+      {/* Employee Detail Modal */}
+      <Modal open={!!showDetail} onClose={() => setShowDetail(null)} title="员工详情" wide>
+        {showDetail && (
+          <div className="space-y-4">
+            {/* Avatar and basic info */}
+            <div className="flex items-center gap-4">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
+                {showDetail.avatar ? <img src={showDetail.avatar} className="h-full w-full object-cover" /> : <span className="text-2xl font-bold text-indigo-400">{showDetail.name?.[0] || '?'}</span>}
+              </div>
+              <div>
+                <div className="text-xl font-bold text-slate-900">{showDetail.name}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-600">{showDetail.position || showDetail.job_title || '未设置岗位'}</span>
+                  <span className={'rounded-full px-2 py-0.5 text-xs ' + (showDetail.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500')}>{showDetail.status === 'active' ? '在职' : showDetail.status === 'resigned' ? '离职' : '停职'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">手机号</div>
+                <div className="text-sm font-medium text-slate-800">{showDetail.phone || showDetail.username || '未设置'}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">月薪资</div>
+                <div className="text-sm font-medium text-slate-800">¥{Number(showDetail.salary || showDetail.monthly_salary || 0).toLocaleString()}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">角色</div>
+                <div className="text-sm font-medium text-slate-800">{{ADMIN:'系统管理员',STORE_ADMIN:'店铺管理员',MANAGER:'店长',STAFF:'员工',SHAREHOLDER:'股东'}[showDetail.role] || showDetail.role}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">入职时间</div>
+                <div className="text-sm font-medium text-slate-800">{showDetail.created_at ? showDetail.created_at.split(' ')[0] : '未记录'}</div>
+              </div>
+            </div>
+            {showDetail.address && (
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] text-slate-400 mb-0.5">联系地址</div>
+                <div className="text-sm font-medium text-slate-800">{showDetail.address}</div>
+              </div>
+            )}
+
+            {/* Health cert section */}
+            <div className="rounded-xl border border-slate-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <BadgeCheck className="h-4 w-4 text-indigo-500" />
+                <span className="text-sm font-semibold text-slate-700">健康证</span>
+              </div>
+              {showDetail.health_cert_url ? (
+                <div className="space-y-3">
+                  <div className="overflow-hidden rounded-xl">
+                    <img src={showDetail.health_cert_url} alt="健康证" className="w-full max-h-48 object-cover rounded-xl bg-slate-50" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <div className="text-[10px] text-slate-400 mb-0.5">姓名</div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium text-slate-800">{showDetail.health_cert_name || '未识别'}</span>
+                        {showDetail.health_cert_verified ? <BadgeCheck className="h-3.5 w-3.5 text-emerald-500" /> : showDetail.health_cert_name ? <XCircle className="h-3.5 w-3.5 text-rose-400" /> : null}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <div className="text-[10px] text-slate-400 mb-0.5">有效期至</div>
+                      <span className={'text-sm font-medium ' + (showDetail.health_cert_expiry && new Date(showDetail.health_cert_expiry) < new Date() ? 'text-rose-600' : 'text-slate-800')}>{showDetail.health_cert_expiry || '未识别'}</span>
+                    </div>
+                  </div>
+                  {showDetail.health_cert_expiry && (() => {
+                    const daysLeft = Math.ceil((new Date(showDetail.health_cert_expiry).getTime() - Date.now()) / (1000*60*60*24));
+                    if (daysLeft <= 0) return <div className="flex items-center gap-2 rounded-lg bg-rose-50 p-2 text-xs text-rose-700"><AlertTriangle className="h-3.5 w-3.5" />健康证已过期</div>;
+                    if (daysLeft <= 30) return <div className="flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />健康证将在{daysLeft}天内到期</div>;
+                    return null;
+                  })()}
+                </div>
+              ) : (
+                <div className="py-4 text-center text-sm text-slate-400">暂未上传健康证</div>
+              )}
+            </div>
+
+            <button onClick={() => { setShowDetail(null); openEdit(showDetail); }} className="btn w-full">编辑员工</button>
+          </div>
+        )}
+      </Modal>
+
+{canEdit && <FloatingActionButton label="添加员工" onClick={() => setShowModal(true)} />}
     </div>
   );
 }
