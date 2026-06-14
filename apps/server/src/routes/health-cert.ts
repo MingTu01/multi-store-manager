@@ -30,9 +30,17 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     if (!existsSync(imagePath)) return res.status(404).json({ error: '\u56fe\u7247\u4e0d\u5b58\u5728' });
 
     const { createWorker } = require('tesseract.js');
-    const worker = await createWorker('chi_sim+eng');
-    const { data: { text } } = await worker.recognize(imagePath);
-    await worker.terminate();
+    // OCR with 60s timeout
+    let text = '';
+    try {
+      const worker = await createWorker('chi_sim');
+      const ocrPromise = worker.recognize(imagePath).then(r => r.data.text);
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('OCR识别超时')), 60000));
+      text = await Promise.race([ocrPromise, timeoutPromise]) as string;
+      await worker.terminate();
+    } catch (ocrErr: any) {
+      return res.status(500).json({ error: ocrErr.message || 'OCR识别失败' });
+    }
 
     const lines = text.split('\n').map((l: string) => l.trim()).filter(Boolean);
     let ocrName = '';
