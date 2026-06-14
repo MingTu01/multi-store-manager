@@ -2,7 +2,7 @@
 
 > 适用于Multi Store Management的综合管理平台，支持桌面端和移动端PWA
 
-## 版本：v1.0.0
+## 版本：v0.5.1
 
 ## 技术栈
 
@@ -118,26 +118,3 @@ multi-shop-link/
 ## License
 
 Private - 仅限内部使用
-
-
-## 开发规范
-
-### 文件编辑
-- **代码文件（.ts/.tsx/.css/.json/.html）**：必须使用 Node.js 的 `fs.writeFileSync` 编辑
-- **禁止使用 PowerShell 写文件**：会产生编码问题
-
-### 打包ZIP
-- **必须使用 `tar` 命令或 Node.js**：确保路径用正斜杠
-- **禁止使用 PowerShell 的 `Compress-Archive`**：会产生反斜杠路径，Linux解压失败
-- 打包命令：`tar -a -cf zip文件名.zip -C 源目录 .`
-
-### 版本管理
-- 版本格式：`v主版本.次版本.修订号`
-- 新增功能：递增次版本号（v1.0.0 → v1.1.0）
-- Bug修复：递增修订号（v1.0.0 → v1.0.1）
-- 每次修改都要更新版本号
-
-### 部署
-- 服务器：阿里云 CentOS + 1Panel
-- 运行环境：1Panel Node.js 运行环境
-- 升级方式：上传ZIP → 解压覆盖 → 重启服务
