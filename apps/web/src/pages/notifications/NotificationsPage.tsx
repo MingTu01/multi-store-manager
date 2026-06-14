@@ -134,6 +134,7 @@ export default function NotificationsPage() {
                   <span className={'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ' + (TYPE_COLORS[n.type] || 'bg-slate-100 text-slate-600')}>
                     {TYPE_LABELS[n.type] || n.type}
                   </span>
+                  {n.store_name && <span className="shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600">{n.store_name}</span>}
                 </div>
                 {n.content && <div className="mt-0.5 text-xs text-slate-500">{n.content}</div>}
                 <div className="mt-1 text-xs text-slate-400">{n.created_at}</div>
