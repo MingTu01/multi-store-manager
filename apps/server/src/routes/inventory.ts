@@ -59,7 +59,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
       const changes: string[] = [];
       if (name !== undefined) changes.push('名称:' + name);
       if (quantity !== undefined) changes.push('数量:' + quantity);
-      if (status !== undefined) changes.push('状态:' + status);
+      if (status !== undefined) { const statusNames: Record<string,string> = {normal:'正常',diff:'差异',lost:'丢失',scrap:'报废',empty:'空仓',restocking:'待补货',pending:'待补货'}; changes.push('状态:' + (statusNames[status] || status)); }
       opLog(req.user.id, req.params.storeId, '盘点', '编辑物品 ' + (editedItem?.name || '') + ' (' + changes.join(', ') + ')');
     res.json({ message: '物品已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
