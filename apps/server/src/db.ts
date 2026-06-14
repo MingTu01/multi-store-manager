@@ -281,6 +281,9 @@ const migrations = [
   "ALTER TABLE users ADD COLUMN health_cert_url TEXT DEFAULT ''",
   "ALTER TABLE users ADD COLUMN health_cert_name TEXT DEFAULT ''",
   "ALTER TABLE users ADD COLUMN health_cert_verified INTEGER DEFAULT 0",
+  "ALTER TABLE notifications ADD COLUMN content TEXT DEFAULT ''",
+  "ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT ''",
+  "ALTER TABLE notifications ADD COLUMN store_id TEXT DEFAULT ''",
 ];
 
 for (const sql of migrations) {

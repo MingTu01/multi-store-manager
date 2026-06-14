@@ -122,7 +122,7 @@ export default function StoreStaffPage() {
   };
 
   const getStatusBadge = (status: string) => statuses.find((s) => s.value === status) || statuses[0];
-  const canEdit = myRole === 'ADMIN' || myRole === 'MANAGER';
+  const canEdit = myRole === 'ADMIN' || myRole === 'STORE_ADMIN' || myRole === 'MANAGER';
 
   return (
     <div className="space-y-4">

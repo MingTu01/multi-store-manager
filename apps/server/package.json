@@ -1,7 +1,7 @@
 {
   "description": "多店管理系统升级包",
   "name": "multi-store-manager",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "dependencies": {
     "@types/bcryptjs": "^3.0.0",
     "@types/better-sqlite3": "^7.6.13",

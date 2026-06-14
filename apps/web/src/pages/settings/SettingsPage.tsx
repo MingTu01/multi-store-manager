@@ -365,7 +365,7 @@ export default function SettingsPage() {
                 <button onClick={handleBackup} className="btn text-xs"><Plus className="mr-1 h-3.5 w-3.5" />创建备份</button>
               </div>
             </div>
-            <input ref={backupFileRef} type="file" accept=".db" onChange={handleUploadBackup} className="hidden" />
+            <input ref={backupFileRef} type="file" accept=".db,.zip" onChange={handleUploadBackup} className="hidden" />
             {backups.length === 0 ? <div className="py-8 text-center text-sm text-slate-400">暂无备份</div> : (
               <div className="space-y-2">
                 {backups.map((b: any) => {

@@ -9,7 +9,7 @@ const router = Router();
 // 登录速率限制：同一IP每分钟最多10次登录尝试
 const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 5,
   message: { error: '登录尝试过于频繁，请1分钟后再试' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -51,7 +51,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
       if (exists) return res.status(400).json({ error: '账号已存在' });
       updates.push('username=?'); vals.push(username);
     }
-    if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); }
+    if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); updates.push('username=?'); vals.push(phone); }
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {

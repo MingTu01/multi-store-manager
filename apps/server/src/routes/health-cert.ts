@@ -108,25 +108,18 @@ router.put('/save', (req: AuthRequest, res: Response) => {
     const { url, name, expiry, verified } = req.body;
     db.prepare('UPDATE users SET health_cert_url = ?, health_cert_name = ?, health_cert_expiry = ?, health_cert_verified = ? WHERE id = ?')
       .run(url || '', name || '', expiry || '', verified ? 1 : 0, req.user.id);
-    // expiry here is actually the examination date, add 1 year for real expiry
-    const realExpiry = expiry ? (() => {
-      const d = new Date(expiry);
-      d.setFullYear(d.getFullYear() + 1);
-      return d.toISOString().slice(0, 10);
-    })() : '';
-    if (realExpiry) {
-      db.prepare('UPDATE users SET health_cert_expiry = ? WHERE id = ?').run(realExpiry, req.user.id);
-    }
+    // expiry 已经是有效期（前端已计算+1年），不再重复计算
+    const realExpiry = expiry || '';
     if (realExpiry) {
       const exp = new Date(realExpiry);
       const daysLeft = Math.ceil((exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       if (daysLeft <= 0) {
-        triggerNotification({ type: 'health_cert', action: '\u5065\u5eb7\u8bc1\u5df2\u8fc7\u671f', targetUserId: req.user.id, detail: '\u5df2\u8fc7\u671f' + Math.abs(daysLeft) + '\u5929\uff0c\u8bf7\u7acb\u5373\u5904\u7406' });
+        triggerNotification({ type: 'health_cert', action: '健康证已过期', targetUserId: req.user.id, detail: '已过期' + Math.abs(daysLeft) + '天，请立即处理' });
       } else if (daysLeft <= 30) {
-        triggerNotification({ type: 'health_cert', action: '\u5065\u5eb7\u8bc1\u5373\u5c06\u5230\u671f', targetUserId: req.user.id, detail: '\u8fd8\u5269' + daysLeft + '\u5929\u5230\u671f\uff0c\u8bf7\u5c3d\u5feb\u4f53\u68c0' });
+        triggerNotification({ type: 'health_cert', action: '健康证即将到期', targetUserId: req.user.id, detail: '还剩' + daysLeft + '天到期，请尽快体检' });
       }
     }
-    res.json({ message: '\u5065\u5eb7\u8bc1\u4fe1\u606f\u5df2\u4fdd\u5b58' });
+    res.json({ message: '健康证信息已保存' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

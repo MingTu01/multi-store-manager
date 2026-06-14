@@ -5,7 +5,7 @@ export interface User {
   id: number;
   username: string;
   name: string;
-  role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
+  role: 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
   store_id?: number | null;
   store_name?: string;
 }

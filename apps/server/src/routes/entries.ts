@@ -37,7 +37,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if ((user.role === 'STAFF' || user.role === 'staff') && !period && !date && !dateFrom && !dateTo) {
       whereClause += ' AND e.date=?'; params.push(localDate());
     }
-    if (user.role !== 'admin' && user.role !== 'ADMIN') whereClause += ' AND e.is_system=0';
+    if (user.role === 'STAFF' || user.role === 'staff') whereClause += ' AND e.is_system=0';
     if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
     else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     else if (period === 'month') { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(localDate().slice(0,7)); }

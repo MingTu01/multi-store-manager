@@ -10,7 +10,7 @@ const router = Router({ mergeParams: true });
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     // Q13: 仅 ADMIN 可访问管理大屏
-    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!['admin', 'ADMIN', 'store_admin', 'STORE_ADMIN'].includes(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { period, date, storeId } = req.query;

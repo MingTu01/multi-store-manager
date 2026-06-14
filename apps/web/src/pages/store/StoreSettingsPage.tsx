@@ -71,7 +71,7 @@ function CollapseCard({
 /* --- main page --- */
 export default function StoreSettingsPage() {
   const { storeId } = useParams();
-  const { user } = useStore();
+  const user = useStore((s) => s.user);
   const role = user?.role;
   const canEdit = role === 'ADMIN' || role === 'STORE_ADMIN';
   const canManageCategory = canEdit || role === 'MANAGER';
@@ -113,7 +113,8 @@ export default function StoreSettingsPage() {
       .get('/stores/' + storeId)
       .then((d) => {
         const s: StoreInfo = d.store || d;
-        setStore(s);
+        const parsedPhotos = typeof s.photos === 'string' ? JSON.parse(s.photos) : (s.photos || []);
+        setStore({ ...s, photos: parsedPhotos });
         setInfoForm({
           name: s.name || '',
           address: s.address || '',

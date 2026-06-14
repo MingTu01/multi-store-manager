@@ -79,7 +79,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const backupDir = join(process.cwd(), 'backups');
     if (!existsSync(backupDir)) return res.json({ backups: [] });
-    const files = readdirSync(backupDir).filter(f => f.endsWith('.zip')).map(f => {
+    const files = readdirSync(backupDir).filter(f => f.endsWith('.zip') || f.endsWith('.db')).map(f => {
       const stats = statSync(join(backupDir, f));
       return { filename: f, size: (stats.size / 1024).toFixed(1) + ' KB', date: stats.mtime.toISOString() };
     }).sort((a: any, b: any) => b.date.localeCompare(a.date));
@@ -101,11 +101,12 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请上传备份文件' });
-    if (!file.originalname.endsWith('.db')) return res.status(400).json({ error: '请上传.db格式的备份文件' });
+    if (!file.originalname.endsWith('.db') && !file.originalname.endsWith('.zip')) return res.status(400).json({ error: '请上传.db或.zip格式的备份文件' });
     const backupDir = join(process.cwd(), 'backups');
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = 'uploaded-' + now + '.db';
+    const ext = file.originalname.split('.').pop() || 'db';
+    const filename = 'uploaded-' + now + '.' + ext;
     copyFileSync(file.path, join(backupDir, filename));
     unlinkSync(file.path);
     res.json({ filename, message: '备份上传成功' });
