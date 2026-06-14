@@ -54,6 +54,13 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
       vals.push(req.params.id);
       db.prepare('UPDATE inventory_master SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
     }
+      // Log the edit
+      const editedItem = db.prepare('SELECT name FROM inventory_master WHERE id = ?').get(req.params.id) as any;
+      const changes: string[] = [];
+      if (name !== undefined) changes.push('名称:' + name);
+      if (quantity !== undefined) changes.push('数量:' + quantity);
+      if (status !== undefined) changes.push('状态:' + status);
+      opLog(req.user.id, req.params.storeId, '盘点', '编辑物品 ' + (editedItem?.name || '') + ' (' + changes.join(', ') + ')');
     res.json({ message: '物品已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
