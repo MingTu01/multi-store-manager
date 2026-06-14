@@ -52,3 +52,80 @@
 .animate-slide-down {
   animation: slide-down 0.3s ease-out;
 }
+/* Animated capsule - rotating circle */
+.animate-gradient-capsule {
+  position: relative;
+  overflow: hidden;
+}
+.animate-gradient-capsule::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe, #ddd6fe, #e0e7ff);
+  border-radius: 50%;
+  animation: logoSpin 8s linear infinite;
+  z-index: 0;
+}
+
+.animate-text-gradient {
+  color: white;
+  position: relative;
+  z-index: 1;
+}
+
+/* Logo animated border - rotating circle inside fixed frame */
+@keyframes logoSpin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.animate-logo-border {
+  position: relative;
+  overflow: hidden;
+}
+.animate-logo-border > img {
+  position: relative;
+  z-index: 1;
+}
+.animate-logo-border::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, #fcd5e5, #7977de);
+  border-radius: 50%;
+  animation: logoSpin 8s linear infinite;
+  z-index: 0;
+}
+
+/* Login page 3D depth effects */
+.login-card {
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  transform: perspective(1000px) rotateX(2deg);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.login-card:hover {
+  transform: perspective(1000px) rotateX(0deg) translateY(-5px);
+  box-shadow: 
+    0 35px 60px -15px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.login-logo {
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+.login-logo:hover {
+  transform: scale(1.05) translateY(-2px);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
+}

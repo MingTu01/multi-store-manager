@@ -1,6 +1,6 @@
-# Multi Shop Link (多店管理系统)
+# Multi Shop Link (Multi Shop Link)
 
-> 适用于多门店经营的综合管理平台，支持桌面端和移动端PWA
+> 适用于Multi Store Management的综合管理平台，支持桌面端和移动端PWA
 
 ## 版本：v0.5.1
 
@@ -61,8 +61,8 @@
 
 ```bash
 # 克隆项目
-git clone https://github.com/MingTu01/multi-store-manager.git
-cd multi-store-manager
+git clone https://github.com/MingTu01/multi-shop-link.git
+cd multi-shop-link
 
 # 安装依赖
 cd apps/server && npm install
@@ -98,7 +98,7 @@ cd apps/server && node --import tsx src/index.ts
 ## 项目结构
 
 ```
-multi-store-manager/
+multi-shop-link/
 ├── apps/
 │   ├── server/          # 后端服务
 │   │   ├── src/

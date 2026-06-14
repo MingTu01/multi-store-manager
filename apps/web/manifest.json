@@ -1,7 +1,7 @@
 {
   "name": "Multi Shop Link",
   "short_name": "MSL",
-  "description": "多门店管理系统",
+  "description": "Multi Shop Link",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

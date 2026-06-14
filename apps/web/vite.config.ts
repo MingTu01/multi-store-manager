@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
       manifest: {
-        name: '多店管理系统',
-        short_name: '多店管理',
-        description: '多门店经营管理平台',
+        name: 'Multi Shop Link',
+        short_name: 'Multi Shop Link',
+        description: 'Multi Shop Link - Multi Store Management Platform',
         theme_color: '#3b63f7',
         background_color: '#ffffff',
         display: 'standalone',

@@ -1,6 +1,6 @@
 {
-  "description": "多店管理系统升级包",
-  "name": "multi-store-manager",
+  "description": "Multi Shop Link Upgrade Package",
+  "name": "multi-shop-link",
   "version": "1.0.0",
   "dependencies": {
     "@types/bcryptjs": "^3.0.0",

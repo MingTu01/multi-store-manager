@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'multi-store-manager',
+    name: 'multi-shop-link',
     script: 'apps/server/src/index.ts',
     interpreter: 'node',
     interpreter_args: '--import tsx',

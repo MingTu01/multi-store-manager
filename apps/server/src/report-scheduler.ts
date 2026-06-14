@@ -13,7 +13,7 @@ function pushAdmins(title: string, content: string) {
   const admins = db.prepare("SELECT id FROM users WHERE role IN ('admin','ADMIN')").all() as any[];
   const stmt = db.prepare("INSERT INTO notifications (user_id, title, content, type, read, created_at) VALUES (?,?,?,?,0,datetime('now','localtime'))");
   for (const a of admins) stmt.run(a.id, title, content, 'report');
-  sendNotification(title, content).catch(() => {});
+  // sendNotification handled by notification-trigger.ts
 }
 
 export function startReportScheduler() {

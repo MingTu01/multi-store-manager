@@ -14,7 +14,7 @@
 ### 安装依赖
 ```bash
 git clone https://github.com/MingTu01/multi-store-manager.git
-cd multi-store-manager
+cd multi-shop-link
 pnpm install
 ```
 

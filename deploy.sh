@@ -1,16 +1,16 @@
 #!/bin/bash
-# 多店管理系统 - 一键部署脚本
+# Multi Shop Link - One-click Deployment
 # 适用于 CentOS + 1Panel 环境
 # 使用方法：chmod +x deploy.sh && ./deploy.sh
 
 set -e
 
-APP_NAME="multi-store-manager"
+APP_NAME="multi-shop-link"
 APP_DIR="/opt/${APP_NAME}"
 PORT=3001
 
 echo "=========================================="
-echo "  多店管理系统 - 一键部署"
+echo "  Multi Shop Link - One-click Deployment"
 echo "=========================================="
 
 # 1. 检查 Node.js

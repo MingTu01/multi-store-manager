@@ -2,7 +2,7 @@
 # 打包升级ZIP（排除node_modules和数据）
 set -e
 VERSION=$(node -e "console.log(require('./apps/web/package.json').version)")
-OUTPUT="multi-store-manager-v${VERSION}.zip"
+OUTPUT="multi-shop-link-v${VERSION}.zip"
 echo "打包版本: v${VERSION}"
 
 # 清理旧构建
