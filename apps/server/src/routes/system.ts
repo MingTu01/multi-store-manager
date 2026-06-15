@@ -272,9 +272,26 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         };
         const webDist = join(extractDir, 'web-dist');
-        if (existsSync(webDist)) copyDir(webDist, join(BASE_DIR, 'public', 'web-dist'));
         const serverSrc = join(extractDir, 'server-src');
-        if (existsSync(serverSrc)) copyDir(serverSrc, join(BASE_DIR, 'src'));
+        console.log('[Upgrade] Extract dir:', extractDir);
+        console.log('[Upgrade] web-dist exists:', existsSync(webDist), '→', join(BASE_DIR, 'public', 'web-dist'));
+        console.log('[Upgrade] server-src exists:', existsSync(serverSrc), '→', join(BASE_DIR, 'src'));
+        if (existsSync(webDist)) {
+          copyDir(webDist, join(BASE_DIR, 'public', 'web-dist'));
+          console.log('[Upgrade] web-dist copied successfully');
+        } else {
+          console.log('[Upgrade] ERROR: web-dist not found in ZIP!');
+          broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
+          return;
+        }
+        if (existsSync(serverSrc)) {
+          copyDir(serverSrc, join(BASE_DIR, 'src'));
+          console.log('[Upgrade] server-src copied successfully');
+        } else {
+          console.log('[Upgrade] ERROR: server-src not found in ZIP!');
+          broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
+          return;
+        }
         upgradeState = { step: 4, message: '文件覆盖完成', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '文件覆盖完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 5, message: '升级完成', complete: true }; broadcastProgress('progress', { step: 5, total: 5, message: '升级完成', done: true });

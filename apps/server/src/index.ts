@@ -38,6 +38,7 @@ const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // S7: CORS 可配置，默认 * 向后兼容
@@ -242,6 +243,17 @@ app.use((err: any, req: any, res: any, next: any) => {
     return res.status(400).json({ error: '文件大小超过限制 (最大1MB)' });
   }
   res.status(500).json({ error: err.message || '服务器内部错误' });
+});
+
+
+// Handle SIGTERM/SIGINT for Docker restart
+process.on('SIGTERM', () => {
+  console.log('[Signal] Received SIGTERM, shutting down...');
+  process.exit(0);
+});
+process.on('SIGINT', () => {
+  console.log('[Signal] Received SIGINT, shutting down...');
+  process.exit(0);
 });
 
 app.listen(PORT, '0.0.0.0', () => console.log('Server running on http://0.0.0.0:' + PORT))
