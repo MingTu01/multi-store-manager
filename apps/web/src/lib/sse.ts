@@ -13,8 +13,9 @@ export function useSSE(): ConnectionStatus {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
+    const tokenRaw = localStorage.getItem('token');
+    if (!tokenRaw) return;
+    const token: string = tokenRaw;
 
     let stopped = false;
 

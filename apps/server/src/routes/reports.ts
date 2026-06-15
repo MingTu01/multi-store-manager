@@ -4,7 +4,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { join } from 'path';
-const BASE_DIR = join(__dirname, '..');
+const BASE_DIR = join(__dirname, '..', '..');
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { safePath } from '../middleware/store-access.js';
 

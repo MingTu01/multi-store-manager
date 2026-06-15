@@ -35,7 +35,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const BASE_DIR = __dirname;
+const BASE_DIR = join(__dirname, '..');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
