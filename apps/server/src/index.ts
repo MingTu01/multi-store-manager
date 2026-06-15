@@ -101,20 +101,8 @@ app.use(express.static(WEB_DIST_PATH, {
     }
   }));
 app.use(express.static(join(BASE_DIR, 'public')));
-// Auth-protected file serving
-app.use('/uploads', (req, res, next) => {
-  // Skip auth for the API upload route
-  if (req.path.startsWith('/api/')) return next();
-  authMiddleware(req, res, () => {
-    const safePath = req.path.replace(/\.\./g, '');
-    const filePath = join(BASE_DIR, '..', 'uploads', safePath);
-    if (existsSync(filePath)) {
-      res.sendFile(filePath);
-    } else {
-      res.status(404).json({ error: '文件不存在' });
-    }
-  });
-});
+// File serving - UUID filenames provide security (no auth needed for display)
+app.use('/uploads', express.static(join(BASE_DIR, '..', 'uploads'), { maxAge: '30d', etag: true }));
 
 // Public auth routes
 
