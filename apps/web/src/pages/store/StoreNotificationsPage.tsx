@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { useNotificationStore } from '../../stores/notification';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Bell, CheckCircle, AlertCircle, Info, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
@@ -31,6 +32,8 @@ export default function StoreNotificationsPage() {
   const [list, setList] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
+  const decrementUnread = useNotificationStore((s) => s.decrementUnread);
+  const resetUnread = useNotificationStore((s) => s.resetUnread);
   const [page, setPage] = useState(1);
   const [showDetail, setShowDetail] = useState(false);
   const [detailItem, setDetailItem] = useState<any>(null);
@@ -67,6 +70,7 @@ export default function StoreNotificationsPage() {
     await api.put('/notifications/read-all', {});
     setList((prev) => prev.map((n) => ({ ...n, read: 1 })));
     setUnread(0);
+    resetUnread();
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

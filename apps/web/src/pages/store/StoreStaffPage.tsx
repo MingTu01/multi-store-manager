@@ -34,6 +34,7 @@ export default function StoreStaffPage() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [showDetail, setShowDetail] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
     if (!storeId) return;
@@ -189,8 +190,9 @@ export default function StoreStaffPage() {
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
                 {form.avatar ? <img src={form.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{form.name?.[0] || '?'}</span>}
               </div>
-              <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.click(); } }} className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg"><Camera className="h-3.5 w-3.5" /></button>
-              <input ref={fileRef} type="file" onChange={handleAvatar} className="hidden" />
+              <div className="absolute -bottom-1 -right-1 flex gap-1"><button onClick={() => cameraRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg"><Camera className="h-3.5 w-3.5" /></button><button onClick={() => fileRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"><Upload className="h-3.5 w-3.5" /></button></div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleAvatar} className="hidden" />
             </div>
           </div>
 

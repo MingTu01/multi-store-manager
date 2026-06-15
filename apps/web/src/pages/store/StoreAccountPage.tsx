@@ -21,6 +21,7 @@ export default function StoreAccountPage() {
   const [profileForm, setProfileForm] = useState({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const avatarCameraRef = useRef<HTMLInputElement>(null);
 
   // 健康证状态
   const [healthCert, setHealthCert] = useState<{ url: string; name: string; expiry: string; verified: boolean } | null>(null);

@@ -39,6 +39,20 @@ router.get('/', (req: AuthRequest, res: Response) => {
   }
 });
 
+
+// GET /:shiftId - Get single shift with photos
+router.get('/:shiftId', (req: AuthRequest, res: Response) => {
+  try {
+    const shift = db.prepare('SELECT * FROM store_opens WHERE id = ? AND store_id = ?').get(req.params.shiftId, req.params.storeId) as any;
+    if (!shift) return res.status(404).json({ error: '记录不存在' });
+    let photos = [];
+    try { photos = JSON.parse(shift.photos || '[]'); } catch {}
+    res.json({ ...shift, photos });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /
 router.post('/', (req: AuthRequest, res: Response) => {
   try {

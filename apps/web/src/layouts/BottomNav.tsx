@@ -4,6 +4,7 @@ import { useStore } from '../stores/data';
 import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
+import { useNotificationStore } from '../stores/notification';
 import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User } from 'lucide-react';
 
 export function BottomNav() {
@@ -12,7 +13,8 @@ export function BottomNav() {
   const role = user?.role;
   const [showMore, setShowMore] = useState(false);
   const [storeOpen, setStoreOpen] = useState<boolean | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const fetchUnread = useNotificationStore((s) => s.fetchUnread);
 
   useEffect(() => {
     if (!storeId) { setStoreOpen(null); return; }

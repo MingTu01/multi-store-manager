@@ -20,8 +20,17 @@ export default function StoreShiftsPage() {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [loadedPhotos, setLoadedPhotos] = useState<Record<number, string[]>>({});
   const [lastHandover, setLastHandover] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const loadShiftPhotos = async (shiftId: number) => {
+    if (loadedPhotos[shiftId]) return;
+    try {
+      const d = await api.get('/stores/' + storeId + '/shifts/' + shiftId);
+      setLoadedPhotos((prev) => ({ ...prev, [shiftId]: d.photos || [] }));
+    } catch {}
+  };
 
   const load = () => {
     if (!storeId) return;
@@ -89,7 +98,7 @@ export default function StoreShiftsPage() {
       ) : (
         <GlassCard className="divide-y divide-slate-100">
           {shifts.map((s: any) => (
-            <div key={s.id} className="px-4 py-3 cursor-pointer" onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}>
+            <div key={s.id} className="px-4 py-3 cursor-pointer" onClick={() => { const newId = expandedId === s.id ? null : s.id; setExpandedId(newId); if (newId && !loadedPhotos[s.id]) loadShiftPhotos(s.id); }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={'rounded-full px-2 py-0.5 text-xs ' + (s.type === 'open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}>
@@ -105,10 +114,10 @@ export default function StoreShiftsPage() {
               {expandedId === s.id && (
                 <div className="mt-3 space-y-2">
                   {s.handover_content && <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{s.handover_content}</div>}
-                  {s.photos && s.photos.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto">{s.photos.map((p: string, i: number) => <img key={i} src={p} className="h-20 w-20 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>
+                  {loadedPhotos[s.id] && loadedPhotos[s.id].length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto">{loadedPhotos[s.id]?.map((p: string, i: number) => <img key={i} src={p} className="h-20 w-20 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>
                   )}
-                  {!s.handover_content && (!s.photos || s.photos.length === 0) && (
+                  {!s.handover_content && (!loadedPhotos[s.id] || loadedPhotos[s.id].length === 0) && (
                     <div className="text-xs text-slate-400">无交接内容</div>
                   )}
                 </div>
