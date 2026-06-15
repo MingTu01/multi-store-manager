@@ -235,6 +235,15 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled Rejection:', reason);
 });
 
+// Global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(`[${new Date().toISOString()}] ERROR ${req.method} ${req.path}:`, err.message);
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: '文件大小超过限制 (最大1MB)' });
+  }
+  res.status(500).json({ error: err.message || '服务器内部错误' });
+});
+
 app.listen(PORT, '0.0.0.0', () => console.log('Server running on http://0.0.0.0:' + PORT))
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {

@@ -74,8 +74,13 @@ export async function uploadImage(file: File, api: any, type: string, isHealthCe
     finalBlob = await compressToWebP(file, 1200, 0.5);
   }
 
+  // If still > 900KB, reduce further
+  if (finalBlob.size > 900 * 1024) {
+    finalBlob = await compressToWebP(file, 800, 0.4);
+  }
+
   const ext = finalBlob.type === 'image/webp' ? 'webp' : 'jpg';
-  const uploadFile = new File([finalBlob], 'image.' + ext, { type: finalBlob.type });
+  const uploadFile = new File([finalBlob], 'image.' + ext, { type: finalBlob.type || 'image/webp' });
   
   const formData = new FormData();
   formData.append('file', uploadFile);
