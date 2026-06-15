@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
-import { compressImage } from '../../lib/image';
+import { uploadImage, compressToBase64 } from '../../lib/image';
 import { ImagePreview } from '../../components/ImagePreview';
 import { api } from '../../lib/api';
 import { showToast } from '../../components/Toast';
@@ -94,7 +94,7 @@ export default function StoreAccountPage() {
       if (!uploadRes.url) throw new Error('上传失败');
       setUploadedUrl(uploadRes.url);
       setUploadPhase("recognizing");
-      const ocrRes: any = await api.post('/health-cert/ocr', { url: uploadRes.url });
+      const ocrRes: any = await api.post('/health-cert/ocr', { url });
       setOcrResult({
         name: ocrRes.ocrName || ocrRes.name || '',
         expiry: ocrRes.realExpiry || ocrRes.expiry || '',

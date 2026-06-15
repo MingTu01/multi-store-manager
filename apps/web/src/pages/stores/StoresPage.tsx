@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { showToast } from '../../components/Toast';
-import { compressImage, handleImageFiles } from '../../lib/image';
+import { uploadImage, compressToBase64 } from '../../lib/image';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';

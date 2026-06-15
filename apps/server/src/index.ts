@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import db from './db.js';
 import { authMiddleware } from './auth.js';
@@ -23,6 +24,7 @@ import logsRouter from './routes/logs.js';
 import reportsRouter from './routes/reports.js';
 import dashboardRouter from './routes/dashboard.js';
 import healthCertRouter from './routes/health-cert.js';
+import uploadRouter from './routes/upload.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings } from './notify.js';
@@ -99,7 +101,20 @@ app.use(express.static(WEB_DIST_PATH, {
     }
   }));
 app.use(express.static(join(BASE_DIR, 'public')));
-app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '1d', etag: true }));
+// Auth-protected file serving
+app.use('/uploads', (req, res, next) => {
+  // Skip auth for the API upload route
+  if (req.path.startsWith('/api/')) return next();
+  authMiddleware(req, res, () => {
+    const safePath = req.path.replace(/\.\./g, '');
+    const filePath = join(BASE_DIR, '..', 'uploads', safePath);
+    if (existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ error: '文件不存在' });
+    }
+  });
+});
 
 // Public auth routes
 
@@ -141,6 +156,7 @@ app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
 startHealthCheckScheduler();
 app.use('/api/health-cert', authMiddleware, healthCertRouter);
+app.use('/api/upload', authMiddleware, uploadRouter);
 
 // S15: 全局错误处理 — 生产环境隐藏内部错误详情
 app.use((err: any, req: any, res: any, next: any) => {

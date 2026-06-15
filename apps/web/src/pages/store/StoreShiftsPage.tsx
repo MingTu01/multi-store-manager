@@ -1,6 +1,6 @@
 // VITE_BUILD_VERIFY_20260610_205500
 import { useParams } from 'react-router-dom';
-import { handleImageFiles } from '../../lib/image';
+import { uploadImage } from '../../lib/image';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';

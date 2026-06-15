@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useStore } from '../stores/data';
 import { canAccess } from '../lib/permissions';
 import { Power, Camera, Upload, Lock, ArrowLeft } from 'lucide-react';
-import { handleImageFiles } from '../lib/image';
+import { uploadImage } from '../lib/image';
 import { GlassCard } from './GlassCard';
 import { Modal } from './Modal';
 

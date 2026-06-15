@@ -5,7 +5,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { useStore } from '../../stores/data';
-import { compressImage } from '../../lib/image';
+import { uploadImage } from '../../lib/image';
 import {
   Building2, Tags, Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle,
   Camera, Upload, Users, Save, ImageIcon, Phone, Percent, ChevronDown, ChevronUp, X,

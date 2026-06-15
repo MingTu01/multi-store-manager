@@ -1,17 +1,18 @@
-// 图片压缩、验证、预览工具
+// 图片压缩、上传工具 - WebP 格式
 
 /** 验证文件是否为图片 */
 export function isImageFile(file: File): boolean {
   return file.type.startsWith('image/');
 }
 
-/** 压缩图片，返回 Blob (用于FormData上传) */
-export function compressImageToBlob(file: File, maxWidth = 1200, quality = 0.7): Promise<Blob> {
+/** 压缩图片为 WebP Blob */
+export function compressToWebP(file: File, maxWidth = 1200, quality = 0.7): Promise<Blob> {
   return new Promise((resolve, reject) => {
     if (!isImageFile(file)) {
       reject(new Error('只能上传图片文件'));
       return;
     }
+
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('读取文件失败'));
     reader.onload = () => {
@@ -21,18 +22,34 @@ export function compressImageToBlob(file: File, maxWidth = 1200, quality = 0.7):
         const canvas = document.createElement('canvas');
         let w = img.width;
         let h = img.height;
+
+        // Scale down if too large
         if (w > maxWidth) {
           h = Math.round(h * maxWidth / w);
           w = maxWidth;
         }
+
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         if (!ctx) { reject(new Error('浏览器不支持canvas')); return; }
         ctx.drawImage(img, 0, 0, w, h);
+
+        // Try WebP first, fallback to JPEG
         canvas.toBlob(
-          (blob) => { if (blob) resolve(blob); else reject(new Error('压缩失败')); },
-          'image/jpeg',
+          (blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              // Fallback to JPEG
+              canvas.toBlob(
+                (jb) => { if (jb) resolve(jb); else reject(new Error('压缩失败')); },
+                'image/jpeg',
+                quality
+              );
+            }
+          },
+          'image/webp',
           quality
         );
       };
@@ -42,8 +59,33 @@ export function compressImageToBlob(file: File, maxWidth = 1200, quality = 0.7):
   });
 }
 
-/** 压缩图片，返回 base64 dataURL (用于预览和内联显示) */
-export function compressImageToBase64(file: File, maxWidth = 600, quality = 0.6): Promise<string> {
+/** 压缩图片为 WebP Blob（健康证专用，更高质量） */
+export function compressHealthCert(file: File): Promise<Blob> {
+  return compressToWebP(file, 1600, 0.8);
+}
+
+/** 上传压缩后的图片 */
+export async function uploadImage(file: File, api: any, type: string, isHealthCert = false): Promise<string> {
+  const compressed = isHealthCert ? await compressHealthCert(file) : await compressToWebP(file);
+  
+  // If output > 200KB for normal images, reduce quality and retry
+  let finalBlob = compressed;
+  if (!isHealthCert && compressed.size > 200 * 1024) {
+    finalBlob = await compressToWebP(file, 1200, 0.5);
+  }
+
+  const ext = finalBlob.type === 'image/webp' ? 'webp' : 'jpg';
+  const uploadFile = new File([finalBlob], 'image.' + ext, { type: finalBlob.type });
+  
+  const formData = new FormData();
+  formData.append('file', uploadFile);
+  
+  const result = await api.upload('/upload/' + type, formData);
+  return result.url;
+}
+
+/** 压缩图片为 base64（用于内联预览，如头像选择） */
+export function compressToBase64(file: File, maxWidth = 400, quality = 0.7): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!isImageFile(file)) {
       reject(new Error('只能上传图片文件'));
@@ -67,7 +109,7 @@ export function compressImageToBase64(file: File, maxWidth = 600, quality = 0.6)
         const ctx = canvas.getContext('2d');
         if (!ctx) { reject(new Error('浏览器不支持canvas')); return; }
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        resolve(canvas.toDataURL('image/webp', quality));
       };
       img.src = reader.result as string;
     };
@@ -75,31 +117,21 @@ export function compressImageToBase64(file: File, maxWidth = 600, quality = 0.6)
   });
 }
 
-/** 上传压缩后的图片文件 */
-export async function uploadCompressedImage(file: File, api: any, url: string): Promise<any> {
-  const compressed = await compressImageToBlob(file, 1200, 0.7);
-  const formData = new FormData();
-  // 保持原文件名，但用压缩后的blob
-  const compressedFile = new File([compressed], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
-  formData.append('file', compressedFile);
-  return api.upload(url, formData);
-}
-
-/** 处理文件输入变化，返回压缩后的base64数组 (用于内联预览) */
-export async function handleImageFiles(files: FileList | File[], maxWidth = 600, quality = 0.6): Promise<string[]> {
-  const results: string[] = [];
-  for (const file of Array.from(files)) {
-    if (!isImageFile(file)) continue;
-    const compressed = await compressImageToBase64(file, maxWidth, quality);
-    results.push(compressed);
-  }
-  return results;
-}
-
 /** 验证文件大小 (MB) */
 export function validateFileSize(file: File, maxMB = 10): boolean {
   return file.size <= maxMB * 1024 * 1024;
 }
 
-/** @deprecated Use compressImageToBase64 instead */
-export const compressImage = compressImageToBase64;
+/** @deprecated Use compressToBase64 instead */
+export const compressImage = compressToBase64;
+
+/** @deprecated Use uploadImage instead */
+export async function handleImageFiles(files: FileList | File[], maxWidth = 600, quality = 0.6): Promise<string[]> {
+  const results: string[] = [];
+  for (const file of Array.from(files)) {
+    if (!isImageFile(file)) continue;
+    const compressed = await compressToBase64(file, maxWidth, quality);
+    results.push(compressed);
+  }
+  return results;
+}
