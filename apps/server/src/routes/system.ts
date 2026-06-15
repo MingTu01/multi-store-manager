@@ -278,7 +278,13 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         upgradeState = { step: 4, message: '文件覆盖完成', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '文件覆盖完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 5, message: '升级完成', complete: true }; broadcastProgress('progress', { step: 5, total: 5, message: '升级完成', done: true });
-        broadcastProgress('ready', { message: '升级已完成' });
+        broadcastProgress('ready', { message: '升级已完成，正在重启服务...' });
+        // Auto-restart after upgrade
+        setTimeout(() => {
+          const isDocker = existsSync('/.dockerenv') || !!process.env.DOCKER;
+          if (isDocker) { console.log('[Upgrade] Docker: restarting...'); process.exit(0); }
+          else { exec('cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &', { cwd: BASE_DIR }); setTimeout(() => process.exit(0), 500); }
+        }, 2000);
       } catch (err: any) {
         broadcastProgress('error', { message: '升级失败: ' + err.message });
       }
