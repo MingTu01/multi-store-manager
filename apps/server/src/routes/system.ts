@@ -349,7 +349,7 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
 // Cleanup upgrade files
 router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     const uploadsDir = join(BASE_DIR, 'uploads');
     if (existsSync(uploadsDir)) {
       const items = readdirSync(uploadsDir);

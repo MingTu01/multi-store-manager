@@ -102,6 +102,24 @@ app.use(express.static(join(BASE_DIR, 'public')));
 app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '1d', etag: true }));
 
 // Public auth routes
+
+// SSE - Server-Sent Events for real-time connection status
+app.get('/api/sse', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  const heartbeat = setInterval(() => {
+    try { res.write('data: {"type":"heartbeat","ts":' + Date.now() + '}\n\n'); } catch {}
+  }, 15000);
+
+  res.write('data: {"type":"connected","ts":' + Date.now() + '}\n\n');
+
+  req.on('close', () => { clearInterval(heartbeat); });
+});
+
 app.use('/api/auth', authRouter);
 
 // Protected routes — 带门店访问控制
