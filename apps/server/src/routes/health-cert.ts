@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const BASE_DIR = join(__dirname, '..');
+const BASE_DIR = join(__dirname, '..', '..');
 import { join } from 'path';
 import { existsSync, mkdirSync, renameSync } from 'fs';
 import multer from 'multer';
