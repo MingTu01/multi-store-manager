@@ -144,7 +144,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
       '  setTimeout(()=>{',
       '    const child=spawn(process.execPath,["--import","tsx","src/index.ts"],',
       '      {detached:true,stdio:"ignore",cwd:dir.replace(/\\\\data$/,"")});',
-      '    child.unref();process.exit(0);',
+      '    child.unref();process.exit(1);',
       '  },1000);',
       '},1000);'
     ].join('\n');
@@ -282,7 +282,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         // Auto-restart after upgrade
         setTimeout(() => {
           const isDocker = existsSync('/.dockerenv') || !!process.env.DOCKER;
-          if (isDocker) { console.log('[Upgrade] Docker: restarting...'); process.exit(0); }
+          if (isDocker) { console.log('[Upgrade] Docker: restarting...'); process.exit(1); }
           else { exec('cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &', { cwd: BASE_DIR }); setTimeout(() => process.exit(0), 500); }
         }, 2000);
       } catch (err: any) {
@@ -298,16 +298,20 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
     setTimeout(() => {
-      ;
-      const cmd = process.platform === 'win32'
-        ? 'start /b cmd /c "cd /d ' + BASE_DIR + ' && node --import tsx src/index.ts"'
-        : 'cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &';
-      exec(cmd, { cwd: BASE_DIR, windowsHide: true });
-      setTimeout(() => process.exit(0), 500);
+      const isDocker = existsSync('/.dockerenv') || !!process.env.DOCKER || !!process.env.KUBERNETES_SERVICE_HOST;
+      if (isDocker) {
+        console.log('[Restart] Docker detected, exiting with code 1...');
+        process.exit(1);
+      } else if (process.platform === 'win32') {
+        exec('start /b cmd /c "cd /d ' + BASE_DIR + ' && node --import tsx src/index.ts"', { cwd: BASE_DIR, windowsHide: true });
+        setTimeout(() => process.exit(0), 500);
+      } else {
+        exec('cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &', { cwd: BASE_DIR });
+        setTimeout(() => process.exit(0), 500);
+      }
     }, 200);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
-
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
   if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
