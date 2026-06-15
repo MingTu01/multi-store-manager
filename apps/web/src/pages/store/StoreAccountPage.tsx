@@ -94,7 +94,7 @@ export default function StoreAccountPage() {
       if (!uploadRes.url) throw new Error('上传失败');
       setUploadedUrl(uploadRes.url);
       setUploadPhase("recognizing");
-      const ocrRes: any = await api.post('/health-cert/ocr', { url });
+      const ocrRes: any = await api.post('/health-cert/ocr', { url: uploadRes.url });
       setOcrResult({
         name: ocrRes.ocrName || ocrRes.name || '',
         expiry: ocrRes.realExpiry || ocrRes.expiry || '',
