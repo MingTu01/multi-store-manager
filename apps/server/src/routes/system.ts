@@ -272,18 +272,17 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         };
         const webDist = join(extractDir, 'web-dist');
-        if (existsSync(webDist)) copyDir(webDist, join(BASE_DIR, '..', 'web', 'dist'));
+        if (existsSync(webDist)) copyDir(webDist, join(BASE_DIR, 'public', 'web-dist'));
         const serverSrc = join(extractDir, 'server-src');
         if (existsSync(serverSrc)) copyDir(serverSrc, join(BASE_DIR, 'src'));
         upgradeState = { step: 4, message: '文件覆盖完成', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '文件覆盖完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         upgradeState = { step: 5, message: '升级完成', complete: true }; broadcastProgress('progress', { step: 5, total: 5, message: '升级完成', done: true });
         broadcastProgress('ready', { message: '升级已完成，正在重启服务...' });
-        // Auto-restart after upgrade
+        // Auto-restart after upgrade - send SIGTERM to self
         setTimeout(() => {
-          const isDocker = existsSync('/.dockerenv') || !!process.env.DOCKER;
-          if (isDocker) { console.log('[Upgrade] Docker: restarting...'); process.exit(1); }
-          else { exec('cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &', { cwd: BASE_DIR }); setTimeout(() => process.exit(0), 500); }
+          console.log('[Upgrade] Sending SIGTERM for restart...');
+          process.kill(process.pid, 'SIGTERM');
         }, 2000);
       } catch (err: any) {
         broadcastProgress('error', { message: '升级失败: ' + err.message });
@@ -298,18 +297,9 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
     setTimeout(() => {
-      const isDocker = existsSync('/.dockerenv') || !!process.env.DOCKER || !!process.env.KUBERNETES_SERVICE_HOST;
-      if (isDocker) {
-        console.log('[Restart] Docker detected, exiting with code 1...');
-        process.exit(1);
-      } else if (process.platform === 'win32') {
-        exec('start /b cmd /c "cd /d ' + BASE_DIR + ' && node --import tsx src/index.ts"', { cwd: BASE_DIR, windowsHide: true });
-        setTimeout(() => process.exit(0), 500);
-      } else {
-        exec('cd ' + BASE_DIR + ' && nohup node --import tsx src/index.ts > /dev/null 2>&1 &', { cwd: BASE_DIR });
-        setTimeout(() => process.exit(0), 500);
-      }
-    }, 200);
+      console.log('[Restart] Sending SIGTERM for restart...');
+      process.kill(process.pid, 'SIGTERM');
+    }, 500);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 // 通知设置 — ADMIN

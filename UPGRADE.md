@@ -192,6 +192,49 @@ backups/pre-upgrade-{时间}.zip
 
 ---
 
+
+## Docker 容器目录结构
+
+服务器运行在 Docker 容器中，目录结构如下：
+
+```
+/app/                          # BASE_DIR（服务器根目录）
+├── package.json               # 版本信息
+├── src/                       # 服务端源码
+│   ├── index.ts
+│   ├── db.ts
+│   └── ...
+├── public/
+│   └── web-dist/              # 前端构建产物
+│       ├── index.html
+│       └── assets/
+├── data/                      # 数据库（持久化卷）
+│   ├── store.db
+│   └── version.json
+├── uploads/                   # 上传文件（持久化卷）
+├── backups/                   # 备份文件
+├── node_modules/              # 依赖包
+├── chi_sim.traineddata        # OCR模型
+└── eng.traineddata            # OCR模型
+```
+
+### 升级包路径映射
+
+| ZIP内路径 | Docker内目标路径 | 说明 |
+|-----------|-----------------|------|
+| `package.json` | 读取版本号 | 不复制，仅读取 |
+| `server-src/*` | `/app/src/*` | 服务端代码覆盖 |
+| `web-dist/*` | `/app/public/web-dist/*` | 前端构建产物覆盖 |
+| `server-data/version.json` | `/app/data/version.json` | 运行时版本号 |
+
+### Docker 重启机制
+
+升级完成后，服务器通过 `process.kill(process.pid, 'SIGTERM')` 发送 SIGTERM 信号给自己。
+Docker 容器收到 SIGTERM 后，根据重启策略（`restart: always` 或 `restart: unless-stopped`）自动重启容器。
+
+**注意：** 确保 Docker 容器设置了 `restart: always` 或 `restart: unless-stopped`。
+`restart: on-failure` 可能不适用于所有场景。
+
 ## 六、常见问题
 
 ### Q: 升级包上传失败
