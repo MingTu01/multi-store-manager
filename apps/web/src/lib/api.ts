@@ -1,23 +1,55 @@
 const headers = () => ({ Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' });
 const token = () => localStorage.getItem('token');
 
-// Simple in-memory cache for GET requests
-const cache = new Map<string, { data: any; ts: number }>();
-const CACHE_TTL = 5000; // 5 seconds
+interface CacheEntry { data: any; ts: number; lastAccess: number }
+const cache = new Map<string, CacheEntry>();
+const MAX_CACHE = 200;
+
+const TTL_MAP: [RegExp, number][] = [
+  [/\/categories/, 60000],
+  [/\/auth\/me/, 300000],
+  [/\/stores$/, 30000],
+  [/\/dashboard/, 10000],
+  [/\/report/, 30000],
+  [/\/notifications/, 5000],
+  [/\/unread-count/, 5000],
+  [/\/entries/, 5000],
+  [/\/inventory/, 10000],
+  [/\/staff/, 30000],
+  [/\/payroll/, 30000],
+  [/\/dividends/, 30000],
+  [/\/shifts/, 10000],
+  [/\/logs/, 10000],
+  [/\/system/, 30000],
+];
+const DEFAULT_TTL = 5000;
+
+function getTTL(url: string): number {
+  for (const [pattern, ttl] of TTL_MAP) {
+    if (pattern.test(url)) return ttl;
+  }
+  return DEFAULT_TTL;
+}
 
 function getCached(key: string): any | null {
   const entry = cache.get(key);
-  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
-  cache.delete(key);
-  return null;
+  if (!entry) return null;
+  const ttl = getTTL(key);
+  if (Date.now() - entry.ts > ttl) { cache.delete(key); return null; }
+  entry.lastAccess = Date.now();
+  return entry.data;
 }
 
 function setCache(key: string, data: any) {
-  cache.set(key, { data, ts: Date.now() });
-  if (cache.size > 100) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
+  if (cache.size >= MAX_CACHE) {
+    let oldest = '';
+    let oldestTime = Infinity;
+    for (const [k, v] of cache) {
+      if (v.lastAccess < oldestTime) { oldestTime = v.lastAccess; oldest = k; }
+    }
+    if (oldest) cache.delete(oldest);
   }
+  cache.set(key, { data, ts: Date.now(), lastAccess: Date.now() });
 }
 
 export function invalidateCache(pattern?: string) {
@@ -27,7 +59,6 @@ export function invalidateCache(pattern?: string) {
   }
 }
 
-/** Invalidate cache for a URL and all its parent paths */
 function invalidateRelated(url: string) {
   const path = url.split('?')[0];
   invalidateCache(path);
@@ -41,11 +72,11 @@ async function parseError(r: Response): Promise<Error> {
     if (r.status === 401) {
       localStorage.removeItem('token');
       if (location.pathname !== '/login') location.href = '/login';
-      return new Error('登录已过期，请重新登录');
+      return new Error('\u767b\u5f55\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55');
     }
-    return new Error(data.error || data.message || '请求失败');
+    return new Error(data.error || data.message || '\u8bf7\u6c42\u5931\u8d25');
   } catch {
-    return new Error('请求失败 (' + r.status + ')');
+    return new Error('\u8bf7\u6c42\u5931\u8d25 (' + r.status + ')');
   }
 }
 

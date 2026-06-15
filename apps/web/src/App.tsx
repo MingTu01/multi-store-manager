@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
 import { useSSE } from './lib/sse';
 import { canAccess } from './lib/permissions';
@@ -36,17 +36,23 @@ function Loading() {
 }
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
-  const role = useStore((s) => s.user?.role);
-  const loading = useStore((s) => s.loading);
-  if (loading) return <Loading />;
-  if (!role) return <Navigate to="/login" replace />;
-  if (!canAccess(perm, role)) return <Navigate to="/" replace />;
+  const user = useStore((s) => s.user);
+  if (!user) return <Navigate to="/login" replace />;
+  if (!canAccess(perm, user.role as any)) {
+    // All store-related roles (MANAGER, STAFF, SHAREHOLDER, STORE_ADMIN): redirect to their store
+    if (user.store_id) {
+      return <Navigate to={'/store/' + user.store_id} replace />;
+    }
+    // No store: go to login
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
 export default function App() {
   const restore = useStore((s) => s.restore);
   useEffect(() => { restore(); }, [restore]);
+  const user = useStore((s) => s.user);
   useSSE();
 
   return (

@@ -13,7 +13,7 @@ const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
 export function Sidebar() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnread = useNotificationStore((s) => s.fetchUnread);
-  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
+  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 60000); return () => clearInterval(t); }, [fetchUnread]);
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();
@@ -62,7 +62,7 @@ export function Sidebar() {
             className={({ isActive }) => 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ' + (isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'text-slate-600 hover:bg-white/60 hover:text-slate-900')}>
             <span className="relative">
               <n.icon className="h-4 w-4" />
-              {'badge' in n && n.badge && <NotificationBadge poll interval={30000} />}
+              {'badge' in n && n.badge && <NotificationBadge count={unreadCount} />}
             </span>
             {n.label}
           </NavLink>

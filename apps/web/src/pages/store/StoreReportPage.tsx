@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataVersion } from '../../stores/data-sync';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -34,6 +35,7 @@ function PieLegend({ data, color }: { data: any[]; color: string }) {
 
 export default function StoreReportPage() {
   const { storeId } = useParams();
+  const dataVersion = useDataVersion('store', storeId);
   const role = useStore((s) => s.user?.role) as string | undefined;
   const [period, setPeriod] = useState<Period>('day');
   const [date, setDate] = useState(new Date());

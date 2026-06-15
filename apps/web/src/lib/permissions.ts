@@ -3,10 +3,10 @@ export type Role = 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER'
 const p: Record<string, Role[]> = {
   dashboard: ['ADMIN'],
   stores: ['ADMIN'],
-  notifications: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
+  notifications: ['ADMIN', 'STORE_ADMIN'],
   upgrade: ['ADMIN'],
   password: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
-  adminSettings: ['ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
+  adminSettings: ['ADMIN'],
   storeOverview: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
   storeEntries: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
   storeInventory: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],

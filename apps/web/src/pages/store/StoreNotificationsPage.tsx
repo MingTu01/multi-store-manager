@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { useNotificationStore } from '../../stores/notification';
 import { GlassCard } from '../../components/GlassCard';
@@ -32,8 +33,8 @@ export default function StoreNotificationsPage() {
   const [list, setList] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [unread, setUnread] = useState(0);
-  const decrementUnread = useNotificationStore((s) => s.decrementUnread);
-  const resetUnread = useNotificationStore((s) => s.resetUnread);
+  const decrementUnread = useNotificationStore((s) => s.decrementUnread);  const resetUnread = useNotificationStore((s) => s.resetUnread);
+  const notifVersion = useDataVersion('notifications');
   const [page, setPage] = useState(1);
   const [showDetail, setShowDetail] = useState(false);
   const [detailItem, setDetailItem] = useState<any>(null);
@@ -48,7 +49,7 @@ export default function StoreNotificationsPage() {
     }).catch(() => {});
   };
 
-  useEffect(() => { fetchList(); }, [page]);
+  useEffect(() => { fetchList(); }, [page, notifVersion]);
 
   const openDetail = async (n: any) => {
     setDetailItem(n);

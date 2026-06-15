@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';import { useNavigate } from 'react-router-dom';
+import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
@@ -21,13 +21,14 @@ export default function DashboardPage() {
   const [stores, setStores] = useState<any[]>([]);
   const [trend, setTrend] = useState<any[]>([]);
   const nav = useNavigate();
+  const dataVersion = useDataVersion('global');
 
   const dateStr = date.toISOString().split('T')[0];
   useEffect(() => {
     api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(() => {});
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
     api.get('/dashboard/trend?period=' + period).then((d: any) => setTrend(d.trend || [])).catch(() => {});
-  }, [period, dateStr]);
+  }, [period, dateStr, dataVersion]);
 
   const income = stats?.income ?? 0;
   const expense = stats?.expense ?? 0;

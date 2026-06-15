@@ -1,7 +1,10 @@
-<!doctype html>
+<!doctype html><!-- BUILD:1781538178032 -->
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,6 +14,28 @@
     <meta name="description" content="Multi Store Management Platform" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <title>Multi Shop Link</title>
+  
+    <script>
+      // Force clear all caches and update service worker
+      (function() {
+        var VERSION = '1.1.6';
+        var stored = localStorage.getItem('_app_version');
+        if (stored !== VERSION) {
+          localStorage.setItem('_app_version', VERSION);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(reg) { reg.unregister(); });
+            }).then(function() {
+              return caches.keys();
+            }).then(function(names) {
+              return Promise.all(names.map(function(n) { return caches.delete(n); }));
+            }).then(function() {
+              if (stored !== null) window.location.reload(true);
+            });
+          }
+        }
+      })();
+    </script>
   </head>
   <body style="overflow-x:hidden;max-width:100vw;">
     <div id="root"></div>

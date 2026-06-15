@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { invalidateCache } from './api';
+import { useDataSync } from '../stores/data-sync';
+import { useNotificationStore } from '../stores/notification';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-/**
- * SSE hook for real-time data sync and connection status.
- * Returns current connection status for UI display.
- */
 export function useSSE(): ConnectionStatus {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const esRef = useRef<EventSource | null>(null);
@@ -16,50 +14,47 @@ export function useSSE(): ConnectionStatus {
     const tokenRaw = localStorage.getItem('token');
     if (!tokenRaw) return;
     const token: string = tokenRaw;
-
     let stopped = false;
 
     function connect() {
       if (stopped) return;
       setStatus('connecting');
-
       const es = new EventSource('/api/sse?token=' + encodeURIComponent(token));
       esRef.current = es;
 
-      es.addEventListener('open', () => {
-        setStatus('connected');
-      });
+      es.addEventListener('open', () => setStatus('connected'));
 
       es.addEventListener('data-change', (e) => {
         try {
           const data = JSON.parse(e.data);
+          const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
+          const { fetchUnread } = useNotificationStore.getState();
+
           if (data.storeId) {
             invalidateCache('/stores/' + data.storeId);
             invalidateCache('/stores/' + data.storeId + '/entries');
             invalidateCache('/stores/' + data.storeId + '/entries/stats');
             invalidateCache('/stores/' + data.storeId + '/inventory');
             invalidateCache('/stores/' + data.storeId + '/report');
+            bumpStore(data.storeId);
           }
           invalidateCache('/notifications');
           invalidateCache('/stores');
+          bumpGlobal();
+          bumpNotifications();
+          fetchUnread();
         } catch {}
       });
 
-      es.onopen = () => {
-        setStatus('connected');
-      };
-
+      es.onopen = () => setStatus('connected');
       es.onerror = () => {
         setStatus('disconnected');
         es.close();
-        if (!stopped) {
-          reconnectTimer.current = setTimeout(connect, 5000);
-        }
+        if (!stopped) reconnectTimer.current = setTimeout(connect, 5000);
       };
     }
 
     connect();
-
     return () => {
       stopped = true;
       setStatus('disconnected');

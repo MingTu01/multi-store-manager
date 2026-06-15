@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useStore } from '../../stores/data';
@@ -20,6 +21,7 @@ function getLocalDate(): string {
 
 export default function StoreEntriesPage() {
   const { storeId } = useParams();
+  const dataVersion = useDataVersion('store', storeId);
   const myRole = useStore((s) => s.user?.role);
   const isStaff = myRole === 'STAFF';
   const location = useLocation();
@@ -45,7 +47,7 @@ export default function StoreEntriesPage() {
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});
     api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d)).catch(() => {});
   };
-  useEffect(() => { load(); }, [storeId, page]);
+  useEffect(() => { load(); }, [storeId, page, dataVersion]);
 
   // Auto-open modal when navigated with openModal state (from overview quick action)
   useEffect(() => {

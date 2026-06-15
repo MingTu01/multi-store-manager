@@ -27,7 +27,7 @@ import healthCertRouter from './routes/health-cert.js';
 import uploadRouter from './routes/upload.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
-import { sendNotification, getSettings } from './notify.js';
+import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';
 import { startReportScheduler } from './report-scheduler.js';
 import { eventBus } from './event-bus.js';
 
@@ -88,14 +88,14 @@ const WEB_DIST_PATH = POSSIBLE_WEB_DIST.find(p => existsSync(join(p, 'index.html
 console.log('[PATH] Web dist:', WEB_DIST_PATH);
 
 app.use(express.static(WEB_DIST_PATH, {
-    maxAge: '7d',
+    maxAge: '1h',
     etag: true,
     lastModified: true,
     setHeaders: (res, path) => {
       if (path.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       } else if (path.match(/\.(js|css|woff2?|ttf|eot)$/)) {
-        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
       } else if (path.match(/\.(png|jpe?g|gif|svg|webp|ico)$/)) {
         res.setHeader('Cache-Control', 'public, max-age=2592000');
       }
@@ -103,7 +103,7 @@ app.use(express.static(WEB_DIST_PATH, {
   }));
 app.use(express.static(join(BASE_DIR, 'public')));
 // File serving - UUID filenames provide security (no auth needed for display)
-app.use('/uploads', express.static(join(BASE_DIR, '..', 'uploads'), { maxAge: '30d', etag: true }));
+app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '30d', etag: true }));
 
 // Public auth routes
 
@@ -152,13 +152,6 @@ app.use('/api/dashboard', authMiddleware, dashboardRouter);
 startHealthCheckScheduler();
 app.use('/api/health-cert', authMiddleware, healthCertRouter);
 app.use('/api/upload', authMiddleware, uploadRouter);
-
-// S15: 全局错误处理 — 生产环境隐藏内部错误详情
-app.use((err: any, req: any, res: any, next: any) => {
-  console.error('Unhandled error:', err);
-  const message = process.env.NODE_ENV === 'production' ? '服务器内部错误' : (err.message || '服务器内部错误');
-  res.status(500).json({ error: message });
-});
 
 // Auto backup scheduler
 function setupAutoBackup() {

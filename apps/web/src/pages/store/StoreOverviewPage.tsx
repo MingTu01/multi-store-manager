@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useStore } from '../../stores/data';
@@ -8,7 +9,7 @@ import { TrendingUp, TrendingDown, DollarSign, BookOpen, Package, Clock, BarChar
 
 export default function StoreOverviewPage() {
   const { storeId } = useParams();
-  const nav = useNavigate();
+  const dataVersion = useDataVersion('store', storeId);  const nav = useNavigate();
   const user = useStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
   const isNonAdmin = user?.role !== 'ADMIN';
@@ -26,7 +27,7 @@ export default function StoreOverviewPage() {
       setToday({ income: inc, expense: exp, profit: inc - exp });
     }).catch(() => {});
     api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.entries || (Array.isArray(d) ? d : []).slice(0, 5))).catch(() => {});
-  }, [storeId]);
+  }, [storeId, dataVersion]);
 
   if (!store) return <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
 

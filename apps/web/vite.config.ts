@@ -27,7 +27,11 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
+        cleanupOutdatedCaches: true,
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /\/api\//,
@@ -43,10 +47,10 @@ export default defineConfig({
           },
           {
             urlPattern: /\.(?:js|css|woff2)$/,
-            handler: 'CacheFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'static-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 }
+              expiration: { maxEntries: 100, maxAgeSeconds: 3600 }
             }
           }
         ]
