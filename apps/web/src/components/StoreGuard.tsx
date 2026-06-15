@@ -65,10 +65,12 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    try {
-      const compressed = await handleImageFiles(files);
-      setPhotos((p) => [...p, ...compressed]);
-    } catch (err: any) { alert(err.message || '图片处理失败'); }
+    for (const file of Array.from(files)) {
+      try {
+        const url = await uploadImage(file, api, 'shifts');
+        setPhotos((p) => [...p, url]);
+      } catch (err: any) { alert(err.message || '上传失败'); }
+    }
   };
 
   const handleOpen = async () => {

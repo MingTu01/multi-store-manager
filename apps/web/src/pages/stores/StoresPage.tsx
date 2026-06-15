@@ -62,9 +62,11 @@ export default function StoresPage() {
     const files = e.target.files;
     if (!files) return;
     try {
-      const compressed = await handleImageFiles(files);
-      setForm(f => ({ ...f, photos: [...f.photos, ...compressed] }));
-    } catch (err: any) { showToast(err.message || '图片处理失败', 'error'); }
+      for (const file of Array.from(files)) {
+        const url = await uploadImage(file, api, 'stores');
+        setForm(f => ({ ...f, photos: [...f.photos, url] }));
+      }
+    } catch (err: any) { showToast(err.message || '图片上传失败', 'error'); }
   };
   const removePhoto = (idx: number) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
