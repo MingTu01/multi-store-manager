@@ -75,12 +75,13 @@ export default function StoreStaffPage() {
     setShowModal(true);
   };
 
-  const handleAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm({ ...form, avatar: reader.result as string });
-    reader.readAsDataURL(file);
+    try {
+      const url = await uploadImage(file, api, 'avatars');
+      setForm({ ...form, avatar: url });
+    } catch (err: any) { alert(err.message || '上传失败'); }
   };
 
   const handleSave = async () => {

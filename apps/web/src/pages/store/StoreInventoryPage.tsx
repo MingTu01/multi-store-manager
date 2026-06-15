@@ -140,12 +140,13 @@ export default function StoreInventoryPage() {
   useEffect(() => { loadItems(); }, [storeId]);
 
   // --- Add Item ---
-  const handleAddPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setAddForm((f) => ({ ...f, photo: reader.result as string }));
-    reader.readAsDataURL(file);
+    try {
+      const url = await uploadImage(file, api, 'inventory');
+      setAddForm((f) => ({ ...f, photo: url }));
+    } catch (err: any) { alert(err.message || '上传失败'); }
   };
 
   const handleAddItem = async () => {
@@ -171,12 +172,13 @@ export default function StoreInventoryPage() {
     setEditForm({ name: item.name, quantity: String(item.quantity), photo: item.photo || '' });
   };
 
-  const handleEditPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEditPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setEditForm((f) => ({ ...f, photo: reader.result as string }));
-    reader.readAsDataURL(file);
+    try {
+      const url = await uploadImage(file, api, 'inventory');
+      setEditForm((f) => ({ ...f, photo: url }));
+    } catch (err: any) { alert(err.message || '上传失败'); }
   };
 
   const handleSaveEdit = async () => {
