@@ -26,11 +26,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const shifts = db.prepare('SELECT * FROM store_opens WHERE ' + condition + ' ORDER BY created_at DESC LIMIT ? OFFSET ?').all(...params, ps, offset);
 
     const enriched = shifts.map((s: any) => {
-      try {
-        return { ...s, photos: JSON.parse(s.photos || '[]') };
-      } catch {
-        return { ...s, photos: [] };
-      }
+      let photoCount = 0;
+      try { photoCount = JSON.parse(s.photos || '[]').length; } catch {}
+      return { ...s, photos: [], photo_count: photoCount };
     });
 
     res.json({ shifts: enriched, total, page: p, pageSize: ps });

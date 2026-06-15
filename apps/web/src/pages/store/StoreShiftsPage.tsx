@@ -77,7 +77,7 @@ export default function StoreShiftsPage() {
     finally { setSaving(false); }
   };
 
-  const isOpen = store?.is_open === 1;
+  const isOpen = true; // StoreGuard already verifies store is open
 
   const renderCameraButtons = () => (
     <div>
