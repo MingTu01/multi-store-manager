@@ -39,7 +39,7 @@ export default function StoreEntriesPage() {
   const load = () => {
     if (!storeId) return;
     api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + (isStaff ? '&period=day' : '')).then((d) => {
-      setEntries(d.entries || []);
+      setEntries(d.entries || d.data || []);
       setTotal(d.total || 0);
     }).catch(() => {});
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});

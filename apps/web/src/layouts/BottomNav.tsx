@@ -17,6 +17,12 @@ export function BottomNav() {
   const fetchUnread = useNotificationStore((s) => s.fetchUnread);
 
   useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
+  useEffect(() => {
+    if (!storeId) { setStoreOpen(null); return; }
+    api.get('/stores/' + storeId).then((d: any) => {
+      setStoreOpen(d.is_open === 1);
+    }).catch(() => setStoreOpen(true));
+  }, [storeId]);
 
   if (storeId && storeOpen === false) return null;
   if (storeId && storeOpen === null) return null;
@@ -39,7 +45,6 @@ export function BottomNav() {
 
   const storeMoreTabs = [
     { to: '/store/' + storeId + '/notification-settings', icon: Settings, label: '消息推送', key: 'storeAdminSettings' },
-    { to: '/store/' + storeId + '/notifications', icon: Bell, label: '通知', key: 'storeNotifications', badge: true },
     { to: '/store/' + storeId + '/notifications', icon: Bell, label: '通知', key: 'storeNotifications', badge: true },
     { to: '/store/' + storeId + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
     { to: '/store/' + storeId + '/staff', icon: Users, label: '员工', key: 'storeStaff' },

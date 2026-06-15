@@ -4,6 +4,7 @@ import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
+import { eventBus } from '../event-bus.js';
 
 function normalizeType(type: string): string {
   if (type === 'income') return '收入';
@@ -78,6 +79,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       detail: user.name + ' 在门店新增' + nt + ': ' + categoryName + ' ¥' + amount
     , operatorName: req.user.name || req.user.username});
 
+    eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid }, excludeUserId: user.id });
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -110,6 +112,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + categoryName + ' ¥' + amount
     , operatorName: req.user.name || req.user.username});
 
+    eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id }, excludeUserId: user.id });
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -135,6 +138,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       detail: user.name + ' 删除了记账 #' + req.params.id + (entry ? ': ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount : '')
     , operatorName: req.user.name || req.user.username});
 
+    eventBus.broadcast({ type: 'entry', action: 'delete', storeId, data: { id: req.params.id }, excludeUserId: user.id });
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

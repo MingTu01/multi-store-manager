@@ -1,61 +1,71 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { invalidateCache } from './api';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-export function useSSE() {
-  const [status, setStatus] = useState<ConnectionStatus>('connecting');
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectCount = useRef(0);
+/**
+ * SSE hook for real-time data sync and connection status.
+ * Returns current connection status for UI display.
+ */
+export function useSSE(): ConnectionStatus {
+  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+  const esRef = useRef<EventSource | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const connect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let stopped = false;
+
+    function connect() {
+      if (stopped) return;
+      setStatus('connecting');
+
+      const es = new EventSource('/api/sse?token=' + encodeURIComponent(token));
+      esRef.current = es;
+
+      es.addEventListener('open', () => {
+        setStatus('connected');
+      });
+
+      es.addEventListener('data-change', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.storeId) {
+            invalidateCache('/stores/' + data.storeId);
+            invalidateCache('/stores/' + data.storeId + '/entries');
+            invalidateCache('/stores/' + data.storeId + '/entries/stats');
+            invalidateCache('/stores/' + data.storeId + '/inventory');
+            invalidateCache('/stores/' + data.storeId + '/report');
+          }
+          invalidateCache('/notifications');
+          invalidateCache('/stores');
+        } catch {}
+      });
+
+      es.onopen = () => {
+        setStatus('connected');
+      };
+
+      es.onerror = () => {
+        setStatus('disconnected');
+        es.close();
+        if (!stopped) {
+          reconnectTimer.current = setTimeout(connect, 5000);
+        }
+      };
     }
 
-    setStatus('connecting');
-    const es = new EventSource('/api/sse');
-    eventSourceRef.current = es;
+    connect();
 
-    es.onopen = () => {
-      setStatus('connected');
-      reconnectCount.current = 0;
-    };
-
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'heartbeat' || data.type === 'connected') {
-          setStatus('connected');
-        }
-      } catch {}
-    };
-
-    es.onerror = () => {
+    return () => {
+      stopped = true;
       setStatus('disconnected');
-      es.close();
-      eventSourceRef.current = null;
-
-      // Exponential backoff reconnect
-      const delay = Math.min(1000 * Math.pow(2, reconnectCount.current), 30000);
-      reconnectCount.current++;
-      reconnectTimerRef.current = setTimeout(connect, delay);
+      if (esRef.current) esRef.current.close();
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     };
   }, []);
 
-  useEffect(() => {
-    connect();
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current);
-      }
-    };
-  }, [connect]);
-
   return status;
 }
-
-export default useSSE;

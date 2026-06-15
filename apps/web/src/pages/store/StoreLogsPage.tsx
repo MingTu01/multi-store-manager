@@ -132,7 +132,7 @@ export default function StoreLogsPage() {
     
     const url = storeId ? '/logs?storeId=' + storeId + '&' + params.toString() : '/logs?' + params.toString();
     api.get(url)
-      .then((d: any) => { setLogs(d.logs || []); setTotal(d.total || 0); })
+      .then((d: any) => { setLogs(d.logs || d.data || []); setTotal(d.total || 0); })
       .catch(() => { setLogs([]); setTotal(0); })
       .finally(() => setLoading(false));
   }, [storeId, page, pageSize, search, dateFrom, dateTo, filterStore]);

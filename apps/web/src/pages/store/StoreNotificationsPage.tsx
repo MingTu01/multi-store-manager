@@ -57,6 +57,7 @@ export default function StoreNotificationsPage() {
       await api.put('/notifications/' + n.id + '/read', {});
       setList((prev) => prev.map((item) => item.id === n.id ? { ...item, read: 1 } : item));
       setUnread((u) => Math.max(0, u - 1));
+      decrementUnread();
     }
   };
 
@@ -64,6 +65,7 @@ export default function StoreNotificationsPage() {
     await api.put('/notifications/' + id + '/read', {});
     setList((prev) => prev.map((n) => n.id === id ? { ...n, read: 1 } : n));
     setUnread((u) => Math.max(0, u - 1));
+    decrementUnread();
   };
 
   const markAllRead = async () => {

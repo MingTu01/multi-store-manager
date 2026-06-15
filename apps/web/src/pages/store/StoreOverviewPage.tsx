@@ -20,7 +20,7 @@ export default function StoreOverviewPage() {
     if (!storeId) return;
     api.get('/stores/' + storeId).then(setStore).catch(() => {});
     api.get('/stores/' + storeId + '/entries?period=day').then((d: any) => {
-      const entries = d.entries || (Array.isArray(d) ? d : []);
+      const entries = d.entries || d.data || [];
       const inc = entries.filter((e: any) => e.type === '收入' || e.type === 'income').reduce((s: number, e: any) => s + e.amount, 0);
       const exp = entries.filter((e: any) => e.type === '支出' || e.type === 'expense').reduce((s: number, e: any) => s + e.amount, 0);
       setToday({ income: inc, expense: exp, profit: inc - exp });

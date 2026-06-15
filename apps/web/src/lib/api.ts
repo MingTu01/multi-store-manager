@@ -3,7 +3,7 @@ const token = () => localStorage.getItem('token');
 
 // Simple in-memory cache for GET requests
 const cache = new Map<string, { data: any; ts: number }>();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 5000; // 5 seconds
 
 function getCached(key: string): any | null {
   const entry = cache.get(key);
@@ -14,7 +14,6 @@ function getCached(key: string): any | null {
 
 function setCache(key: string, data: any) {
   cache.set(key, { data, ts: Date.now() });
-  // Limit cache size
   if (cache.size > 100) {
     const oldest = cache.keys().next().value;
     if (oldest !== undefined) cache.delete(oldest);
@@ -28,17 +27,25 @@ export function invalidateCache(pattern?: string) {
   }
 }
 
+/** Invalidate cache for a URL and all its parent paths */
+function invalidateRelated(url: string) {
+  const path = url.split('?')[0];
+  invalidateCache(path);
+  const parts = path.split('/');
+  while (parts.length > 2) { parts.pop(); invalidateCache(parts.join('/')); }
+}
+
 async function parseError(r: Response): Promise<Error> {
   try {
     const data = await r.json();
     if (r.status === 401) {
       localStorage.removeItem('token');
       if (location.pathname !== '/login') location.href = '/login';
-      return new Error('\u767b\u5f55\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55');
+      return new Error('登录已过期，请重新登录');
     }
-    return new Error(data.error || data.message || '\u8bf7\u6c42\u5931\u8d25');
+    return new Error(data.error || data.message || '请求失败');
   } catch {
-    return new Error('\u8bf7\u6c42\u5931\u8d25 (' + r.status + ')');
+    return new Error('请求失败 (' + r.status + ')');
   }
 }
 
@@ -55,19 +62,19 @@ export const api = {
   post: async (url: string, body: any) => {
     const res = await fetch('/api' + url, { method: 'POST', headers: headers(), cache: 'no-cache', body: JSON.stringify(body) });
     if (!res.ok) throw await parseError(res);
-    invalidateCache(url.split('?')[0]);
+    invalidateRelated(url);
     return res.json();
   },
   put: async (url: string, body: any) => {
     const res = await fetch('/api' + url, { method: 'PUT', headers: headers(), cache: 'no-cache', body: JSON.stringify(body) });
     if (!res.ok) throw await parseError(res);
-    invalidateCache(url.split('?')[0]);
+    invalidateRelated(url);
     return res.json();
   },
   del: async (url: string, body?: any) => {
     const res = await fetch('/api' + url, { method: 'DELETE', headers: headers(), cache: 'no-cache', ...(body ? { body: JSON.stringify(body) } : {}) });
     if (!res.ok) throw await parseError(res);
-    invalidateCache(url.split('?')[0]);
+    invalidateRelated(url);
     return res.json();
   },
   upload: async (url: string, formData: FormData) => {

@@ -14,7 +14,10 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
-    // 移除 query token 支持（安全考虑，仅支持 Header）
+    // SSE 等无法设置 Header 的场景支持 query token
+    if (!token && req.query.token) {
+      token = req.query.token as string;
+    }
     if (!token) {
       return res.status(401).json({ error: '未提供认证令牌' });
     }

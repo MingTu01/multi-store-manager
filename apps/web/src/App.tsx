@@ -1,6 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './stores/data';
+import { useSSE } from './lib/sse';
 import { canAccess } from './lib/permissions';
 import { AppShell } from './layouts/AppShell';
 import { StoreGuard } from './components/StoreGuard';
@@ -46,6 +47,7 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
 export default function App() {
   const restore = useStore((s) => s.restore);
   useEffect(() => { restore(); }, [restore]);
+  useSSE();
 
   return (
     <Suspense fallback={<Loading />}>

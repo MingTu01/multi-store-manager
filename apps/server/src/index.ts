@@ -29,6 +29,7 @@ import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings } from './notify.js';
 import { startReportScheduler } from './report-scheduler.js';
+import { eventBus } from './event-bus.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -106,13 +107,16 @@ app.use('/uploads', express.static(join(BASE_DIR, '..', 'uploads'), { maxAge: '3
 
 // Public auth routes
 
-// SSE - Server-Sent Events for real-time connection status
-app.get('/api/sse', (req, res) => {
+// SSE - Server-Sent Events for real-time data push
+app.get('/api/sse', authMiddleware, (req, res) => {
+  const userId = (req as any).user?.id || 0;
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
+
+  const clientId = eventBus.addClient(userId, res);
 
   const heartbeat = setInterval(() => {
     try { res.write('data: {"type":"heartbeat","ts":' + Date.now() + '}\n\n'); } catch {}
@@ -120,8 +124,11 @@ app.get('/api/sse', (req, res) => {
 
   res.write('data: {"type":"connected","ts":' + Date.now() + '}\n\n');
 
-  req.on('close', () => { clearInterval(heartbeat); });
+  req.on('close', () => { clearInterval(heartbeat); eventBus.removeClient(clientId); });
 });
+
+// Export eventBus for use in routes
+export { eventBus };
 
 app.use('/api/auth', authRouter);
 
