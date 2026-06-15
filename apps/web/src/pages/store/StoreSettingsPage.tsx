@@ -161,8 +161,8 @@ export default function StoreSettingsPage() {
     try {
       const newPhotos: string[] = [];
       for (const file of Array.from(files)) {
-        const compressed = await compressImage(file, 800, 0.6);
-        newPhotos.push(compressed);
+        const url = await uploadImage(file, api, 'stores');
+        newPhotos.push(url);
       }
       const updated = [...(store?.photos || []), ...newPhotos];
       await api.put('/stores/' + storeId, {

@@ -1,4 +1,4 @@
-import { compressImage } from '../../lib/image';
+import { uploadImage } from '../../lib/image';
 import { useState, useRef } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
@@ -54,11 +54,11 @@ export default function AdminSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const compressed = await compressImage(file);
-      const d: any = await api.put('/auth/me', { avatar: compressed });
+      const url = await uploadImage(file, api, 'avatars');
+      const d = await api.put('/auth/me', { avatar: url });
       if (d.user) useStore.setState({ user: { ...user!, ...d.user } });
       showMsg(true, '头像已更新');
-    } catch (err: any) { showMsg(false, err.message || '头像更新失败'); }
+    } catch (err) { showMsg(false, '头像更新失败'); }
   };
 
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100';
