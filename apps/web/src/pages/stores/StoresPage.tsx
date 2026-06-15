@@ -42,7 +42,7 @@ export default function StoresPage() {
       name: s.name || '',
       address: s.address || '',
       initial_capital: String(s.initial_capital || ''),
-      photos: s.photo ? [s.photo] : [],
+      photos: (() => { try { return typeof s.photos === 'string' ? JSON.parse(s.photos) : (s.photos || []); } catch { return []; } })(),
       shareholders: (s.shareholders || []).map((sh: any) => ({ name: sh.name, phone: sh.phone || '', ratio: sh.ratio })),
     });
     setShowModal(true);
@@ -117,7 +117,7 @@ export default function StoresPage() {
           return (
             <GlassCard key={s.id} className="cursor-pointer overflow-hidden transition-all hover:shadow-xl" onClick={() => nav('/store/' + s.id)}>
               {(() => {
-                const sp: any[] = s.photo ? [s.photo] : [];
+                const sp: any[] = (() => { try { return typeof s.photos === 'string' ? JSON.parse(s.photos) : (s.photos || []); } catch { return []; } })();
                 return sp.length > 0 ? (
                   <div className="h-32 w-full overflow-hidden bg-slate-100 flex gap-0.5">
                     {sp.slice(0, 3).map((p: string, i: number) => <img key={i} src={p} alt={s.name} className="h-full flex-1 object-cover"  loading="lazy" />)}
