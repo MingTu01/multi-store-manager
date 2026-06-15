@@ -16,21 +16,7 @@ export function BottomNav() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnread = useNotificationStore((s) => s.fetchUnread);
 
-  useEffect(() => {
-    if (!storeId) { setStoreOpen(null); return; }
-    api.get('/stores/' + storeId).then((d: any) => setStoreOpen(d.is_open === 1)).catch(() => setStoreOpen(true));
-  }, [storeId]);
-
-  useEffect(() => {
-    const fetchCount = () => {
-      api.get('/notifications/unread-count').then((d: any) => {
-        setUnreadCount(d.count || 0);
-      }).catch(() => {});
-    };
-    fetchCount();
-    const timer = setInterval(fetchCount, 30000);
-    return () => clearInterval(timer);
-  }, []);
+  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
 
   if (storeId && storeOpen === false) return null;
   if (storeId && storeOpen === null) return null;

@@ -11,11 +11,9 @@ const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
   STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
 
 export function Sidebar() {
-  const [unreadCount, setUnreadCount] = useState(0);
-  useEffect(() => {
-    const fetch = () => api.get('/notifications/unread-count').then((d) => setUnreadCount(d.count || 0)).catch(() => {});
-    fetch(); const t = setInterval(fetch, 30000); return () => clearInterval(t);
-  }, []);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const fetchUnread = useNotificationStore((s) => s.fetchUnread);
+  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();

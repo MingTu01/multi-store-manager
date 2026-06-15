@@ -7,6 +7,7 @@ import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useStore } from '../../stores/data';
 import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle } from 'lucide-react';
+import { ImagePreview } from '../../components/ImagePreview';
 import { compressImage } from '../../lib/image';
 
 const roles = [

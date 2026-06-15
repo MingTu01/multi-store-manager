@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { compressImage } from '../../lib/image';
+import { ImagePreview } from '../../components/ImagePreview';
 import { api } from '../../lib/api';
 import { showToast } from '../../components/Toast';
 import { GlassCard } from '../../components/GlassCard';

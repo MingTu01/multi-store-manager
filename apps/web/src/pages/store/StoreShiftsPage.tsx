@@ -7,6 +7,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Power, Camera, Upload, Clock, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { ImagePreview } from '../../components/ImagePreview';
 
 export default function StoreShiftsPage() {
   const { storeId } = useParams();
