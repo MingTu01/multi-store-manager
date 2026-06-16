@@ -35,7 +35,7 @@
 ### 方式二：Docker 部署
 ```bash
 # 克隆部署仓库
-git clone https://github.com/MingTu01/multi-shop-link-deploy.git
+git clone https://ghfast.top/https://github.com/MingTu01/multi-shop-link-deploy.git
 cd multi-shop-link-deploy
 
 # 启动
@@ -45,7 +45,7 @@ docker-compose up -d
 ### 方式三：直接部署
 ```bash
 # 克隆部署仓库
-git clone https://github.com/MingTu01/multi-shop-link-deploy.git
+git clone https://ghfast.top/https://github.com/MingTu01/multi-shop-link-deploy.git
 cd multi-shop-link-deploy
 
 # 安装依赖
