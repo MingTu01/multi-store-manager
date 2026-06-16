@@ -3,9 +3,6 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/**'
-      - 'package.json'
 
 jobs:
   build-and-deploy:
