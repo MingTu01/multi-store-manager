@@ -1,0 +1,77 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'package.json'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: apps/web
+        run: npm install
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: npx vite build
+
+      - name: Checkout deploy repo
+        uses: actions/checkout@v4
+        with:
+          repository: MingTu01/multi-shop-link-deploy
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          path: deploy
+
+      - name: Update deploy repo
+        run: |
+          # Clean old files (keep data, uploads, backups)
+          cd deploy
+          rm -rf src/ public/ package.json tsconfig.json seed.ts *.traineddata
+
+          # Copy server source
+          cp -r ../apps/server/src/ src/
+
+          # Copy frontend build
+          mkdir -p public/web-dist
+          cp -r ../apps/web/dist/* public/web-dist/
+
+          # Copy public/reports
+          mkdir -p public/reports
+          cp -r ../apps/server/public/reports/* public/reports/ 2>/dev/null || true
+
+          # Copy package files
+          cp ../apps/server/package.json .
+          cp ../apps/server/package-lock.json* . 2>/dev/null || true
+          cp ../apps/server/tsconfig.json .
+          cp ../apps/server/seed.ts . 2>/dev/null || true
+
+          # Copy OCR data
+          cp ../apps/server/chi_sim.traineddata . 2>/dev/null || true
+          cp ../apps/server/eng.traineddata . 2>/dev/null || true
+
+          # Update version
+          VERSION=$(node -p "require('./package.json').version")
+          mkdir -p data
+          echo "{\"version\":\"$VERSION\"}" > data/version.json
+
+      - name: Commit and push
+        run: |
+          cd deploy
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          VERSION=$(node -p "require('./package.json').version")
+          git diff --cached --quiet || git commit -m "build: v$VERSION"
+          git push
