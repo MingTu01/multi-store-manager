@@ -367,6 +367,148 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
 router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+
+// GitHub Proxy mirrors for China
+const GITHUB_PROXIES = ['https://ghfast.top/', 'https://gh-proxy.com/'];
+const DEPLOY_REPO = 'MingTu01/multi-shop-link-deploy';
+
+async function fetchWithProxy(url: string, opts?: any): Promise<Response | null> {
+  for (const proxy of GITHUB_PROXIES) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const res = await fetch(proxy + url, { ...opts, signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.ok) return res;
+    } catch {}
+  }
+  // Try direct
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) return res;
+  } catch {}
+  return null;
+}
+
+// Check for updates
+router.get('/check-update', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    
+    // Get current version
+    let currentVersion = '1.0.0';
+    try { currentVersion = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
+    
+    // Get latest version from deploy repo
+    const versionUrl = 'https://raw.githubusercontent.com/' + DEPLOY_REPO + '/main/data/version.json';
+    const versionRes = await fetchWithProxy(versionUrl);
+    if (!versionRes) return res.json({ currentVersion, latestVersion: null, error: '无法连接到更新服务器' });
+    
+    const latestData = await versionRes.json();
+    const latestVersion = latestData.version;
+    
+    // Compare versions
+    const hasUpdate = latestVersion !== currentVersion;
+    
+    res.json({ currentVersion, latestVersion, hasUpdate });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// Execute update
+router.post('/do-update', async (req: AuthRequest, res: Response) => {
+  try {
+    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    res.json({ message: '更新已开始...' });
+    
+    (async () => {
+      try {
+        // Step 1: Backup database
+        broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据库...' });
+        const backupDir = join(BASE_DIR, 'backups');
+        mkdirSync(backupDir, { recursive: true });
+        const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        db.pragma('wal_checkpoint(TRUNCATE)');
+        const preZip = new AdmZip();
+        preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db'), '', 'store.db');
+        if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
+        if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
+        preZip.writeZip(join(backupDir, 'pre-update-' + now + '.zip'));
+        broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 2: Download latest from deploy repo
+        broadcastProgress('progress', { step: 2, total: 4, message: '正在下载最新版本...' });
+        const zipUrl = 'https://github.com/' + DEPLOY_REPO + '/archive/refs/heads/main.zip';
+        const zipRes = await fetchWithProxy(zipUrl);
+        if (!zipRes) { broadcastProgress('error', { message: '下载失败: 无法连接到更新服务器' }); return; }
+        
+        const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
+        const tempZip = join(BASE_DIR, 'uploads', 'update-' + Date.now() + '.zip');
+        writeFileSync(tempZip, zipBuffer);
+        broadcastProgress('progress', { step: 2, total: 4, message: '下载完成', done: true });
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 3: Extract and copy files
+        broadcastProgress('progress', { step: 3, total: 4, message: '正在更新文件...' });
+        const extractDir = join(BASE_DIR, 'uploads', 'extract-update-' + Date.now());
+        mkdirSync(extractDir, { recursive: true });
+        const zip = new AdmZip(tempZip);
+        zip.extractAllTo(extractDir, true);
+        
+        // Find the extracted directory (multi-shop-link-deploy-main/)
+        const extractedDirs = readdirSync(extractDir).filter(d => existsSync(join(extractDir, d, 'src')));
+        const sourceDir = extractedDirs.length > 0 ? join(extractDir, extractedDirs[0]) : extractDir;
+        
+        const copyDir = (src: string, dest: string) => {
+          mkdirSync(dest, { recursive: true });
+          for (const entry of readdirSync(src, { withFileTypes: true })) {
+            const srcPath = join(src, entry.name);
+            const destPath = join(dest, entry.name);
+            if (entry.isDirectory()) copyDir(srcPath, destPath);
+            else copyFileSync(srcPath, destPath);
+          }
+        };
+        
+        // Copy server source
+        if (existsSync(join(sourceDir, 'src'))) copyDir(join(sourceDir, 'src'), join(BASE_DIR, 'src'));
+        // Copy frontend
+        if (existsSync(join(sourceDir, 'public', 'web-dist'))) copyDir(join(sourceDir, 'public', 'web-dist'), join(BASE_DIR, 'public', 'web-dist'));
+        // Copy package.json
+        if (existsSync(join(sourceDir, 'package.json'))) copyFileSync(join(sourceDir, 'package.json'), join(BASE_DIR, 'package.json'));
+        // Copy tsconfig
+        if (existsSync(join(sourceDir, 'tsconfig.json'))) copyFileSync(join(sourceDir, 'tsconfig.json'), join(BASE_DIR, 'tsconfig.json'));
+        
+        // Update version.json
+        if (existsSync(join(sourceDir, 'data', 'version.json'))) {
+          copyFileSync(join(sourceDir, 'data', 'version.json'), join(BASE_DIR, 'data', 'version.json'));
+        }
+        
+        // Cleanup
+        try { unlinkSync(tempZip); } catch {}
+        try { rmSync(extractDir, { recursive: true, force: true } as any); } catch {}
+        
+        broadcastProgress('progress', { step: 3, total: 4, message: '文件更新完成', done: true });
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Step 4: Restart
+        broadcastProgress('progress', { step: 4, total: 4, message: '正在重启服务...' });
+        broadcastProgress('ready', { message: '更新完成，正在重启...' });
+        
+        setTimeout(() => {
+          console.log('[Update] Sending SIGTERM for restart...');
+          process.kill(process.pid, 'SIGTERM');
+        }, 2000);
+        
+      } catch (err: any) {
+        broadcastProgress('error', { message: '更新失败: ' + err.message });
+      }
+    })();
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
     const uploadsDir = join(BASE_DIR, 'uploads');
     if (existsSync(uploadsDir)) {
       const items = readdirSync(uploadsDir);

@@ -43,6 +43,9 @@ export default function SettingsPage() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [upgradeSteps, setUpgradeSteps] = useState<{ msg: string; done: boolean }[]>([]);
   const [upgradeComplete, setUpgradeComplete] = useState(false);
+  const [updateCheckResult, setUpdateCheckResult] = useState<any>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState('');
@@ -169,6 +172,31 @@ export default function SettingsPage() {
   };
 
   // === Upgrade ===
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    setUpdateCheckResult(null);
+    try {
+      const r = await api.get('/system/check-update');
+      setUpdateCheckResult(r);
+    } catch (e: any) { setUpdateCheckResult({ error: e.message || '检查失败' }); }
+    finally { setCheckingUpdate(false); }
+  };
+
+  const handleOnlineUpdate = async () => {
+    if (!confirm('确定要更新到 v' + updateCheckResult.latestVersion + ' 吗？\n系统将自动备份数据库并重启。')) return;
+    setUpdating(true);
+    try {
+      await api.post('/system/do-update', {});
+      // Poll for restart
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try { await api.get('/system/info'); if (attempts > 10) { clearInterval(poll); window.location.reload(); } }
+        catch { clearInterval(poll); setTimeout(() => window.location.reload(), 3000); }
+      }, 2000);
+    } catch (e: any) { alert('更新失败: ' + e.message); setUpdating(false); }
+  };
+
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -400,7 +428,7 @@ export default function SettingsPage() {
       )}
 
       {/* === Upgrade === */}
-      {tab === 'upgrade' && (
+            {tab === 'upgrade' && (
         <div className="space-y-3">
           <GlassCard className="p-4">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700"><Upload className="h-4 w-4 text-indigo-500" />系统升级</h3>
@@ -408,32 +436,58 @@ export default function SettingsPage() {
               <div className="text-xs text-slate-500">当前版本</div>
               <div className="text-lg font-bold text-indigo-600">v{info?.version || '1.0.0'}</div>
             </div>
-            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-8 transition-colors hover:border-indigo-300">
-              <Upload className="mb-2 h-8 w-8 text-slate-400" />
-              <span className="text-sm text-slate-500">{validating ? '验证中..' : '点击选择ZIP升级包'}</span>
-              <input type="file" accept=".zip" onChange={handleUpgradeSelect} className="hidden" disabled={validating} />
-            </label>
-            {upgradeInfo && (
-              <div className="mt-4 space-y-3">
-                <div className="rounded-xl bg-emerald-50 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Check className="h-5 w-5 text-emerald-500" />
-                    <span className="text-sm font-semibold text-emerald-700">升级包验证通过</span>
-                  </div>
-                  <div className="space-y-1 text-sm text-slate-600">
-                    <div>文件名: {upgradeInfo.file}</div>
-                    <div>版本: <span className="font-bold text-indigo-600">v{upgradeInfo.version}</span></div>
-                  </div>
+
+            {/* Online Update */}
+            <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+              <h4 className="mb-2 text-sm font-medium text-slate-700">在线更新</h4>
+              {updateCheckResult && (
+                <div className={'mb-3 rounded-xl p-3 text-sm ' + (updateCheckResult.hasUpdate ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700')}>
+                  {updateCheckResult.hasUpdate
+                    ? '发现新版本 v' + updateCheckResult.latestVersion + '（当前 v' + updateCheckResult.currentVersion + '）'
+                    : '已是最新版本 v' + updateCheckResult.currentVersion}
                 </div>
-                <button onClick={handleStartUpgrade} className="btn w-full">开始升级</button>
+              )}
+              {updateCheckResult?.error && (
+                <div className="mb-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-600">{updateCheckResult.error}</div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={handleCheckUpdate} disabled={checkingUpdate} className="flex-1 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 border border-slate-200">
+                  {checkingUpdate ? '检查中...' : '检查更新'}
+                </button>
+                {updateCheckResult?.hasUpdate && (
+                  <button onClick={handleOnlineUpdate} disabled={updating} className="flex-1 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
+                    {updating ? '更新中...' : '执行更新'}
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* ZIP Upload (fallback) */}
+            <details className="group">
+              <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 mb-2">手动上传ZIP升级包</summary>
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 py-6 transition-colors hover:border-indigo-300">
+                <Upload className="mb-2 h-6 w-6 text-slate-400" />
+                <span className="text-sm text-slate-500">{validating ? '验证中...' : '点击选择ZIP升级包'}</span>
+                <input type="file" accept=".zip" onChange={handleUpgradeSelect} className="hidden" disabled={validating} />
+              </label>
+              {upgradeInfo && (
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-xl bg-emerald-50 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Check className="h-4 w-4 text-emerald-500" />
+                      <span className="text-sm font-semibold text-emerald-700">验证通过</span>
+                    </div>
+                    <div className="text-sm text-slate-600">版本: <span className="font-bold text-indigo-600">v{upgradeInfo.version}</span></div>
+                  </div>
+                  <button onClick={handleStartUpgrade} className="btn w-full">开始升级</button>
+                </div>
+              )}
+            </details>
           </GlassCard>
         </div>
       )}
 
-      {/* === Notifications === */}
-      {tab === 'notif' && (
+{tab === 'notif' && (
         <div className="space-y-3">
           <GlassCard className="p-4">
             <h3 className="mb-4 text-sm font-semibold text-slate-700">渠道配置</h3>
