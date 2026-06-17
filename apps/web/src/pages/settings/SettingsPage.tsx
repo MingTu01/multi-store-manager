@@ -530,7 +530,7 @@ export default function SettingsPage() {
       {tab === 'perms' && (
         <GlassCard className="p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-700">权限说明</h3>
-          <div className="space-y-3">            {[{ role: '系统管理员(ADMIN)', desc: '拥有系统全部权限：店铺管理、员工管理、记账、盘点、工资、分红、报表、系统设置、数据备份、升级、消息推送配置', color: 'bg-indigo-50 text-indigo-600' }, { role: '店铺管理员(STORE_ADMIN)', desc: '拥有单店铺管理权限：修改门店信息、员工管理、记账、盘点、工资、分红、报表、店铺消息推送配置', color: 'bg-sky-50 text-sky-600' }, { role: '店长(MANAGER)', desc: '管理门店日常运营：记账、盘点、开闭店、查看员工和报表，不可修改系统设置', color: 'bg-emerald-50 text-emerald-600' }, { role: '员工(STAFF)', desc: '基础操作：记账、盘点、开闭店，查看今日数据，不可查看其他月份数据', color: 'bg-amber-50 text-amber-600' }, { role: '股东(SHAREHOLDER)', desc: '只读权限：可查看所有页面内容，不可进行任何操作', color: 'bg-violet-50 text-violet-600' }].map((r) => (
+          <div className="space-y-3">            {[{ role: '系统管理员(ADMIN)', desc: '拥有系统全部权限：店铺管理、员工管理、记账、盘点、工资、分红、报表、系统设置、数据备份、升级、消息推送配置', color: 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 border border-amber-300' }, { role: '店铺管理员(STORE_ADMIN)', desc: '拥有单店铺管理权限：修改门店信息、员工管理、记账、盘点、工资、分红、报表、店铺消息推送配置', color: 'bg-sky-50 text-sky-600' }, { role: '店长(MANAGER)', desc: '管理门店日常运营：记账、盘点、开闭店、查看员工和报表，不可修改系统设置', color: 'bg-emerald-50 text-emerald-600' }, { role: '员工(STAFF)', desc: '基础操作：记账、盘点、开闭店，查看今日数据，不可查看其他月份数据', color: 'bg-amber-50 text-amber-600' }, { role: '股东(SHAREHOLDER)', desc: '只读权限：可查看所有页面内容，不可进行任何操作', color: 'bg-violet-50 text-violet-600' }].map((r) => (
               <div key={r.role} className="rounded-xl bg-slate-50 p-3">
                 <span className={`mr-2 rounded-full px-2 py-0.5 text-xs font-medium ${r.color}`}>{r.role}</span>
                 <span className="text-sm text-slate-600">{r.desc}</span>

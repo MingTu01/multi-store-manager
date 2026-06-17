@@ -1,3 +1,4 @@
+import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -210,7 +211,7 @@ export default function StoreStaffPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-slate-500">角色</label>
-              <div className="flex gap-2">{roles.map((r) => (<button key={r.value} onClick={() => setForm({ ...form, role: r.value })} className={'flex-1 rounded-lg py-1.5 text-xs font-medium ' + (form.role === r.value ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600')}>{r.label}</button>))}</div>
+              <div className="flex gap-2">{roles.map((r) => (<button key={r.value} onClick={() => setForm({ ...form, role: r.value })} className={'flex-1 rounded-lg py-1.5 text-xs font-medium ' + (form.role === r.value ? (r.value === 'ADMIN' ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-white' : 'bg-indigo-500 text-white') : 'bg-slate-100 text-slate-600')}>{r.label}</button>))}</div>
             </div>
             <div>
               <label className="mb-1 block text-xs text-slate-500">状态</label>

@@ -1,3 +1,4 @@
+import { getRoleLabel } from '../../lib/role';
 import { useState } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -40,7 +41,7 @@ export default function PasswordPage() {
           </div>
           <div>
             <div className="text-base font-bold text-slate-900">{user?.name}</div>
-            <div className="text-sm text-slate-500">{user?.role === 'ADMIN' ? '管理员' : user?.role === 'MANAGER' ? '经理' : user?.role === 'STAFF' ? '员工' : '股东'}</div>
+            <div className="text-sm text-slate-500">{getRoleLabel(user?.role)}</div>
           </div>
         </div>
       </GlassCard>

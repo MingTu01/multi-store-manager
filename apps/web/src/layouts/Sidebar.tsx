@@ -7,8 +7,7 @@ import { useNotificationStore } from '../stores/notification';
 import { canAccess } from '../lib/permissions';
 import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft } from 'lucide-react';
 
-const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
-  STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+import { getRoleLabel, getRoleBg, getRoleColor } from '../lib/role';
 
 export function Sidebar() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
@@ -80,7 +79,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 text-left min-w-0">
             <div className="text-sm font-medium text-slate-800 truncate">{user?.name}</div>
-            <div className="text-xs text-slate-400">{roleLabels[user?.role || ''] || user?.role}</div>
+            <div className="text-xs text-slate-400"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${getRoleBg(user?.role)} ${getRoleColor(user?.role)}`}>{getRoleLabel(user?.role)}</span></div>
           </div>
           <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
         </button>

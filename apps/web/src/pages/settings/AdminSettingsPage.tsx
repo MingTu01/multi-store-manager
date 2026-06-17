@@ -7,8 +7,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save, LogOut } from 'lucide-react';
 
-const roleLabels: Record<string, string> = { ADMIN: '系统管理员',
-  STORE_ADMIN: '店铺管理员', MANAGER: '店长', STAFF: '员工', SHAREHOLDER: '股东' };
+import { getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 
 export default function AdminSettingsPage() {
   const user = useStore((s) => s.user);
@@ -90,7 +89,7 @@ export default function AdminSettingsPage() {
           <div>
             <div className="text-xl font-bold text-slate-900">{user?.name}</div>
             <div className="text-sm text-slate-500">@{user?.username}</div>
-            <span className="mt-1 inline-block rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-600">{roleLabels[user?.role || ''] || user?.role}</span>
+            <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getRoleBg(user?.role)} ${getRoleColor(user?.role)}`}>{getRoleLabel(user?.role)}</span>
           </div>
         </div>
       </GlassCard>
@@ -101,7 +100,7 @@ export default function AdminSettingsPage() {
           { icon: User, label: '用户名', value: user?.username },
           { icon: Phone, label: '手机号', value: user?.phone || '未设置' },
           { icon: MapPin, label: '联系地址', value: user?.address || '未设置' },
-          { icon: Shield, label: '角色', value: roleLabels[user?.role || ''] || user?.role },
+          { icon: Shield, label: '角色', value: getRoleLabel(user?.role) },
         ].map((item) => (
           <div key={item.label} className="flex items-center gap-3 px-4 py-3.5">
             <item.icon className="h-4 w-4 text-slate-400" />
