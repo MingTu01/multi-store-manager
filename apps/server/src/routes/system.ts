@@ -368,6 +368,23 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
   try {
     if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
 
+    const uploadsDir = join(BASE_DIR, 'uploads');
+    if (existsSync(uploadsDir)) {
+      const items = readdirSync(uploadsDir);
+      for (const item of items) {
+        if (item.startsWith('extract-')) {
+          const extractPath = join(uploadsDir, item);
+          try {
+            fs.rmSync(extractPath, { recursive: true, force: true });
+            console.log('[Cleanup] Removed:', item);
+          } catch (e) { console.error('[Cleanup] Failed to remove:', item, e); }
+        }
+      }
+    }
+    res.json({ message: '清理完成' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 // GitHub Proxy mirrors for China
 const GITHUB_PROXIES = ['https://ghfast.top/', 'https://gh-proxy.com/'];
 const DEPLOY_REPO = 'MingTu01/multi-shop-link-deploy';
@@ -439,63 +456,62 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         
-        // Step 2: Download latest from deploy repo
-        broadcastProgress('progress', { step: 2, total: 4, message: '正在下载最新版本...' });
+        // Step 2: Download latest code
+        broadcastProgress('progress', { step: 2, total: 4, message: '正在下载更新...' });
         const zipUrl = 'https://github.com/' + DEPLOY_REPO + '/archive/refs/heads/main.zip';
         const zipRes = await fetchWithProxy(zipUrl);
-        if (!zipRes) { broadcastProgress('error', { message: '下载失败: 无法连接到更新服务器' }); return; }
+        if (!zipRes) throw new Error('无法下载更新包');
         
         const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
-        const tempZip = join(BASE_DIR, 'uploads', 'update-' + Date.now() + '.zip');
-        writeFileSync(tempZip, zipBuffer);
         broadcastProgress('progress', { step: 2, total: 4, message: '下载完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         
-        // Step 3: Extract and copy files
-        broadcastProgress('progress', { step: 3, total: 4, message: '正在更新文件...' });
-        const extractDir = join(BASE_DIR, 'uploads', 'extract-update-' + Date.now());
+        // Step 3: Extract and update
+        broadcastProgress('progress', { step: 3, total: 4, message: '正在应用更新...' });
+        const extractDir = join(BASE_DIR, 'uploads', 'extract-' + now);
         mkdirSync(extractDir, { recursive: true });
-        const zip = new AdmZip(tempZip);
+        
+        const zip = new AdmZip(zipBuffer);
         zip.extractAllTo(extractDir, true);
         
-        // Find the extracted directory (multi-shop-link-deploy-main/)
-        const extractedDirs = readdirSync(extractDir).filter(d => existsSync(join(extractDir, d, 'src')));
-        const sourceDir = extractedDirs.length > 0 ? join(extractDir, extractedDirs[0]) : extractDir;
+        const extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
         
-        const copyDir = (src: string, dest: string) => {
-          mkdirSync(dest, { recursive: true });
-          for (const entry of readdirSync(src, { withFileTypes: true })) {
-            const srcPath = join(src, entry.name);
-            const destPath = join(dest, entry.name);
-            if (entry.isDirectory()) copyDir(srcPath, destPath);
-            else copyFileSync(srcPath, destPath);
-          }
-        };
-        
-        // Copy server source
-        if (existsSync(join(sourceDir, 'src'))) copyDir(join(sourceDir, 'src'), join(BASE_DIR, 'src'));
-        // Copy frontend
-        if (existsSync(join(sourceDir, 'public', 'web-dist'))) copyDir(join(sourceDir, 'public', 'web-dist'), join(BASE_DIR, 'public', 'web-dist'));
-        // Copy package.json
-        if (existsSync(join(sourceDir, 'package.json'))) copyFileSync(join(sourceDir, 'package.json'), join(BASE_DIR, 'package.json'));
-        // Copy tsconfig
-        if (existsSync(join(sourceDir, 'tsconfig.json'))) copyFileSync(join(sourceDir, 'tsconfig.json'), join(BASE_DIR, 'tsconfig.json'));
-        
-        // Update version.json
-        if (existsSync(join(sourceDir, 'data', 'version.json'))) {
-          copyFileSync(join(sourceDir, 'data', 'version.json'), join(BASE_DIR, 'data', 'version.json'));
+        // Copy src
+        const srcDir = join(extractedFolder, 'src');
+        if (existsSync(srcDir)) {
+          const destSrc = join(BASE_DIR, 'src');
+          fs.rmSync(destSrc, { recursive: true, force: true });
+          fs.cpSync(srcDir, destSrc, { recursive: true });
         }
         
-        // Cleanup
-        try { unlinkSync(tempZip); } catch {}
-        try { rmSync(extractDir, { recursive: true, force: true } as any); } catch {}
+        // Copy public
+        const publicDir = join(extractedFolder, 'public');
+        if (existsSync(publicDir)) {
+          const destPublic = join(BASE_DIR, 'public');
+          fs.cpSync(publicDir, destPublic, { recursive: true });
+        }
         
-        broadcastProgress('progress', { step: 3, total: 4, message: '文件更新完成', done: true });
+        // Copy package.json
+        const pkgFile = join(extractedFolder, 'package.json');
+        if (existsSync(pkgFile)) {
+          fs.copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
+        }
+        
+        // Update version
+        const versionFile = join(extractedFolder, 'data', 'version.json');
+        if (existsSync(versionFile)) {
+          fs.copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+        }
+        
+        // Cleanup extract dir
+        fs.rmSync(extractDir, { recursive: true, force: true });
+        
+        broadcastProgress('progress', { step: 3, total: 4, message: '更新应用完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         
         // Step 4: Restart
         broadcastProgress('progress', { step: 4, total: 4, message: '正在重启服务...' });
-        broadcastProgress('ready', { message: '更新完成，正在重启...' });
+        broadcastProgress('complete', { message: '更新完成，服务即将重启...' });
         
         setTimeout(() => {
           console.log('[Update] Sending SIGTERM for restart...');
@@ -506,23 +522,6 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('error', { message: '更新失败: ' + err.message });
       }
     })();
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
-
-    const uploadsDir = join(BASE_DIR, 'uploads');
-    if (existsSync(uploadsDir)) {
-      const items = readdirSync(uploadsDir);
-      for (const item of items) {
-        if (item.startsWith('extract-')) {
-          const extractPath = join(uploadsDir, item);
-          try {
-            fs.rmSync(extractPath, { recursive: true, force: true });
-            console.log('[Cleanup] Removed:', item);
-          } catch (e) { console.error('[Cleanup] Failed to remove:', item, e); }
-        }
-      }
-    }
-    res.json({ message: '娓呯悊瀹屾垚' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
