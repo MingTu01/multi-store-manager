@@ -6,7 +6,7 @@
 |------|------|
 | 操作系统 | CentOS 7+ / Ubuntu 18+ / Debian 9+ |
 | 管理面板 | 1Panel（推荐） |
-| 内存 | 1GB+（推荐2GB） |
+| 内存 | 1GB+（推荐 2GB） |
 | 磁盘 | 5GB+ 可用空间 |
 
 ---
@@ -49,7 +49,7 @@ unzip multi-shop-link-vX.X.X.zip -d multi-shop-link
 
 浏览器访问 `https://你的域名`
 
-**默认管理员账号**
+**默认管理员账号：**
 - 账号：`admin`
 - 密码：`123456`
 
@@ -59,26 +59,30 @@ unzip multi-shop-link-vX.X.X.zip -d multi-shop-link
 
 ## 二、升级部署
 
-### 2.1 通过 1Panel 升级（推荐）
-
-1. 1Panel → **运行环境** → 停止 Multi Shop Link
-2. 1Panel → **文件管理** → 上传新的 ZIP
-3. 备份数据库：
-```bash
-cp /opt/multi-shop-link/apps/server/data/store.db /opt/multi-shop-link/backups/store.db.bak
-```
-4. 解压覆盖：
-```bash
-cd /opt
-unzip -o multi-shop-link-vX.X.X.zip -d multi-shop-link
-```
-5. 1Panel → **运行环境** → 启动 Multi Shop Link
-
-### 2.2 通过 Web 界面升级
+### 2.1 通过 Web 界面升级（推荐）
 
 1. 管理员登录 → 系统设置 → 系统升级
-2. 选择 ZIP 升级包 → 开始升级
-3. 等待进度完成 → 确认
+2. 选择升级方式：
+   - **在线更新**：系统自动检查并下载新版本
+   - **ZIP 升级**：手动上传升级包
+3. 等待进度完成 → 确认刷新
+
+详见 [UPGRADE.md](./UPGRADE.md)
+
+### 2.2 通过 1Panel 手动升级
+
+1. 1Panel → **运行环境** → 停止 Multi Shop Link
+2. 1Panel → **文件管理** → 上传新的升级包 ZIP
+3. 备份数据库：
+   ```bash
+   cp /opt/multi-shop-link/apps/server/data/store.db /opt/multi-shop-link/backups/store.db.bak
+   ```
+4. 解压覆盖：
+   ```bash
+   cd /opt
+   unzip -o multi-shop-link-upgrade-vX.X.X.zip -d multi-shop-link
+   ```
+5. 1Panel → **运行环境** → 启动 Multi Shop Link
 
 ---
 
@@ -98,25 +102,6 @@ unzip -o multi-shop-link-vX.X.X.zip -d multi-shop-link
 ### 3.3 数据恢复
 
 系统设置 → 数据备份 → 选择备份 → 恢复 → 确认
-
-### 3.4 命令行备份（推荐定期执行）
-```bash
-# 创建备份脚本
-cat > /opt/multi-shop-link/backup.sh << 'EOF'
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/opt/multi-shop-link/backups"
-mkdir -p $BACKUP_DIR
-cp /opt/multi-shop-link/apps/server/data/store.db $BACKUP_DIR/manual-$DATE.db
-ls -t $BACKUP_DIR/manual-*.db | tail -n +31 | xargs rm -f 2>/dev/null
-echo "备份完成: manual-$DATE.db"
-EOF
-chmod +x /opt/multi-shop-link/backup.sh
-
-# 添加定时任务（每天凌晨3点备份）
-crontab -e
-# 添加：0 3 * * * /opt/multi-shop-link/backup.sh >> /var/log/backup.log 2>&1
-```
 
 ---
 
@@ -162,36 +147,16 @@ crontab -e
 ## 七、故障排查
 
 | 问题 | 解决方案 |
-|------|---------|
+|------|----------|
 | 页面白屏 | 1Panel → 运行环境 → 重启 |
 | 端口被占用 | 1Panel → 终端 → `lsof -i :3001` |
 | 数据库锁定 | `sqlite3 apps/server/data/store.db "PRAGMA wal_checkpoint(TRUNCATE);"` |
 | 图片上传失败 | 检查 `apps/server/uploads` 目录权限 |
-| 推送失败 | 检查网络是否能访问企业微信API |
+| 推送失败 | 检查网络是否能访问企业微信 API |
 
 ---
 
-## 八、目录结构
-
-```
-/opt/multi-shop-link/
-├── apps/
-│   ├── server/          # 后端
-│   │   ├── src/         # 源代码
-│   │   ├── data/        # 数据库文件（重要！勿删）
-│   │   ├── backups/     # 备份文件
-│   │   └── uploads/     # 上传文件
-│   └── web/             # 前端
-│       ├── dist/        # 构建产物
-│       └── src/         # 源代码
-├── deploy.sh            # 一键部署脚本
-├── ecosystem.config.cjs # PM2配置（备用）
-└── .env.example         # 环境变量模板
-```
-
----
-
-## 九、安全建议
+## 八、安全建议
 
 1. **修改默认密码**：首次登录后立即修改
 2. **HTTPS**：通过 1Panel 配置 SSL 证书

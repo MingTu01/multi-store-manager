@@ -1,269 +1,100 @@
 # 系统架构文档
 
-## 系统概览
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    客户端                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ 桌面浏览器    │  │ 移动端PWA    │  │ 微信通知    │  │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬─────┘  │
-│         │                  │                  │        │
-├─────────┴──────────────────┴──────────────────┴────────┤
-│                  Nginx 反向代理                         │
-├────────────────────────────────────────────────────────┤
-│              Express Server (:3001)                     │
-│  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │ 认证JWT  │ │ 路由处理  │ │ 文件上传  │ │ 静态服务   │  │
-│  └─────────┘ └──────────┘ └──────────┘ └───────────┘  │
-├────────────────────────────────────────────────────────┤
-│              SQLite (WAL模式)                           │
-│  store.db + store.db-wal + store.db-shm               │
-└────────────────────────────────────────────────────────┘
-```
-
 ## 技术栈
 
 | 层级 | 技术 | 版本 |
 |------|------|------|
 | 运行时 | Node.js | 20+ |
-| 后端框架 | Express | 4.x |
-| TypeScript运行时 | tsx | 最新 |
-| 前端框架 | React | 18.x |
+| 后端框架 | Express | 5.x |
+| TypeScript 运行时 | tsx | 最新 |
+| 前端框架 | React | 19.x |
 | 构建工具 | Vite | 8.x |
-| 数据库 | SQLite (better-sqlite3) | - |
+| 数据库 | SQLite (better-sqlite3) | WAL 模式 |
 | 认证 | JWT (jsonwebtoken) | - |
 | 密码加密 | bcryptjs | - |
-| UI图标 | lucide-react | - |
-| CSS | Tailwind CSS | - |
+| UI 图标 | lucide-react | - |
+| CSS | Tailwind CSS | 4.x |
 | OCR | Tesseract.js | 7.x |
 
 ## 目录结构
 
 ```
 apps/server/src/
-├── index.ts           # [核心] Express入口，路由挂载
-├── auth.ts            # [核心] JWT认证中间件
-├── db.ts              # [核心] 数据库初始化、表结构、迁移、种子
-├── oplog.ts           # [核心] 操作日志记录
+├── index.ts           # Express 入口，路由挂载
+├── auth.ts            # JWT 认证中间件
+├── db.ts              # 数据库初始化、表结构、迁移、种子
+├── oplog.ts           # 操作日志记录
 ├── notify.ts          # 消息推送
-├── report-image.ts    # 经营报告图片生成
-├── seed.ts            # 测试数据种子
-└── routes/
-    ├── auth.ts        # 登录/用户信息/密码
-    ├── stores.ts      # 门店CRUD
-    ├── entries.ts     # 记账CRUD
-    ├── payroll.ts     # 工资管理
-    ├── dividends.ts   # 分红管理
-    ├── inventory.ts   # 盘点管理
-    ├── shifts.ts      # 开闭店
-    ├── dashboard.ts   # 管理大屏聚合
-    ├── report.ts      # 单店报表
-    ├── reports.ts     # 汇总报表
-    ├── system.ts      # 备份/恢复/升级/通知
-    ├── logs.ts        # 操作日志查询
-    ├── categories.ts  # 收支分类
-    ├── users.ts       # 用户管理
-    ├── handovers.ts   # 交接记录
-    ├── health-cert.ts    # 健康证上传/OCR/保存
-    ├── health-check.ts    # 健康证到期检查
-    └── notifications.ts # 通知管理
+├── event-bus.ts       # SSE 事件总线
+├── report-scheduler.ts # 定时报表推送
+├── health-check-scheduler.ts # 健康证到期检查
+├── routes/
+│   ├── auth.ts        # 登录/用户信息/密码
+│   ├── stores.ts      # 门店 CRUD
+│   ├── entries.ts     # 记账 CRUD
+│   ├── payroll.ts     # 工资管理
+│   ├── dividends.ts   # 分红管理
+│   ├── inventory.ts   # 盘点管理
+│   ├── shifts.ts      # 开闭店
+│   ├── report.ts      # 报表数据
+│   ├── dashboard.ts   # 仪表盘数据
+│   ├── users.ts       # 员工管理
+│   ├── categories.ts  # 分类管理
+│   ├── handovers.ts   # 交接记录
+│   ├── logs.ts        # 操作日志
+│   ├── system.ts      # 系统设置/备份/升级
+│   ├── upload.ts      # 文件上传
+│   ├── notifications.ts # 通知管理
+│   └── health-cert.ts # 健康证管理
+└── middleware/
+    └── store-access.ts # 门店访问控制
 
 apps/web/src/
-├── main.tsx           # React入口
-├── App.tsx            # [核心] 路由配置
+├── App.tsx            # 路由配置
+├── main.tsx           # 入口
 ├── index.css          # 全局样式
 ├── components/        # 通用组件
-│   ├── GlassCard.tsx      # 毛玻璃卡片
-│   ├── Modal.tsx          # 弹窗
-│   ├── PageHeader.tsx     # 页面标题
-│   ├── PeriodTabs.tsx     # 日/周/月/年/总 切换
-│   ├── FloatingActionButton.tsx # 移动端浮动按钮
-│   └── StoreGuard.tsx     # 门店权限守卫
-├── layouts/
-│   ├── AppShell.tsx       # [核心] 整体布局
-│   ├── Sidebar.tsx        # 桌面端侧边栏
-│   ├── BottomNav.tsx      # 移动端底部导航
-│   └── TopBar.tsx         # 顶部栏
-├── lib/
-│   ├── api.ts             # [核心] API请求封装
-│   ├── format.tsx         # 金额格式化、万元切换
-│   └── permissions.ts     # [核心] 权限判断
-├── stores/
-│   └── data.ts            # [核心] 全局状态管理
+│   ├── Modal.tsx
+│   ├── GlassCard.tsx
+│   ├── BottomNav.tsx
+│   ├── Sidebar.tsx
+│   ├── FloatingActionButton.tsx
+│   ├── PeriodTabs.tsx
+│   ├── Pagination.tsx
+│   └── PageHeader.tsx
 ├── pages/
-│   ├── login/             # 登录页
-│   ├── dashboard/         # 管理大屏
-│   ├── stores/            # 门店管理
-│   ├── store/             # 店铺各功能页面
-│   ├── settings/          # 系统设置
-│   ├── logs/              # 全局日志
-│   └── notifications/     # 通知中心
+│   ├── LoginPage.tsx
+│   ├── DashboardPage.tsx       # 管理大屏
+│   ├── StoresPage.tsx          # 门店管理
+│   ├── AdminSettingsPage.tsx   # 系统设置
+│   ├── AccountPage.tsx         # 账户信息
+│   ├── PasswordPage.tsx        # 修改密码
+│   ├── NotificationsPage.tsx   # 通知页面
+│   └── settings/
+│       └── SettingsPage.tsx    # 系统设置详情
+│   └── store/
+│       ├── StoreGuard.tsx      # 开店霸屏守卫
+│       ├── StoreOverviewPage.tsx
+│       ├── StoreEntriesPage.tsx
+│       ├── StoreInventoryPage.tsx
+│       ├── StoreShiftsPage.tsx
+│       ├── StoreReportPage.tsx
+│       ├── StorePayrollPage.tsx
+│       ├── StoreDividendsPage.tsx
+│       ├── StoreStaffPage.tsx
+│       ├── StoreLogsPage.tsx
+│       ├── StoreSettingsPage.tsx
+│       ├── StoreAccountPage.tsx
+│       ├── StoreNotificationsPage.tsx
+│       └── StoreNotificationSettingsPage.tsx
+├── lib/
+│   ├── api.ts         # API 客户端
+│   ├── sse.ts         # SSE 连接
+│   ├── permissions.ts # 权限控制
+│   └── format.ts      # 格式化工具
+└── stores/
+    └── data.ts        # Zustand 全局状态
 ```
-
-## 数据库 ER 图
-
-```mermaid
-erDiagram
-    users ||--o{ stores : "管理"
-    users }o--|| stores : "属于"
-    stores ||--o{ shareholders : "包含"
-    stores ||--o{ entries : "记账"
-    stores ||--o{ payroll : "工资"
-    stores ||--o{ dividends : "分红"
-    stores ||--o{ inventory_master : "库存"
-    stores ||--o{ store_opens : "开闭店"
-    stores ||--o{ categories : "分类"
-    payroll ||--o{ payroll_items : "明细"
-    dividends ||--o{ dividend_details : "明细"
-
-    users {
-        int id PK
-        text username UK
-        text password_hash
-        text name
-        text phone
-        text role "ADMIN/MANAGER/STAFF/SHAREHOLDER"
-        text store_id FK
-        text avatar
-        real salary
-        text status
-        text health_cert_url
-        text health_cert_name
-        text health_cert_expiry
-        int health_cert_verified "active/inactive"
-        text job_title
-        text address
-        text created_at
-        text updated_at
-    }
-
-    stores {
-        text id PK
-        text name
-        text address
-        int manager_id FK
-        text status "active/inactive"
-        real initial_capital
-        int is_open "0/1"
-        text created_at
-        text updated_at
-    }
-
-    shareholders {
-        int id PK
-        text store_id FK
-        text name
-        real ratio
-        text phone
-    }
-
-    entries {
-        int id PK
-        text store_id FK
-        text type "收入/支出"
-        text category
-        int category_id FK
-        real amount
-        text note
-        text date
-        int created_by FK
-        int is_system
-        text created_at
-    }
-
-    payroll {
-        int id PK
-        text store_id FK
-        text period
-        text status "draft/confirmed"
-        real total_amount
-        int created_by FK
-        text confirmed_at
-        text created_at
-    }
-
-    payroll_items {
-        int id PK
-        int payroll_id FK
-        int user_id FK
-        text user_name
-        real base_amount
-        real bonus
-        real deduction
-        real total_amount
-        text job_title
-    }
-
-    dividends {
-        int id PK
-        text store_id FK
-        real total_amount
-        text note
-        text status "draft/confirmed"
-        int created_by FK
-        text created_at
-    }
-
-    dividend_details {
-        int id PK
-        int dividend_id FK
-        text shareholder_name
-        real ratio
-        real amount
-    }
-
-    op_logs {
-        int id PK
-        int user_id FK
-        text user_name
-        text action
-        text target
-        text detail
-        text created_at
-    }
-
-    categories {
-        int id PK
-        text name
-        text type "income/expense"
-        text store_id FK
-        int sort_order
-    }
-
-    store_opens {
-        int id PK
-        text store_id FK
-        text type "open/close"
-        int user_id FK
-        text note
-        text photo
-        text photos
-        text handover_content
-        text created_at
-    }
-```
-
-## 认证流程
-
-```
-客户端                    服务器                    JWT
-  │ POST /auth/login        │                        │
-  │ {username, password}    │                        │
-  │ ──────────────────────> │                        │
-  │                         │ 查库验证密码             │
-  │                         │ ──────────────────────> │
-  │                         │ <────────────────────── │
-  │ <── {token, user}       │                        │
-  │                         │                        │
-  │ 后续请求 Authorization: Bearer <token>            │
-  │ ──────────────────────> │                        │
-  │                         │ jwt.verify(token)       │
-  │                         │ req.user = decoded      │
-  │ <── 正常响应              │                        │
-```
-
-Token有效期7天，payload包含：`{id, username, name, role, store_id}`
 
 ## 核心函数说明
 
@@ -272,7 +103,7 @@ Token有效期7天，payload包含：`{id, username, name, role, store_id}`
 function opLog(userId: number, storeId: number | string, action: string, detail: string)
 ```
 - 记录操作日志到 `op_logs` 表
-- 记账修改日志使用JSON格式：`{action:'modify', before:{...}, after:{...}}`
+- 记账修改日志使用 JSON 格式：`{action:'modify', before:{...}, after:{...}}`
 - 其他操作直接存储文本
 
 ### normalizeType (entries.ts)
@@ -289,45 +120,32 @@ function normalizeType(type: string): string
 数据库中 `entries.type` 统一存储为 `'收入'` 或 `'支出'`，前端传入 `'income'/'expense'` 自动转换。
 
 ### 2. 操作日志格式
-- 普通操作：文本字符串，如 `'新增收入 餐饮 ¥500'`
-- 修改操作：JSON格式，包含before/after对比
+- 普通操作：文本字符串
+- 修改操作：JSON 格式，包含 before/after 对比
 
 ### 3. 数据备份
-SQLite WAL模式下，备份需要：
-1. `PRAGMA wal_checkpoint(FULL)` 将WAL写回主库
+SQLite WAL 模式下，备份需要：
+1. `PRAGMA wal_checkpoint(FULL)` 将 WAL 写回主库
 2. 打包 `store.db` + `store.db-wal` + `store.db-shm`
 
 ### 4. 服务器重启
-不能使用 `process.exit(0)` 因为会杀死所有子进程。使用独立进程重启：
-- Windows: `start /b cmd /c "cd /d {dir} && node --import tsx src/index.ts"`
-- Linux: `nohup node --import tsx src/index.ts &`
+使用 `process.exit(0)` 退出，Docker 容器根据 `restart: unless-stopped` 策略自动重启。
 
-### 5. ZIP升级
-1. 用户上传ZIP包到服务器临时目录
+### 5. ZIP 升级
+1. 用户上传 ZIP 包到服务器临时目录
 2. 解压到临时目录
-3. 读取 `upgrade.json` 验证版本信息
+3. 读取 `package.json` 验证版本信息
 4. 用新文件覆盖现有文件
-5. 启动独立进程重启服务器
-6. 当前进程退出
+5. 通过 `process.exit(0)` 触发容器重启
 
-## 模块职责边界
-
-### 核心文件（修改需谨慎）
-- `apps/server/src/db.ts` - 数据库结构，迁移脚本
-- `apps/server/src/auth.ts` - 认证逻辑
-- `apps/web/src/App.tsx` - 路由配置
-- `apps/web/src/lib/permissions.ts` - 权限控制
-- `apps/web/src/stores/data.ts` - 全局状态
-
-### 可安全修改
-- `apps/web/src/pages/` - 页面组件
-- `apps/web/src/components/` - 通用组件
-- `apps/server/src/routes/` - API路由
-- `apps/web/src/index.css` - 样式
+### 6. SSE 实时通信
+- 使用 Server-Sent Events 实现数据变更实时推送
+- 客户端通过 EventSource 连接
+- 服务端通过 event-bus 广播事件
 
 ## 已知技术债
 
-1. **数据库ID类型** - `stores.id` 是TEXT类型，其他表是INTEGER，需要兼容处理
+1. **数据库 ID 类型** - `stores.id` 是 TEXT 类型，其他表是 INTEGER，需要兼容处理
 2. **编码历史** - 早期文件有编码损坏，已修复但可能存在残留
-3. **前端构建** - 单文件超过500KB，可考虑代码分割
+3. **前端构建** - 单文件超过 100KB，可考虑代码分割
 4. **TypeScript** - 部分类型使用 `any`，可逐步加强类型定义

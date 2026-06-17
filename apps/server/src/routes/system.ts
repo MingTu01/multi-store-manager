@@ -6,7 +6,7 @@ const __dirname = dirname(__filename);
 import { join } from 'path';
 const BASE_DIR = join(__dirname, '..', '..');
 import { exec } from 'child_process';
-import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
+import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, cpSync } from 'fs';
 import os from 'os';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
@@ -26,7 +26,18 @@ function broadcastProgress(event: string, data: any) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try { client.write(msg); } catch { sseClients.delete(client); }
-  }
+
+
+// SSE endpoint for upgrade progress streaming
+router.get('/upgrade-progress', (req: AuthRequest, res: Response) => {
+  if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  sseClients.add(res);
+  req.on('close', () => { sseClients.delete(res); });
+});  }
 }
 
 // S30: 系统信息 — 仅 ADMIN
@@ -375,7 +386,7 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
         if (item.startsWith('extract-')) {
           const extractPath = join(uploadsDir, item);
           try {
-            fs.rmSync(extractPath, { recursive: true, force: true });
+            rmSync(extractPath, { recursive: true, force: true });
             console.log('[Cleanup] Removed:', item);
           } catch (e) { console.error('[Cleanup] Failed to remove:', item, e); }
         }
@@ -442,23 +453,34 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
     
     (async () => {
       try {
+        console.log('[Update] Async function started');
+        console.log('[Update] BASE_DIR:', BASE_DIR);
         // Step 1: Backup database
+        console.log('[Update] Starting backup...');
+        const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        try {
         broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据库...' });
         const backupDir = join(BASE_DIR, 'backups');
+        console.log('[Update] Creating backup dir:', backupDir);
         mkdirSync(backupDir, { recursive: true });
-        const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        console.log('[Update] Running WAL checkpoint...');
         db.pragma('wal_checkpoint(TRUNCATE)');
+        console.log('[Update] WAL checkpoint done');
         const preZip = new AdmZip();
         preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db'), '', 'store.db');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
-        preZip.writeZip(join(backupDir, 'pre-update-' + now + '.zip'));
+        preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
+        console.log('[Update] Backup zip created');
         broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
+        } catch (backupErr) { console.error('[Update] Backup error:', backupErr.message); }
         await new Promise(r => setTimeout(r, 500));
         
         // Step 2: Download latest code
+        console.log('[Update] Starting download...');
         broadcastProgress('progress', { step: 2, total: 4, message: '正在下载更新...' });
         const zipUrl = 'https://github.com/' + DEPLOY_REPO + '/archive/refs/heads/main.zip';
+        console.log('[Update] Download URL:', zipUrl);
         const zipRes = await fetchWithProxy(zipUrl);
         if (!zipRes) throw new Error('无法下载更新包');
         
@@ -480,31 +502,31 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const srcDir = join(extractedFolder, 'src');
         if (existsSync(srcDir)) {
           const destSrc = join(BASE_DIR, 'src');
-          fs.rmSync(destSrc, { recursive: true, force: true });
-          fs.cpSync(srcDir, destSrc, { recursive: true });
+          rmSync(destSrc, { recursive: true, force: true });
+          cpSync(srcDir, destSrc, { recursive: true });
         }
         
         // Copy public
         const publicDir = join(extractedFolder, 'public');
         if (existsSync(publicDir)) {
           const destPublic = join(BASE_DIR, 'public');
-          fs.cpSync(publicDir, destPublic, { recursive: true });
+          cpSync(publicDir, destPublic, { recursive: true });
         }
         
         // Copy package.json
         const pkgFile = join(extractedFolder, 'package.json');
         if (existsSync(pkgFile)) {
-          fs.copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
+          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
         }
         
         // Update version
         const versionFile = join(extractedFolder, 'data', 'version.json');
         if (existsSync(versionFile)) {
-          fs.copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+          copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
         }
         
         // Cleanup extract dir
-        fs.rmSync(extractDir, { recursive: true, force: true });
+        rmSync(extractDir, { recursive: true, force: true });
         
         broadcastProgress('progress', { step: 3, total: 4, message: '更新应用完成', done: true });
         await new Promise(r => setTimeout(r, 500));
@@ -514,11 +536,12 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('complete', { message: '更新完成，服务即将重启...' });
         
         setTimeout(() => {
-          console.log('[Update] Sending SIGTERM for restart...');
-          process.kill(process.pid, 'SIGTERM');
+          console.log('[Update] Restarting via process.exit...');
+          process.exit(0);
         }, 2000);
         
       } catch (err: any) {
+        console.error('[Update] FAILED:', err.message);
         broadcastProgress('error', { message: '更新失败: ' + err.message });
       }
     })();

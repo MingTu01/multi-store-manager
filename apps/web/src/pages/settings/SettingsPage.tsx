@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [updateCheckResult, setUpdateCheckResult] = useState<any>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [updateSteps, setUpdateSteps] = useState<{msg: string; done: boolean}[]>([]);
   const [upgrading, setUpgrading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState('');
@@ -182,21 +183,76 @@ export default function SettingsPage() {
     finally { setCheckingUpdate(false); }
   };
 
-  const handleOnlineUpdate = async () => {
-    if (!confirm('确定要更新到 v' + updateCheckResult.latestVersion + ' 吗？\n系统将自动备份数据库并重启。')) return;
-    setUpdating(true);
-    try {
-      await api.post('/system/do-update', {});
-      // Poll for restart
-      let attempts = 0;
-      const poll = setInterval(async () => {
-        attempts++;
-        try { await api.get('/system/info'); if (attempts > 10) { clearInterval(poll); window.location.reload(); } }
-        catch { clearInterval(poll); setTimeout(() => window.location.reload(), 3000); }
-      }, 2000);
-    } catch (e: any) { alert('更新失败: ' + e.message); setUpdating(false); }
-  };
+  // Auto-check for updates every 30 seconds
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const r = await api.get('/system/check-update');
+        if (r && r.hasUpdate) setUpdateCheckResult(r);
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
+  const handleOnlineUpdate = async () => {
+    if (!confirm('确定要在线更新到 v' + updateCheckResult.latestVersion + ' 吗？\n系统将自动备份数据库并重启。')) return;
+    setUpdating(true);
+    setUpdateSteps([]);
+    setShowProgressModal(true);
+    setUpgradeComplete(false);
+    const onlineStepNames = ['备份数据库', '下载更新', '解压并覆盖文件', '重启服务', '完成'];
+    setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
+    try {
+      const token = localStorage.getItem('token');
+      let maxStep = 0;
+      let restartDetected = false;
+      const es = new EventSource('/api/system/upgrade-progress?token=' + encodeURIComponent(token || ''));
+      es.addEventListener('progress', (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.step > maxStep) maxStep = d.step;
+          setUpdateSteps(prev => {
+            const steps = [...prev];
+            const idx = d.step - 1;
+            while (steps.length < d.step) steps.push({ msg: onlineStepNames[steps.length] || '', done: false });
+            if (idx >= 0 && idx < steps.length) {
+              steps[idx] = { msg: d.message || onlineStepNames[idx] || '', done: d.done || false };
+            }
+            return steps;
+          });
+        } catch {}
+      });
+      const handleRestartPoll = () => {
+        if (restartDetected) return;
+        restartDetected = true;
+        setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: true })));
+        setUpgradeComplete(true);
+        setUpdating(false);
+        let attempts = 0;
+        const rp = setInterval(async () => {
+          attempts++;
+          try { await fetch('/api/system/info'); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
+          catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
+        }, 2000);
+      };
+      es.addEventListener('complete', () => {
+        es.close();
+        handleRestartPoll();
+      });
+      es.onerror = () => {
+        es.close();
+        // SSE lost — server is restarting
+        handleRestartPoll();
+      };
+      await new Promise(r => setTimeout(r, 1000));
+      await api.post('/system/do-update', {});
+    } catch (e: any) {
+      setUpdateSteps(prev => [...prev, { msg: '更新失败: ' + (e.message || '未知错误'), done: false }]);
+      setUpdating(false);
+    }
+  };
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -232,41 +288,70 @@ export default function SettingsPage() {
     setUpgradeSteps([]);
     const totalSteps = 5;
     const stepNames = ['备份数据库', '解压升级包', '更新版本信息', '覆盖系统文件', '完成'];
-    // Initialize steps
-    setUpgradeSteps(stepNames.map(n => ({ msg: '', done: false })));
-    // Start upgrade
+    setUpgradeSteps(stepNames.map(n => ({ msg: n, done: false })));
+    // Upload with progress
     const fd = new FormData();
     fd.append('file', upgradeFile!);
+    setUploadProgress(0);
     try {
-      await fetch('/api/system/upgrade', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, body: fd });
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/system/upgrade');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) setUploadProgress(Math.round(e.loaded / e.total * 100)); };
+      await new Promise((resolve, reject) => { xhr.onload = resolve; xhr.onerror = reject; xhr.send(fd); });
+      setUploadProgress(100);
     } catch { showMsg(false, '升级请求失败'); setUpgrading(false); return; }
-    // Poll for progress
-    let currentStep = 0;
+    // Poll for progress — track maxStep to never go backward
+    let maxStep = 0;
+    let restartDetected = false;
     if (pollRef.current) clearInterval(pollRef.current);
     const poll = setInterval(async () => {
       pollRef.current = poll;
       try {
-        const r: any = await api.get('/system/upgrade/status');
-        if (r && r.step !== undefined) {
+        const r = await api.get('/system/upgrade/status');
+        if (r && r.step !== undefined && r.step > 0) {
           const step = Math.min(r.step, totalSteps);
-          // Mark all steps up to current as done
-          setUpgradeSteps(prev => prev.map((s, i) => ({
-            msg: i < step - 1 ? stepNames[i] + '完成' : (i === step - 1 ? (r.message || stepNames[i]) : ''),
-            done: i < step
-          })));
-          if (r.complete) {
+          if (step > maxStep) maxStep = step;
+          setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < step })));
+          if (r.complete || step >= totalSteps) {
             clearInterval(poll);
-            setUpgradeSteps(prev => prev.map(s => ({ ...s, done: true })));
+            setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
             setUpgradeComplete(true);
+            let attempts = 0;
+            const rp = setInterval(async () => {
+              attempts++;
+              try { await fetch('/api/system/info'); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
+              catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
+            }, 2000);
           }
+        } else if (maxStep >= 4 && !restartDetected) {
+          // Server restarted (step reset to 0 after seeing high step)
+          restartDetected = true;
+          clearInterval(poll);
+          setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
+          setUpgrading(false);
+          setUpgradeComplete(true);
+          setTimeout(() => window.location.reload(), 2000);
         }
       } catch {
-        // Server might be restarting, keep polling
+        // Server restarting — if we already saw high steps, mark complete
+        if (maxStep >= 4 && !restartDetected) {
+          restartDetected = true;
+          clearInterval(poll);
+          setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
+          setUpgrading(false);
+          setUpgradeComplete(true);
+          let attempts = 0;
+          const rp = setInterval(async () => {
+            attempts++;
+            try { await fetch('/api/system/info'); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
+            catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
+          }, 2000);
+        }
       }
     }, 1500);
   };
-
   const handleRefreshPage = () => {
     location.reload();
   };
@@ -616,7 +701,7 @@ export default function SettingsPage() {
       </Modal>
 
       {/* === Upgrade Progress Modal === */}
-      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || !upgrading) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title="系统升级">
+      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
         <div className="space-y-4">
           {uploadProgress > 0 && uploadProgress < 100 && (
               <div className="mb-4">
@@ -629,21 +714,21 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
-            {uploadProgress >= 100 && upgradeSteps.map((step, i) => (
+            {(uploadProgress >= 100 || upgrading || updating) && (updating ? updateSteps : upgradeSteps).map((step, i) => (
             <div key={i} className="flex items-center gap-3">
               <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-all ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                 {step.done ? <Check className="h-4 w-4" /> : i + 1}
               </div>
               <div className="flex-1 min-w-0">
                 <div className={`text-sm ${step.done ? 'text-emerald-600 font-medium' : 'text-slate-400'}`}>
-                  {['备份数据库', '解压升级包', '更新版本信息', '覆盖系统文件', '完成'][i]}
+                  {step.msg}
                 </div>
                 {step.msg && <div className="text-xs text-slate-500 mt-0.5 truncate">{step.msg}</div>}
               </div>
               {upgrading && step.done && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
             </div>
           ))}
-          {upgrading && !upgradeComplete && (
+          {(upgrading || updating) && !upgradeComplete && (
             <div className="flex items-center justify-center gap-2 py-3 text-sm text-indigo-600">
               <Loader2 className="h-4 w-4 animate-spin" />正在执行升级...
             </div>
@@ -654,14 +739,12 @@ export default function SettingsPage() {
                 <Check className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
                 <div className="text-lg font-bold text-emerald-700">升级完成</div>
                 <div className="text-xs text-emerald-500 mt-1">系统已更新到最新版本</div>
-                <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); }} className="btn mt-3">确认</button>
               </div>
-              <button onClick={handleRefreshPage} className="btn w-full flex items-center justify-center gap-2">
+              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2">
                 <RefreshCw className="h-4 w-4" />确认并刷新页面
               </button>
             </div>
-          )}
-        </div>
+          )}       </div>
       </Modal>
 
       {/* === Channel Edit Modal === */}

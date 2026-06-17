@@ -37,6 +37,8 @@ function Loading() {
 
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const user = useStore((s) => s.user);
+  const loading = useStore((s) => s.loading);
+  if (loading) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (!canAccess(perm, user.role as any)) {
     // All store-related roles (MANAGER, STAFF, SHAREHOLDER, STORE_ADMIN): redirect to their store

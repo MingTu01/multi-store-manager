@@ -38,8 +38,14 @@ export function useSSE(): ConnectionStatus {
             invalidateCache('/stores/' + data.storeId + '/report');
             bumpStore(data.storeId);
           }
+          // Aggressively clear ALL data caches for instant refresh
           invalidateCache('/notifications');
+          invalidateCache('/unread-count');
           invalidateCache('/stores');
+          invalidateCache('/dashboard');
+          invalidateCache('/entries');
+          invalidateCache('/report');
+          invalidateCache('/logs');
           bumpGlobal();
           bumpNotifications();
           fetchUnread();
@@ -50,7 +56,7 @@ export function useSSE(): ConnectionStatus {
       es.onerror = () => {
         setStatus('disconnected');
         es.close();
-        if (!stopped) reconnectTimer.current = setTimeout(connect, 5000);
+        if (!stopped) reconnectTimer.current = setTimeout(connect, 3000);
       };
     }
 

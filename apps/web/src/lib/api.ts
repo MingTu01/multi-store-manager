@@ -9,20 +9,20 @@ const TTL_MAP: [RegExp, number][] = [
   [/\/categories/, 60000],
   [/\/auth\/me/, 300000],
   [/\/stores$/, 30000],
-  [/\/dashboard/, 10000],
-  [/\/report/, 30000],
-  [/\/notifications/, 5000],
-  [/\/unread-count/, 5000],
-  [/\/entries/, 5000],
-  [/\/inventory/, 10000],
+  [/\/dashboard/, 5000],
+  [/\/report/, 15000],
+  [/\/notifications/, 3000],
+  [/\/unread-count/, 3000],
+  [/\/entries/, 3000],
+  [/\/inventory/, 5000],
   [/\/staff/, 30000],
   [/\/payroll/, 30000],
   [/\/dividends/, 30000],
-  [/\/shifts/, 10000],
+  [/\/shifts/, 5000],
   [/\/logs/, 10000],
   [/\/system/, 30000],
 ];
-const DEFAULT_TTL = 5000;
+const DEFAULT_TTL = 3000;
 
 function getTTL(url: string): number {
   for (const [pattern, ttl] of TTL_MAP) {

@@ -26,7 +26,7 @@ export default function StoreOverviewPage() {
       const exp = entries.filter((e: any) => e.type === '支出' || e.type === 'expense').reduce((s: number, e: any) => s + e.amount, 0);
       setToday({ income: inc, expense: exp, profit: inc - exp });
     }).catch(() => {});
-    api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.entries || (Array.isArray(d) ? d : []).slice(0, 5))).catch(() => {});
+    api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.entries || d.data || (Array.isArray(d) ? d : []).slice(0, 5))).catch(() => {});
   }, [storeId, dataVersion]);
 
   if (!store) return <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
@@ -100,7 +100,7 @@ export default function StoreOverviewPage() {
               <div key={e.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                 <div>
                   <div className="text-xs font-medium text-slate-700">{e.category}</div>
-                  <div className="text-[10px] text-slate-400">{e.date}</div>
+                  <div className="text-[10px] text-slate-400">{e.date} {e.created_at ? new Date(e.created_at).toLocaleTimeString("zh-CN", {hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</div>
                 </div>
                 <span className={`text-xs font-bold ${(e.type === "收入" || e.type === "income") ? "text-emerald-600" : "text-rose-500"}`}>
                   {(e.type === '收入' || e.type === 'income') ? '+' : '-'}{formatMoney(e.amount)}
