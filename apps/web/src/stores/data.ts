@@ -27,12 +27,14 @@ export const useStore = create<AppState>((set) => ({
   token: localStorage.getItem('token'),
   loading: true,
   login: async (username: string, password: string) => {
-    const d = await api.post('/auth/login', { username, password });
-    if (d.token) {
-      localStorage.setItem('token', d.token);
-      set({ token: d.token, user: d.user, loading: false });
-    } else {
-      throw new Error(d.message || '\u767b\u5f55\u5931\u8d25');
+    try {
+      const d = await api.post('/auth/login', { username, password });
+      if (d.token) {
+        localStorage.setItem('token', d.token);
+        set({ token: d.token, user: d.user, loading: false });
+      }
+    } catch (e: any) {
+      throw new Error(e.message || '用户名或密码错误');
     }
   },
   logout: () => {

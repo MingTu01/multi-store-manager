@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: multi-shop-link
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+      - ./public/web-dist:/app/public/web-dist
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - JWT_SECRET=multi-shop-link-secret-key-2024
+    restart: unless-stopped

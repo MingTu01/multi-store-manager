@@ -61,7 +61,7 @@ export function BottomNav() {
   const navItem = (t: any) => (
     <NavLink key={t.to} to={t.to} end={'end' in t && t.end === true ? true : undefined} onClick={() => setShowMore(false)}
       className={({ isActive }) => 'flex flex-shrink-0 flex-col items-center gap-0.5 py-2 pt-2.5 text-[10px] transition-colors min-w-[56px] px-1 ' + (isActive ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
-      <span className="relative">
+      <span className="relative flex h-5 w-5 items-center justify-center">
         <t.icon className="h-5 w-5" />
         {t.badge && <NotificationBadge count={unreadCount} />}
       </span>

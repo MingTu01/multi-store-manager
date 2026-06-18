@@ -93,7 +93,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
         const sc = 'AND store_id = ?';
         const si = q('收入', conds.cur + sc, [...conds.curP, s.id]);
         const se = q('支出', conds.cur + sc, [...conds.curP, s.id]);
-        return { id: s.id, name: s.name, address: s.address, is_open: s.is_open, income: si, expense: se, profit: si - se, margin: si > 0 ? (si - se) / si : 0, fundBalance: storeFundBalances[s.id] || 0 };
+        const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(s.id) as any).count || 0;
+        const storeMargin = si > 0 ? (si - se) / si : (se > 0 ? -1 : 0);
+        return { id: s.id, name: s.name, address: s.address, is_open: s.is_open, income: si, expense: se, profit: si - se, margin: storeMargin, staff_count: staffCount, fundBalance: storeFundBalances[s.id] || 0 };
       });
     }
 

@@ -31,6 +31,15 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => { load(); }, [storeId]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
+  // 未登录用户重定向到登录页
+  const storeLoading = useStore((s) => s.loading);
+  if (storeLoading) return (
+    <div className="flex h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50/30">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+
   // 角色权限检查：根据路径判断所需权限
   const path = location.pathname;
   const permMap: [string, string][] = [
