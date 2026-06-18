@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -105,7 +105,7 @@ export default function StoreEntriesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title={"记账"} />
-        <button onClick={openCreate} className="hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />记一笔</button>
+        <button onClick={openCreate} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />记一笔</button>
       </div>
 
       <div className={`grid grid-cols-1 gap-3 ${isStaff ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
@@ -139,8 +139,8 @@ export default function StoreEntriesPage() {
               <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}{e.amount.toLocaleString()}
               </span>
-              {!isStaff && (<button onClick={() => openEdit(e)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>)}
-              {!isStaff && (<button onClick={() => handleDelete(e.id)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>)}
+              {!isStaff && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>)}
+              {!isStaff && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>)}
             </div>
           </div>
         ))}
@@ -182,7 +182,7 @@ export default function StoreEntriesPage() {
             <label className="mb-1 block text-xs text-slate-500">备注</label>
             <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder={"可选"} />
           </div>
-          <button onClick={handleSave} disabled={saving} className="btn w-full disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
+          <button onClick={handleSave} disabled={saving} className="action-btn btn w-full disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
         </div>
       </Modal>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
@@ -89,7 +89,7 @@ export default function StoreDividendsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title="分红" />
-        <button onClick={() => setShowCreate(true)} className="hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+        <button onClick={() => setShowCreate(true)} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
           <Plus className="h-4 w-4" />创建分红
         </button>
       </div>
@@ -131,9 +131,9 @@ export default function StoreDividendsPage() {
               </div>
               {d.status !== 'archived' && canManage && (
                 <div className="flex gap-1">
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500" title="删除"><Trash2 className="h-3.5 w-3.5" /></button>
-                  <button onClick={(e) => { e.stopPropagation(); openEditDividend(d); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500" title="修改"><Edit3 className="h-3.5 w-3.5" /></button>
-                  <button onClick={(e) => { e.stopPropagation(); handleArchive(d.id); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-500" title="归档"><Archive className="h-3.5 w-3.5" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500" title="删除"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); openEditDividend(d); }} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-indigo-50 hover:text-indigo-500" title="修改"><Edit3 className="h-3.5 w-3.5" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleArchive(d.id); }} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-500" title="归档"><Archive className="h-3.5 w-3.5" /></button>
                 </div>
               )}
             </div>
@@ -178,7 +178,7 @@ export default function StoreDividendsPage() {
               placeholder="可选"
             />
           </div>
-          <button onClick={handleCreate} disabled={saving || !form.total_amount} className="btn w-full disabled:opacity-50">
+          <button onClick={handleCreate} disabled={saving || !form.total_amount} className="action-btn btn w-full disabled:opacity-50">
             {saving ? '创建中...' : '创建'}
           </button>
         </div>
@@ -245,7 +245,7 @@ export default function StoreDividendsPage() {
               <label className="mb-1 block text-xs text-slate-500">备注</label>
               <input value={editForm.note} onChange={(e) => setEditForm({ ...editForm, note: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
             </div>
-            <button onClick={handleSaveEdit} disabled={saving} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
+            <button onClick={handleSaveEdit} disabled={saving} className="action-btn w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
           </div>
         )}
       </Modal>

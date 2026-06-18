@@ -1,4 +1,4 @@
-import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
+﻿import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -134,7 +134,7 @@ export default function StoreStaffPage() {
       <div className="flex items-center justify-between">
         <PageHeader title="员工管理" />
         {canEdit && (
-          <button onClick={openCreate} className="hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />添加员工</button>
+          <button onClick={openCreate} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />添加员工</button>
         )}
       </div>
 
@@ -171,8 +171,8 @@ export default function StoreStaffPage() {
                 </div>
                 {canEdit && !shareholder && (
                   <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2">
-                    <button onClick={() => openEdit(s)} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"><Edit3 className="h-3 w-3" />编辑</button>
-                    <button onClick={() => handleDelete(s.id, s.name)} disabled={deleting === s.id} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-500 hover:bg-rose-50"><Trash2 className="h-3 w-3" />删除</button>
+                    <button onClick={() => openEdit(s)} className="action-btn flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"><Edit3 className="h-3 w-3" />编辑</button>
+                    <button onClick={() => handleDelete(s.id, s.name)} disabled={deleting === s.id} className="action-btn flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-500 hover:bg-rose-50"><Trash2 className="h-3 w-3" />删除</button>
                   </div>
                 )}
                 {shareholder && (
@@ -221,7 +221,7 @@ export default function StoreStaffPage() {
 
           <div><label className="mb-1 block text-xs text-slate-500">{editId ? '新密码（留空不修改）' : '密码'}</label><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder={editId ? '留空不修改' : '设置密码'} /></div>
 
-          <button onClick={handleSave} disabled={saving} className="btn w-full disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
+          <button onClick={handleSave} disabled={saving} className="action-btn btn w-full disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
         </div>
       </Modal>
 
@@ -306,7 +306,7 @@ export default function StoreStaffPage() {
               )}
             </div>
 
-            <button onClick={() => { setShowDetail(null); openEdit(showDetail); }} className="btn w-full">编辑员工</button>
+            <button onClick={() => { setShowDetail(null); openEdit(showDetail); }} className="action-btn btn w-full">编辑员工</button>
           </div>
         )}
       </Modal>

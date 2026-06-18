@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
+﻿export type Role = 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
 
 const p: Record<string, Role[]> = {
   dashboard: ['ADMIN'],
@@ -7,15 +7,15 @@ const p: Record<string, Role[]> = {
   upgrade: ['ADMIN'],
   password: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   adminSettings: ['ADMIN'],
-  storeOverview: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
-  storeEntries: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
-  storeInventory: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
-  storeShifts: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'],
+  storeOverview: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
+  storeEntries: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
+  storeInventory: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
+  storeShifts: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storePayroll: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
   storeDividends: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER'],
   storeStaff: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
   storeReport: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER', 'MANAGER'],
-  storeLogs: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
+  storeLogs: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'],
   storeAccount: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeSettings: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
   storeNotifications: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],

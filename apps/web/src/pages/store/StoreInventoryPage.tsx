@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { uploadImage } from '../../lib/image';
 import { api } from '../../lib/api';
@@ -344,7 +344,7 @@ export default function StoreInventoryPage() {
         <GlassCard className="p-4">
           <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
             <span>{checkIndex + 1} / {items.length}</span>
-            <button onClick={cancelCheck} className="text-rose-500 hover:text-rose-600">取消盘点</button>
+            <button onClick={cancelCheck} className="action-btn text-rose-500 hover:text-rose-600">取消盘点</button>
           </div>
           <div className="h-1.5 w-full rounded-full bg-slate-100">
             <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: progress + '%' }} />
@@ -457,10 +457,10 @@ export default function StoreInventoryPage() {
               })}
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowCompleteConfirm(false)} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
+              <button onClick={() => setShowCompleteConfirm(false)} className="action-btn flex-1 rounded-xl border border-slate-200 py-2.5 text-sm text-slate-600 hover:bg-slate-50">
                 返回修改
               </button>
-              <button onClick={completeCheck} disabled={savingCheck} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
+              <button onClick={completeCheck} disabled={savingCheck} className="action-btn flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">
                 {savingCheck ? '提交中...' : '确认提交'}
               </button>
             </div>
@@ -476,10 +476,10 @@ export default function StoreInventoryPage() {
       <div className="flex items-center justify-between">
         <PageHeader title="盘点" />
         <div className="hidden items-center gap-2 lg:flex">
-          <button onClick={() => setShowAddItem(true)} className="inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          <button onClick={() => setShowAddItem(true)} className="action-btn inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             <Plus className="h-4 w-4" />添加物品
           </button>
-          <button onClick={startCheck} className="inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+          <button onClick={startCheck} className="action-btn inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
             <RotateCcw className="h-4 w-4" />开始盘点
           </button>
         </div>
@@ -527,9 +527,9 @@ export default function StoreInventoryPage() {
                         <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
-                        <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
-                        <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                        <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
+                        <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
+                        <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
                   </GlassCard>
@@ -566,9 +566,9 @@ export default function StoreInventoryPage() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <SortableDragHandle id={item.id} />
-                      <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
-                      <button onClick={() => openEdit(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteItem(item.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                      <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
+                      <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
+                      <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </div>
                 </GlassCard>
@@ -636,7 +636,7 @@ export default function StoreInventoryPage() {
               <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
             )}
           </div>
-          <button onClick={handleAddItem} className="btn w-full">添加</button>
+          <button onClick={handleAddItem} className="action-btn btn w-full">添加</button>
         </div>
       </Modal>
 
@@ -695,7 +695,7 @@ export default function StoreInventoryPage() {
                 <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
               )}
             </div>
-            <button onClick={handleSaveEdit} className="btn w-full">保存</button>
+            <button onClick={handleSaveEdit} className="action-btn btn w-full">保存</button>
           </div>
         )}
       </Modal>
@@ -715,7 +715,7 @@ export default function StoreInventoryPage() {
               <label className="mb-1 block text-xs text-slate-500">领出数量</label>
               <input type="number" value={takeoutQty} onChange={e => setTakeoutQty(e.target.value)} min="1" max={showTakeout.quantity} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300" placeholder="请输入数量" />
             </div>
-            <button onClick={handleTakeout} disabled={!takeoutQty || Number(takeoutQty) <= 0} className="btn w-full disabled:opacity-50">确认领出</button>
+            <button onClick={handleTakeout} disabled={!takeoutQty || Number(takeoutQty) <= 0} className="action-btn btn w-full disabled:opacity-50">确认领出</button>
           </div>
         )}
       </Modal>
@@ -724,7 +724,7 @@ export default function StoreInventoryPage() {
       <FloatingActionButton label="开始盘点" icon={RotateCcw} onClick={startCheck} />
       <button
         onClick={() => setShowAddItem(true)}
-        className="fixed right-4 bottom-44 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-white text-indigo-500 shadow-xl border border-indigo-100 transition-all hover:bg-indigo-50 active:scale-95 lg:hidden"
+        className="action-btn fixed right-4 bottom-44 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-white text-indigo-500 shadow-xl border border-indigo-100 transition-all hover:bg-indigo-50 active:scale-95 lg:hidden"
       >
         <Plus className="h-5 w-5" />
       </button>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 import { ImagePreview } from '../../components/ImagePreview';
@@ -380,7 +380,7 @@ export default function StoreAccountPage() {
           )}
           <div className="flex gap-3">
             <button onClick={() => { setShowOcrConfirm(false); setOcrResult(null); }} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">取消</button>
-            <button onClick={confirmHealthCert} disabled={saving} className="btn flex-1 disabled:opacity-50">
+            <button onClick={confirmHealthCert} disabled={saving} className="action-btn btn flex-1 disabled:opacity-50">
               <Save className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '确认保存'}
             </button>
           </div>
@@ -391,7 +391,7 @@ export default function StoreAccountPage() {
         <div className="space-y-4">
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">手机号</label><input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="请输入手机号" /></div>
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">联系地址</label><input value={profileForm.address} onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="请输入联系地址" /></div>
-          <button onClick={handleSaveProfile} disabled={saving} className="btn w-full disabled:opacity-50"><Save className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '保存'}</button>
+          <button onClick={handleSaveProfile} disabled={saving} className="action-btn btn w-full disabled:opacity-50"><Save className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '保存'}</button>
         </div>
       </Modal>
 
@@ -400,7 +400,7 @@ export default function StoreAccountPage() {
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">当前密码</label><input type="password" value={pwdForm.oldPassword} onChange={e => setPwdForm(f => ({ ...f, oldPassword: e.target.value }))} className={inputCls} placeholder="请输入当前密码" /></div>
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">新密码</label><input type="password" value={pwdForm.newPassword} onChange={e => setPwdForm(f => ({ ...f, newPassword: e.target.value }))} className={inputCls} placeholder="请输入新密码" /></div>
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">确认密码</label><input type="password" value={pwdForm.confirm} onChange={e => setPwdForm(f => ({ ...f, confirm: e.target.value }))} className={inputCls} placeholder="请再次输入新密码" /></div>
-          <button onClick={handleChangePwd} disabled={saving} className="btn w-full disabled:opacity-50"><Lock className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '确认修改'}</button>
+          <button onClick={handleChangePwd} disabled={saving} className="action-btn btn w-full disabled:opacity-50"><Lock className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '确认修改'}</button>
         </div>
       </Modal>
     </div>

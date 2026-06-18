@@ -129,3 +129,15 @@
   transform: scale(1.05) translateY(-2px);
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
 }
+
+/* ===== 股东只读模式 - action-btn 禁用规则 ===== */
+[data-readonly="true"] .action-btn {
+  pointer-events: none !important;
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+/* 隐藏 FAB */
+[data-readonly="true"] .fab-container {
+  display: none !important;
+}
+/* ===== 股东只读模式结束 ===== */

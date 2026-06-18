@@ -31,6 +31,7 @@ function getTTL(url: string): number {
   return DEFAULT_TTL;
 }
 
+
 function getCached(key: string): any | null {
   const entry = cache.get(key);
   if (!entry) return null;
@@ -39,6 +40,7 @@ function getCached(key: string): any | null {
   entry.lastAccess = Date.now();
   return entry.data;
 }
+
 
 function setCache(key: string, data: any) {
   if (cache.size >= MAX_CACHE) {
@@ -52,12 +54,14 @@ function setCache(key: string, data: any) {
   cache.set(key, { data, ts: Date.now(), lastAccess: Date.now() });
 }
 
+
 export function invalidateCache(pattern?: string) {
   if (!pattern) { cache.clear(); return; }
   for (const key of cache.keys()) {
     if (key.includes(pattern)) cache.delete(key);
   }
 }
+
 
 function invalidateRelated(url: string) {
   const path = url.split('?')[0];
@@ -66,26 +70,30 @@ function invalidateRelated(url: string) {
   while (parts.length > 2) { parts.pop(); invalidateCache(parts.join('/')); }
 }
 
-async function parseError(r: Response): Promise<Error> {
+
+async function parseError(r: Response, silent = false): Promise<Error> {
   try {
     const data = await r.json();
     if (r.status === 401) {
       localStorage.removeItem('token');
-      if (location.pathname !== '/login') location.href = '/login';
-      return new Error('\u767b\u5f55\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55');
+      // Only redirect if not in silent mode and not already on login
+      if (!silent && location.pathname !== '/login') {
+        location.href = '/login';
+      }
+      return new Error('登录已过期，请重新登录');
     }
-    return new Error(data.error || data.message || '\u8bf7\u6c42\u5931\u8d25');
+    return new Error(data.error || data.message || '请求失败');
   } catch {
-    return new Error('\u8bf7\u6c42\u5931\u8d25 (' + r.status + ')');
+    return new Error('请求失败 (' + r.status + ')');
   }
 }
 
 export const api = {
-  get: async (url: string) => {
+  get: async (url: string, opts?: { silent?: boolean }) => {
     const cached = getCached(url);
     if (cached) return cached;
     const res = await fetch('/api' + url, { headers: headers(), cache: 'no-cache' });
-    if (!res.ok) throw await parseError(res);
+    if (!res.ok) throw await parseError(res, opts?.silent);
     const data = await res.json();
     setCache(url, data);
     return data;

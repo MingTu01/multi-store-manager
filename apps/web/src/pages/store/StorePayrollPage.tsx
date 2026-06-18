@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+﻿import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -163,7 +163,7 @@ export default function StorePayrollPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title="工资" />
-        <button onClick={openGenerate} className="hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+        <button onClick={openGenerate} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
           <FileText className="h-4 w-4" />生成工资
         </button>
       </div>
@@ -222,8 +222,8 @@ export default function StorePayrollPage() {
               </div>
               {p.status !== 'confirmed' && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-100"><Trash2 className="h-3 w-3" />删除</button>
-                  <button onClick={(e) => { e.stopPropagation(); handleConfirm(p.id); }} className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-600 hover:bg-emerald-100"><Check className="h-3 w-3" />发放</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="action-btn flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-100"><Trash2 className="h-3 w-3" />删除</button>
+                  <button onClick={(e) => { e.stopPropagation(); handleConfirm(p.id); }} className="action-btn flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-600 hover:bg-emerald-100"><Check className="h-3 w-3" />发放</button>
                 </div>
               )}
             </GlassCard>
@@ -252,7 +252,7 @@ export default function StorePayrollPage() {
                       <span className="text-sm font-medium text-slate-800">{s.name}</span>
                       <span className="ml-2 text-xs text-slate-400">{s.position || '-'}</span>
                     </div>
-                    <button onClick={() => removeStaff(s.id)} className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600">
+                    <button onClick={() => removeStaff(s.id)} className="action-btn rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -276,7 +276,7 @@ export default function StorePayrollPage() {
                 </div>
               );
             })}
-            <button onClick={handleGenerate} disabled={generating || staffList.length === 0} className="btn w-full disabled:opacity-50">
+            <button onClick={handleGenerate} disabled={generating || staffList.length === 0} className="action-btn btn w-full disabled:opacity-50">
               {generating ? '生成中...' : '确认生成 (' + staffList.length + '人)'}
             </button>
           </div>

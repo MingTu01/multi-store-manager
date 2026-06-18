@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -397,7 +397,7 @@ export default function StoreSettingsPage() {
             <button
               onClick={handleSaveInfo}
               disabled={savingInfo}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+              className="action-btn flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
               {savingInfo ? '保存中...' : '保存基本信息'}
@@ -691,7 +691,7 @@ export default function StoreSettingsPage() {
           <button
             onClick={handleSaveShareholder}
             disabled={savingShareholder}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+            className="action-btn flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {savingShareholder ? '保存中...' : '保存'}
@@ -746,7 +746,7 @@ export default function StoreSettingsPage() {
           <button
             onClick={handleSaveCat}
             disabled={savingCat}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
+            className="action-btn flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50"
           >
             <Save className="h-4 w-4" />
             {savingCat ? '保存中...' : '保存'}

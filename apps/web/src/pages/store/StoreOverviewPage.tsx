@@ -78,7 +78,7 @@ export default function StoreOverviewPage() {
         <h3 className="mb-3 text-xs font-semibold text-slate-500">快捷操作</h3>
         <div className="grid grid-cols-4 gap-2">
           {quickActions.map((a) => (
-            <button key={a.key} onClick={() => nav(a.to, a.openModal ? { state: { openModal: true } } : undefined)} className="flex flex-col items-center gap-1.5 rounded-xl py-3 text-xs text-slate-600 hover:bg-slate-50 transition-all">
+            <button key={a.key} onClick={() => nav(a.to, a.openModal ? { state: { openModal: true } } : undefined)} className="action-btn flex flex-col items-center gap-1.5 rounded-xl py-3 text-xs text-slate-600 hover:bg-slate-50 transition-all">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50"><a.icon className="h-5 w-5 text-indigo-500" /></div>
               {a.label}
             </button>

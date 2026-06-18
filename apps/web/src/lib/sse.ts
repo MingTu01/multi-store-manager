@@ -38,7 +38,6 @@ export function useSSE(): ConnectionStatus {
             invalidateCache('/stores/' + data.storeId + '/report');
             bumpStore(data.storeId);
           }
-          // Aggressively clear ALL data caches for instant refresh
           invalidateCache('/notifications');
           invalidateCache('/unread-count');
           invalidateCache('/stores');
