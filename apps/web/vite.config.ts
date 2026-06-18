@@ -29,7 +29,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         cleanupOutdatedCaches: true,
-        navigateFallback: null,
+        navigateFallback: '/index.html',
         skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [

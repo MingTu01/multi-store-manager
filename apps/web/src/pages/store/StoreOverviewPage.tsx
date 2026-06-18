@@ -12,7 +12,7 @@ export default function StoreOverviewPage() {
   const dataVersion = useDataVersion('store', storeId);  const nav = useNavigate();
   const user = useStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
-  const isNonAdmin = user?.role !== 'ADMIN';
+  const isNonAdmin = user?.role !== 'ADMIN' && user?.role !== 'SHAREHOLDER';
   const [store, setStore] = useState<any>(null);
   const [today, setToday] = useState<any>(null);
   const [recent, setRecent] = useState<any[]>([]);

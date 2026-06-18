@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin } from '../lib/roles.js';
+
 
 
 // Auto-cleanup: delete read notifications older than 48 hours
@@ -52,6 +54,7 @@ router.get('/unread-count', (req: AuthRequest, res: Response) => {
 // POST / - 内部调用接口（由 triggerNotification 使用，外部不可直接调用）
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { user_id, title, link, content, type, store_id } = req.body;
     if (!user_id || !title) return res.status(400).json({ error: '参数不完整' });
     const result = db.prepare(

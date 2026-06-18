@@ -23,7 +23,7 @@ export default function StoreEntriesPage() {
   const { storeId } = useParams();
   const dataVersion = useDataVersion('store', storeId);
   const myRole = useStore((s) => s.user?.role);
-  const isStaff = myRole === 'STAFF';
+  const isReadonly = myRole === 'STAFF' || myRole === 'SHAREHOLDER';
   const location = useLocation();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
@@ -40,7 +40,7 @@ export default function StoreEntriesPage() {
 
   const load = () => {
     if (!storeId) return;
-    api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + (isStaff ? '&period=day' : '')).then((d) => {
+    api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + (isReadonly ? '&period=day' : '')).then((d) => {
       setEntries(d.entries || d.data || []);
       setTotal(d.total || 0);
     }).catch(() => {});
@@ -105,10 +105,10 @@ export default function StoreEntriesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title={"记账"} />
-        <button onClick={openCreate} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />记一笔</button>
+        {!isReadonly && <button onClick={openCreate} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600"><Plus className="h-4 w-4" />记一笔</button>}
       </div>
 
-      <div className={`grid grid-cols-1 gap-3 ${isStaff ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+      <div className={`grid grid-cols-1 gap-3 ${isReadonly ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
         <GlassCard className="p-4 text-center">
           <div className="text-xs text-slate-500">今日收入</div>
           <div className="mt-1 text-2xl font-bold text-emerald-600">{stats.income.toLocaleString()}</div>
@@ -117,7 +117,7 @@ export default function StoreEntriesPage() {
           <div className="text-xs text-slate-500">今日支出</div>
           <div className="mt-1 text-2xl font-bold text-rose-500">{stats.expense.toLocaleString()}</div>
         </GlassCard>
-        {!isStaff && (        <GlassCard className="p-4 text-center">
+        {!isReadonly && (        <GlassCard className="p-4 text-center">
           <div className="text-xs text-slate-500">今日利润</div>
           <div className={'mt-1 text-2xl font-bold ' + (stats.profit >= 0 ? 'text-emerald-600' : 'text-rose-500')}>{stats.profit.toLocaleString()}</div>
         </GlassCard>)}
@@ -139,8 +139,8 @@ export default function StoreEntriesPage() {
               <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}{e.amount.toLocaleString()}
               </span>
-              {!isStaff && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>)}
-              {!isStaff && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>)}
+              {!isReadonly && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>)}
+              {!isReadonly && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>)}
             </div>
           </div>
         ))}
@@ -186,7 +186,7 @@ export default function StoreEntriesPage() {
         </div>
       </Modal>
 
-      <FloatingActionButton label={"记一笔"} onClick={openCreate} />
+      {!isReadonly && <FloatingActionButton label={"记一笔"} onClick={openCreate} />}
     </div>
   );
 }

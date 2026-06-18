@@ -1,12 +1,20 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 
 const router = Router({ mergeParams: true });
 
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
+    // 角色检查: 管理员和店长可看所有，其他人只看自己门店
+    if (!isAdmin(req.user.role) && !isManagerOrAbove(req.user.role)) {
+      const user = db.prepare('SELECT store_id FROM users WHERE id = ?').get(req.user.id) as any;
+      if (user && String(user.store_id) !== String(storeId)) {
+        return res.status(403).json({ error: '无权限查看其他门店的交接记录' });
+      }
+    }
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
     const ps = parseInt(pageSize as string) || 20;

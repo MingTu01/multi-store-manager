@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin } from '../lib/roles.js';
 
 const router = Router({ mergeParams: true });
 
@@ -34,7 +35,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     // S28: 归属校验
     const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id) as any;
     if (!cat) return res.status(404).json({ error: '分类不存在' });
-    if (!cat.store_id && !['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!cat.store_id && !isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权修改全局分类' });
     }
     if (cat.store_id && String(cat.store_id) !== String(storeId)) {
@@ -51,7 +52,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     const { storeId } = req.params;
     const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id) as any;
     if (!cat) return res.status(404).json({ error: '分类不存在' });
-    if (!cat.store_id && !['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!cat.store_id && !isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权删除全局分类' });
     }
     if (cat.store_id && String(cat.store_id) !== String(storeId)) {

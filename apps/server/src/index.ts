@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import { join } from 'path';
-import { existsSync } from 'fs';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import db from './db.js';
 import { authMiddleware } from './auth.js';
@@ -42,7 +41,18 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // S7: CORS 可配置，默认 * 向后兼容
-const corsOrigin = process.env.CORS_ORIGIN || '*';
+// S7: CORS 配置，支持环境变量或动态 Origin 回退（不使用通配符）
+const corsOrigin = process.env.CORS_ORIGIN || '';
+const corsOptions: cors.CorsOptions = {
+  origin: corsOrigin
+    ? corsOrigin.split(',').map(s => s.trim())
+    : (origin, callback) => {
+        if (!origin) console.warn('[CORS] No origin header, allowing request');
+        else console.warn('[CORS] Dynamic origin allowed:', origin, '(Set CORS_ORIGIN env for production)');
+        callback(null, origin || true);
+      },
+  credentials: true
+};
 app.use(compression({ level: 6, threshold: 1024 }));
 // 安全HTTP头
 app.use((req, res, next) => {
@@ -69,10 +79,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors({ origin: corsOrigin === '*' ? '*' : corsOrigin.split(',') }));
+app.use(cors(corsOptions));
 
 // P5: JSON body 大小限制可配置，默认从 50MB 降到 5MB
-const jsonLimit = process.env.JSON_LIMIT || '30mb';
+const jsonLimit = process.env.JSON_LIMIT || '5mb';
 app.use(express.json({ limit: jsonLimit }));
 
 // Smart path detection for web dist

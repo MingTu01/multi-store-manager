@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -128,7 +129,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="flex h-[200px] items-center justify-center text-sm text-slate-400">暂无数据</div>
-            )}
+          )}
           </GlassCard>
         ))}
       </div>
@@ -136,6 +137,7 @@ export default function DashboardPage() {
       <div className="grid gap-3 lg:grid-cols-2">
         <GlassCard className="p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-700">环比对比</h3>
+          <div className="min-h-[200px]">
           {compData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={compData} barGap={4}>
@@ -148,10 +150,13 @@ export default function DashboardPage() {
                 <Bar dataKey="expense" fill="#f43f5e" name="支出" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">暂无数据</div>}
+          ) : <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">暂无数据</div>
+          }
+          </div>
         </GlassCard>
         <GlassCard className="p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-700">同比对比</h3>
+          <div className="min-h-[200px]">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={yoyData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -163,13 +168,15 @@ export default function DashboardPage() {
               <Bar dataKey="expense" fill="#f59e0b" name="支出" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </GlassCard>
+        </div>
+</GlassCard>
       </div>
 
       <div>
       {trend.length > 0 && (
         <GlassCard className="p-4">
           <h3 className="mb-3 text-sm font-semibold text-slate-700">趋势对比</h3>
+          <div className="min-h-[200px]">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -181,7 +188,8 @@ export default function DashboardPage() {
               <Bar dataKey="expense" fill="#f43f5e" name="支出" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </GlassCard>
+        </div>
+</GlassCard>
       )}
         <h3 className="mb-3 text-sm font-semibold text-slate-700">门店概览</h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

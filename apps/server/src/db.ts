@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   name TEXT DEFAULT '',
   phone TEXT DEFAULT '',
-  role TEXT DEFAULT 'staff',
+  role TEXT DEFAULT 'STAFF',
   store_id TEXT,
   avatar TEXT DEFAULT '',
   salary REAL DEFAULT 0,
@@ -311,6 +311,11 @@ const indexes = [
   "CREATE INDEX IF NOT EXISTS idx_store_opens_store ON store_opens(store_id, type)",
   "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read)",
   "CREATE INDEX IF NOT EXISTS idx_categories_store ON categories(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_shareholders_store ON shareholders(store_id)",
+  "CREATE INDEX IF NOT EXISTS idx_dividend_details_dividend ON dividend_details(dividend_id)",
+  "CREATE INDEX IF NOT EXISTS idx_payroll_items_payroll ON payroll_items(payroll_id)",
+  "CREATE INDEX IF NOT EXISTS idx_inventory_check_items_check ON inventory_check_items(check_id)",
+  "CREATE INDEX IF NOT EXISTS idx_store_notification_settings_store ON store_notification_settings(store_id)",
 ];
 for (const sql of indexes) {
   try { db.exec(sql); } catch (e) { /* index may already exist */ }

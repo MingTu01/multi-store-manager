@@ -304,7 +304,7 @@ export default function StoreAccountPage() {
       </Modal>
 
       <div className="grid grid-cols-2 gap-3">
-        <button onClick={() => { setProfileForm({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><User className="h-4 w-4" />编辑资料</button>
+        <button onClick={(e) => { e.stopPropagation(); setProfileForm({ phone: (user as any)?.phone || '', address: (user as any)?.address || '' }); setShowProfile(true); }} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><User className="h-4 w-4" />编辑资料</button>
         <button onClick={() => setShowPwd(true)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"><Lock className="h-4 w-4" />修改密码</button>
       </div>
 

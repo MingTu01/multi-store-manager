@@ -12,5 +12,6 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - JWT_SECRET=multi-shop-link-secret-key-2024
+      # 生产环境请在 .env 文件中设置 JWT_SECRET
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
     restart: unless-stopped

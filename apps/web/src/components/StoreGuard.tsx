@@ -52,6 +52,8 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
     ['/report', 'storeReport'],
     ['/logs', 'storeLogs'],
     ['/settings', 'storeSettings'],
+    ['/notifications', 'storeNotifications'],
+    ['/notification-settings', 'storeNotificationSettings'],
     ['/account', 'storeAccount'],
   ];
   let permKey = 'storeOverview';
@@ -87,7 +89,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
     try {
       await api.post('/stores/' + storeId + '/shifts/open', { photos });
       setShowOpen(false); setPhotos([]);
-      setTimeout(() => window.location.reload(), 500);
+      setTimeout(() => { setShowOpen(false); setPhotos([]); load(); }, 500);
     } catch (e: any) { alert(e.message || '开店失败'); }
     finally { setSaving(false); }
   };

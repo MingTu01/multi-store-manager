@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { localDate } from '../lib/utils.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 
 
 
@@ -10,7 +11,7 @@ const router = Router({ mergeParams: true });
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     // Q13: 仅 ADMIN 可访问管理大屏
-    if (!['admin', 'ADMIN', 'store_admin', 'STORE_ADMIN'].includes(req.user.role)) {
+    if (!isStoreAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { period, date, storeId } = req.query;
@@ -89,11 +90,29 @@ router.get('/', (req: AuthRequest, res: Response) => {
     let stores: any[] = [];
     if (!storeId) {
       const allStores = db.prepare('SELECT * FROM stores ORDER BY id').all() as any[];
+      // Batch queries to avoid N+1
+      const batchDateCond = conds.cur;
+      const incomeTypeFilter = "AND type IN ('收入','income')";
+      const expenseTypeFilter = "AND type IN ('支出','expense')";
+      const batchIncRows = db.prepare(
+        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + incomeTypeFilter + ' ' + batchDateCond + ' GROUP BY store_id'
+      ).all(...storeParams, ...conds.curP) as any[];
+      const batchExpRows = db.prepare(
+        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + expenseTypeFilter + ' ' + batchDateCond + ' GROUP BY store_id'
+      ).all(...storeParams, ...conds.curP) as any[];
+      const batchStaffRows = db.prepare(
+        'SELECT store_id, COUNT(*) as count FROM users WHERE store_id IS NOT NULL GROUP BY store_id'
+      ).all() as any[];
+      const incMap: Record<string, number> = {};
+      const expMap: Record<string, number> = {};
+      const staffMap: Record<string, number> = {};
+      for (const r of batchIncRows) incMap[r.store_id] = r.total;
+      for (const r of batchExpRows) expMap[r.store_id] = r.total;
+      for (const r of batchStaffRows) staffMap[r.store_id] = r.count;
       stores = allStores.map((s: any) => {
-        const sc = 'AND store_id = ?';
-        const si = q('收入', conds.cur + sc, [...conds.curP, s.id]);
-        const se = q('支出', conds.cur + sc, [...conds.curP, s.id]);
-        const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(s.id) as any).count || 0;
+        const si = incMap[s.id] || 0;
+        const se = expMap[s.id] || 0;
+        const staffCount = staffMap[s.id] || 0;
         const storeMargin = si > 0 ? (si - se) / si : (se > 0 ? -1 : 0);
         return { id: s.id, name: s.name, address: s.address, is_open: s.is_open, income: si, expense: se, profit: si - se, margin: storeMargin, staff_count: staffCount, fundBalance: storeFundBalances[s.id] || 0 };
       });
@@ -112,7 +131,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // GET /dashboard/trend - get trend data for charts
 router.get('/trend', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { period = 'day', storeId } = req.query;

@@ -3,6 +3,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
+import { isManagerOrAbove } from '../lib/roles.js';
 
 const router = Router({ mergeParams: true });
 
@@ -33,6 +34,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // POST /items - add master item
 router.post('/items', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { name, quantity, photo, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '请输入物品名称' });
@@ -114,6 +116,7 @@ router.post('/items/reorder', (req: AuthRequest, res: Response) => {
 // POST /checks - start a new inventory check
 router.post('/checks', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const items = db.prepare('SELECT * FROM inventory_master WHERE store_id = ? ORDER BY sort_order ASC').all(storeId) as any[];
     if (items.length === 0) return res.status(400).json({ error: '请先添加物品' });

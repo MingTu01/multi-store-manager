@@ -60,7 +60,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: '请指定类型 (open/close)' });
     }
     const photosStr = JSON.stringify(photos || []);
-    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content) VALUES (?,?,?,?,?)').run(storeId, type, photosStr, note || '', handover_content || '');
+    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content, user_id) VALUES (?,?,?,?,?,?)').run(storeId, type, photosStr, note || '', handover_content || '', req.user?.id || null);
 
     // Update store open status
     db.prepare('UPDATE stores SET is_open = ? WHERE id = ?').run(type === 'open' ? 1 : 0, storeId);
@@ -89,7 +89,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);
-    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content) VALUES (?,?,?,?,?)').run(storeId, 'open', photosStr, note || '', handover_content || '');
+    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content, user_id) VALUES (?,?,?,?,?,?)').run(storeId, 'open', photosStr, note || '', handover_content || '', req.user?.id || null);
     db.prepare('UPDATE stores SET is_open = 1 WHERE id = ?').run(storeId);
     opLog(req.user.id, storeId, '开店', '开店操作' + (note ? ': ' + note : ''));
 
@@ -110,7 +110,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);
-    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content) VALUES (?,?,?,?,?)').run(storeId, 'close', photosStr, note || '', handover_content || '');
+    const result = db.prepare('INSERT INTO store_opens (store_id, type, photos, note, handover_content, user_id) VALUES (?,?,?,?,?,?)').run(storeId, 'close', photosStr, note || '', handover_content || '', req.user?.id || null);
     db.prepare('UPDATE stores SET is_open = 0 WHERE id = ?').run(storeId);
     opLog(req.user.id, storeId, '关店', '关店操作' + (note ? ': ' + note : ''));
 

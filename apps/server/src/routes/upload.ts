@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import path from 'path';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import multer from 'multer';
 import crypto from 'crypto';
@@ -42,10 +43,12 @@ router.post('/:type', upload.single('file'), (req: AuthRequest, res: Response) =
 router.delete('/', (req: AuthRequest, res: Response) => {
   try {
     const { url } = req.body;
-    if (!url || !url.startsWith('/uploads/')) return res.status(400).json({ error: '\u65e0\u6548\u7684\u6587\u4ef6\u8def\u5f84' });
-    const filePath = join(BASE_DIR, url);
+    if (!url || !url.startsWith('/uploads/')) return res.status(400).json({ error: '无效的文件路径' });
+    const filePath = path.resolve(join(BASE_DIR, url));
+    const uploadsDir = path.resolve(join(BASE_DIR, 'uploads'));
+    if (!filePath.startsWith(uploadsDir + path.sep) && filePath !== uploadsDir) return res.status(400).json({ error: '路径不合法' });
     if (existsSync(filePath)) unlinkSync(filePath);
-    res.json({ message: '\u6587\u4ef6\u5df2\u5220\u9664' });
+    res.json({ message: '文件已删除' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

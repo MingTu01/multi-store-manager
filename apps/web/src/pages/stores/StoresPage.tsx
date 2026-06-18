@@ -217,8 +217,8 @@ export default function StoresPage() {
           <p className="text-sm text-slate-600">此操作将删除门店及其所有数据（记账、盘点、工资等），不可恢复。请输入管理员密码确认：</p>
           <input type="password" value={deletePwd} onChange={e => setDeletePwd(e.target.value)} className={inputCls} placeholder="管理员密码" />
           <div className="flex gap-2">
-            <button onClick={() => setDeleteId(null)} className="btn-ghost flex-1">取消</button>
-            <button onClick={handleDelete} className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-medium text-white hover:bg-rose-600">确认删除</button>
+            <button onClick={() => setDeleteId(null)} className="btn-ghost flex-1 text-sm whitespace-nowrap px-4">取消</button>
+            <button onClick={handleDelete} className="flex-1 rounded-xl bg-rose-500 py-2.5 text-sm font-medium text-white hover:bg-rose-600 whitespace-nowrap px-4">确认删除</button>
           </div>
         </div>
       </Modal>

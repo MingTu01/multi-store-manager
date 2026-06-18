@@ -3,6 +3,8 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
 import { triggerNotification } from '../notify-trigger.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 
 const router = Router({ mergeParams: true });
 
@@ -27,6 +29,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { period, items } = req.body;
     if (items && Array.isArray(items)) { for (const item of items) { if (item.base_amount < 0 || item.bonus < 0 || item.deduction < 0) return res.status(400).json({ error: '工资金额不能为负数' }); } }
@@ -52,6 +55,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { period, items } = req.body;
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
@@ -124,6 +128,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
 // PUT /:id/confirm
 router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
   try {
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
     if (payroll.status === 'confirmed') return res.status(400).json({ error: '工资单已确认' });

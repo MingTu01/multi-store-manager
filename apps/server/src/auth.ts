@@ -1,7 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import crypto from 'crypto';
 
-const SECRET = process.env.JWT_SECRET || 'multi-shop-link-secret-key-2024';
+// 安全的 JWT Secret 管理：优先使用环境变量，否则从文件读取或生成随机 secret
+function getJwtSecret(): string {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+  const dataDir = join(__dirname, '..', 'data');
+  const secretFile = join(dataDir, 'jwt-secret');
+  try {
+    if (existsSync(secretFile)) {
+      const secret = readFileSync(secretFile, 'utf-8').trim();
+      if (secret) return secret;
+    }
+    // 生成 64 字节随机 secret
+    const secret = crypto.randomBytes(64).toString('hex');
+    mkdirSync(dataDir, { recursive: true });
+    writeFileSync(secretFile, secret, 'utf-8');
+    console.log('[AUTH] Generated new JWT secret and saved to', secretFile);
+    return secret;
+  } catch (err) {
+    console.error('[AUTH] Failed to read/write JWT secret file:', err);
+    // 兜底：进程内随机 secret（重启后失效，但不会崩溃）
+    return crypto.randomBytes(64).toString('hex');
+  }
+}
+
+const SECRET = getJwtSecret();
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -47,4 +75,3 @@ export function requireFreshUser(req: AuthRequest, res: Response, next: NextFunc
   next();
 }
 
-export { SECRET };

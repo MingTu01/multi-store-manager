@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -59,6 +60,8 @@ function SortableDragHandle({ id }: { id: number }) {
 
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
+  const user = useStore((s) => s.user);
+  const isReadonly = user?.role === 'SHAREHOLDER';
   const [items, setItems] = useState<InventoryItem[]>([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
   const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);
@@ -475,6 +478,7 @@ export default function StoreInventoryPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title="盘点" />
+        {!isReadonly && (
         <div className="hidden items-center gap-2 lg:flex">
           <button onClick={() => setShowAddItem(true)} className="action-btn inline-flex items-center gap-1 rounded-xl bg-white border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             <Plus className="h-4 w-4" />添加物品
@@ -483,6 +487,7 @@ export default function StoreInventoryPage() {
             <RotateCcw className="h-4 w-4" />开始盘点
           </button>
         </div>
+        )}
       </div>
 
       {loading ? (
@@ -527,9 +532,9 @@ export default function StoreInventoryPage() {
                         <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
-                        <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
-                        <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                        {!isReadonly && <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>}
+                        {!isReadonly && <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>}
+                        {!isReadonly && <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>}
                       </div>
                     </div>
                   </GlassCard>
@@ -565,10 +570,10 @@ export default function StoreInventoryPage() {
                       <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <SortableDragHandle id={item.id} />
-                      <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>
-                      <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>
-                      <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>
+                      {!isReadonly && <SortableDragHandle id={item.id} />}
+                      {!isReadonly && <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>}
+                      {!isReadonly && <button onClick={() => openEdit(item)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><Edit3 className="h-4 w-4" /></button>}
+                      {!isReadonly && <button onClick={() => handleDeleteItem(item.id)} className="action-btn rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500"><Trash2 className="h-4 w-4" /></button>}
                     </div>
                   </div>
                 </GlassCard>
@@ -721,13 +726,15 @@ export default function StoreInventoryPage() {
       </Modal>
 
       {/* Mobile FABs */}
-      <FloatingActionButton label="开始盘点" icon={RotateCcw} onClick={startCheck} />
+      {!isReadonly &&       <FloatingActionButton label="开始盘点" icon={RotateCcw} onClick={startCheck} />}
+      {!isReadonly && (
       <button
         onClick={() => setShowAddItem(true)}
         className="action-btn fixed right-4 bottom-44 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-white text-indigo-500 shadow-xl border border-indigo-100 transition-all hover:bg-indigo-50 active:scale-95 lg:hidden"
       >
         <Plus className="h-5 w-5" />
       </button>
+      )}
     </div>
   );
 }

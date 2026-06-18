@@ -11,6 +11,7 @@ import os from 'os';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
 import db from '../db.js';
+import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 import { AuthRequest } from '../auth.js';
 import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
@@ -26,24 +27,24 @@ function broadcastProgress(event: string, data: any) {
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try { client.write(msg); } catch { sseClients.delete(client); }
-
+  }
+}
 
 // SSE endpoint for upgrade progress streaming
 router.get('/upgrade-progress', (req: AuthRequest, res: Response) => {
-  if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
   sseClients.add(res);
   req.on('close', () => { sseClients.delete(res); });
-});  }
-}
+});
 
 // S30: 系统信息 — 仅 ADMIN
 router.get('/info', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as any).count;
     const storeCount = (db.prepare('SELECT COUNT(*) as count FROM stores').get() as any).count;
     const entryCount = (db.prepare('SELECT COUNT(*) as count FROM entries').get() as any).count;
@@ -61,7 +62,7 @@ router.get('/info', (req: AuthRequest, res: Response) => {
 // S9: 备份 — 仅 ADMIN
 router.post('/backup', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const backupDir = join(BASE_DIR, 'backups');
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -82,7 +83,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
 // S9+3: 备份信息 — ADMIN + 路径安全
 router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const stats = statSync(filepath);
@@ -93,7 +94,7 @@ router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
 // S9: 备份列表 — ADMIN
 router.get('/backups', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const backupDir = join(BASE_DIR, 'backups');
     if (!existsSync(backupDir)) return res.json({ backups: [] });
     const files = readdirSync(backupDir).filter(f => f.endsWith('.zip') || f.endsWith('.db')).map(f => {
@@ -106,7 +107,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
 
 // S9+3: 备份下载 — ADMIN + 路径安全
 router.get('/backups/:filename/download', (req: AuthRequest, res: Response) => {
-  if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
   if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
   res.download(filepath, req.params.filename);
@@ -115,7 +116,7 @@ router.get('/backups/:filename/download', (req: AuthRequest, res: Response) => {
 // 上传备份 — ADMIN
 router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请上传备份文件' });
     if (!file.originalname.endsWith('.db') && !file.originalname.endsWith('.zip')) return res.status(400).json({ error: '请上传.db或.zip格式的备份文件' });
@@ -133,7 +134,7 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
 // S2: 备份恢复 — ADMIN + 安全脚本生成（JSON.stringify 防注入）+ 路径安全
 router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const dbDir = join(BASE_DIR, 'data');
@@ -176,7 +177,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
 // S9: 删除备份 — ADMIN + 路径安全
 router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     unlinkSync(filepath);
@@ -186,7 +187,7 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
 
 // 自动备份配置 — ADMIN
 router.get('/auto-backup', (req: AuthRequest, res: Response, next) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' }); next(); }),
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); next(); }),
 router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
@@ -197,7 +198,7 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
 
 router.put('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     writeFileSync(configPath, JSON.stringify(req.body, null, 2));
@@ -214,13 +215,13 @@ router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
 });
 
 router.get('/upgrade/status', (req: AuthRequest, res: Response) => {
-  if (req.user.role !== 'admin' && req.user.role !== 'ADMIN') return res.status(403).json({ error: '无权限' });
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请上传升级包' });
     let version = '未知';
@@ -237,7 +238,7 @@ router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: 
 
 router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请上传升级包' });
     res.json({ message: '升级已开始', status: 'processing' });
@@ -322,7 +323,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
 // 重启 — ADMIN
 router.post('/restart', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
     setTimeout(() => {
       console.log('[Restart] Sending SIGTERM for restart...');
@@ -332,15 +333,23 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
 });
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
-  if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   try { res.json(getSettings()); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
-    Object.assign(s, req.body);
+    // 字段白名单验证，防止写入非法字段
+    const allowedFields = ['pushplus_enabled', 'pushplus_token', 'serverchan_enabled', 'serverchan_key',
+      'wecom_enabled', 'wecom_corp_id', 'wecom_agent_id', 'wecom_secret', 'wecom_user_id', 'wecom_proxy_url',
+      'report_daily', 'report_weekly', 'report_monthly', 'report_review', 'report_warning'];
+    const safeBody: any = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) safeBody[key] = req.body[key];
+    }
+    Object.assign(s, safeBody);
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
@@ -357,7 +366,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
 
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN', 'STORE_ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const type = req.query.type as string || 'daily';
     (() => {
       let title = '测试通知'; let content = '这是一条测试通知消息\n发送时间: ' + new Date().toLocaleString('zh-CN');
@@ -377,7 +386,7 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
 // Cleanup upgrade files
 router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
 
     const uploadsDir = join(BASE_DIR, 'uploads');
     if (existsSync(uploadsDir)) {
@@ -424,7 +433,7 @@ async function fetchWithProxy(url: string, opts?: any): Promise<Response | null>
 // Check for updates
 router.get('/check-update', async (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     
     // Get current version
     let currentVersion = '1.0.0';
@@ -448,7 +457,7 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
 // Execute update
 router.post('/do-update', async (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '更新已开始...' });
     
     (async () => {

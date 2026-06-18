@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, renameSync } from 'fs';
 import multer from 'multer';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin } from '../lib/roles.js';
 import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router();
@@ -155,7 +156,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.get('/check-expiry', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) return res.status(403).json({ error: '\u65e0\u6743\u9650' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '\u65e0\u6743\u9650' });
     const users = db.prepare("SELECT id, name, health_cert_url, health_cert_expiry, health_cert_verified FROM users WHERE health_cert_expiry != '' AND health_cert_expiry IS NOT NULL").all() as any[];
     const results = users.map((u: any) => {
       const exp = new Date(u.health_cert_expiry);

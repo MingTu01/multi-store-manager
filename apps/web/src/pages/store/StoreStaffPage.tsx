@@ -7,7 +7,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useStore } from '../../stores/data';
-import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle, User } from 'lucide-react';
 import { ImagePreview } from '../../components/ImagePreview';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 
@@ -152,7 +152,7 @@ export default function StoreStaffPage() {
               <GlassCard key={s.id} className="p-4 cursor-pointer hover:ring-2 hover:ring-indigo-200 transition-all" onClick={() => setShowDetail(s)}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                    {s.avatar ? <img src={s.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-xl font-bold text-indigo-400">{s.name?.[0] || '?'}</span>}
+                    {s.avatar ? <img src={s.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-xl font-bold text-indigo-400">{s.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -191,7 +191,7 @@ export default function StoreStaffPage() {
           <div className="flex items-center justify-center">
             <div className="relative">
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                {form.avatar ? <img src={form.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{form.name?.[0] || '?'}</span>}
+                {form.avatar ? <img src={form.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{form.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
               </div>
               <div className="absolute -bottom-1 -right-1 flex gap-1"><button onClick={() => cameraRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg"><Camera className="h-3.5 w-3.5" /></button><button onClick={() => fileRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"><Upload className="h-3.5 w-3.5" /></button></div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
@@ -233,7 +233,7 @@ export default function StoreStaffPage() {
             {/* Avatar and basic info */}
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                {showDetail.avatar ? <img src={showDetail.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{showDetail.name?.[0] || '?'}</span>}
+                {showDetail.avatar ? <img src={showDetail.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{showDetail.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900">{showDetail.name}</div>

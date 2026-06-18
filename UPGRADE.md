@@ -46,7 +46,7 @@ v主版本.次版本.修订号
 multi-shop-link-upgrade-v{版本号}.zip
 ```
 
-示例：`multi-shop-link-upgrade-v1.1.12.zip`
+示例：`multi-shop-link-upgrade-v1.1.16.zip`
 
 ### 2.3 升级包内容（必须严格按此结构）
 

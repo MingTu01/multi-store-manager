@@ -42,9 +42,6 @@ export function useSSE(): ConnectionStatus {
           invalidateCache('/unread-count');
           invalidateCache('/stores');
           invalidateCache('/dashboard');
-          invalidateCache('/entries');
-          invalidateCache('/report');
-          invalidateCache('/logs');
           bumpGlobal();
           bumpNotifications();
           fetchUnread();

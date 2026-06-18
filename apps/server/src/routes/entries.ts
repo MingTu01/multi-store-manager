@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
+import { isAdmin, isReadonly } from '../lib/roles.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
@@ -35,10 +36,10 @@ router.get('/', (req: AuthRequest, res: Response) => {
     let whereClause = ' WHERE e.store_id=?';
     const params: any[] = [storeId];
     const user = (req as any).user;
-    if ((user.role === 'STAFF' || user.role === 'staff') && !period && !date && !dateFrom && !dateTo) {
+    if ((user.role?.toUpperCase() === 'STAFF') && !period && !date && !dateFrom && !dateTo) {
       whereClause += ' AND e.date=?'; params.push(localDate());
     }
-    if (user.role === 'STAFF' || user.role === 'staff') whereClause += ' AND e.is_system=0';
+    if (user.role?.toUpperCase() === 'STAFF') whereClause += ' AND e.is_system=0';
     if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
     else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     else if (period === 'month') { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(localDate().slice(0,7)); }
@@ -88,7 +89,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
     const user = (req as any).user;
-    if (user.role === 'STAFF' || user.role === 'staff') return res.status(403).json({ error: '员工无权修改记账' });
+    if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权修改记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
     if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) < 0 || Number(amount) > 9999999)) return res.status(400).json({ error: '金额必须在0-999万之间' });
@@ -121,11 +122,14 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
     const user = (req as any).user;
-    if (user.role === 'STAFF' || user.role === 'staff') return res.status(403).json({ error: '员工无权删除记账' });
+    if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权删除记账' });
     const { storeId } = req.params;
     const entry = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
     if (entry && String(entry.store_id) !== String(storeId)) {
       return res.status(404).json({ error: '记录不存在' });
+    }
+    if (entry.is_system && !isAdmin(user.role)) {
+      return res.status(403).json({ error: '系统自动生成的记录不能删除' });
     }
     db.prepare('DELETE FROM entries WHERE id=?').run(req.params.id);
     const detail = entry ? '删除记账 #' + req.params.id + ' ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount + ' (' + entry.date + ')' : '删除记账 #' + req.params.id;

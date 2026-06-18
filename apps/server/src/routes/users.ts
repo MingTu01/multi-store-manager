@@ -1,20 +1,17 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import bcrypt from 'bcryptjs';
 
-interface AuthRequest extends Request {
-  user?: any;
-  params: any;
-  body: any;
-}
+import { AuthRequest } from '../auth.js';
 
 const router = Router();
 
 // GET all users — S5: 仅 ADMIN/MANAGER
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN', 'manager', 'MANAGER'].includes(req.user.role)) {
+    if (!isManagerOrAbove(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { storeId } = req.query;
@@ -35,7 +32,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // GET single user — S5: 仅自己或 ADMIN/MANAGER
 router.get('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN', 'manager', 'MANAGER'].includes(req.user.role)
+    if (!isManagerOrAbove(req.user.role)
         && parseInt(req.params.id) !== req.user.id) {
       return res.status(403).json({ error: '无权限' });
     }
@@ -50,7 +47,7 @@ router.get('/:id', (req: AuthRequest, res: Response) => {
 // POST create user — S5: 仅 ADMIN
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { username, password, name, phone, role, store_id, avatar, salary, status, job_title, address } = req.body;
@@ -72,14 +69,24 @@ router.post('/', (req: AuthRequest, res: Response) => {
 // PUT update user — S5: 禁止非管理员修改 role
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, name, phone, role, store_id, avatar, salary, status, job_title, address } = req.body;
     const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: '用户不存在' });
-    if (!['admin', 'ADMIN'].includes(req.user.role) && parseInt(req.params.id) !== req.user.id) {
+    if (!isAdmin(req.user.role) && parseInt(req.params.id) !== req.user.id) {
       return res.status(403).json({ error: '无权限' });
     }
+    // 非管理员只能修改自己的基本信息（字段白名单）
+    let body = req.body;
+    if (!isAdmin(req.user.role)) {
+      const allowedFields = ['name', 'phone', 'address', 'avatar', 'username', 'password'];
+      const safeBody: any = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) safeBody[key] = req.body[key];
+      }
+      body = safeBody;
+    }
+    const { username, password, name, phone, role, store_id, avatar, salary, status, job_title, address } = body;
     // S5: 非管理员不能修改角色
-    if (role !== undefined && !['admin', 'ADMIN'].includes(req.user.role)) {
+    if (role !== undefined && !isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权修改角色' });
     }
     let sql = 'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), role = COALESCE(?, role), store_id = COALESCE(?, store_id), avatar = COALESCE(?, avatar), salary = COALESCE(?, salary), status = COALESCE(?, status), job_title = COALESCE(?, job_title), address = COALESCE(?, address), updated_at = datetime(?,?)';
@@ -99,7 +106,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 // DELETE user — S5: 仅 ADMIN
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!['admin', 'ADMIN'].includes(req.user.role)) {
+    if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;

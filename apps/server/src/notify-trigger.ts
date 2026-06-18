@@ -1,4 +1,5 @@
 import db from './db.js';
+import { ROLES } from './lib/roles.js';
 import { sendNotification } from './notify.js';
 
 type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store';
@@ -29,12 +30,12 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
   if (targetUserId) return [targetUserId];
 
   const userIds: number[] = [];
-  const admins = db.prepare("SELECT id FROM users WHERE role IN ('admin','ADMIN')").all() as any[];
+  const admins = db.prepare('SELECT id FROM users WHERE role = ?').all(ROLES.ADMIN) as any[];
   admins.forEach((u: any) => userIds.push(u.id));
 
   if (storeId) {
     if (type === 'entry' || type === 'inventory' || type === 'shift') {
-      const managers = db.prepare("SELECT id FROM users WHERE store_id = ? AND role IN ('manager','MANAGER')").all(storeId) as any[];
+      const managers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.MANAGER) as any[];
       managers.forEach((u: any) => userIds.push(u.id));
     }
     if (type === 'payroll') {
@@ -42,7 +43,7 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
       staff.forEach((u: any) => userIds.push(u.id));
     }
     if (type === 'dividend') {
-      const shareholders = db.prepare("SELECT id FROM users WHERE store_id = ? AND role IN ('shareholder','SHAREHOLDER')").all(storeId) as any[];
+      const shareholders = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.SHAREHOLDER) as any[];
       shareholders.forEach((u: any) => userIds.push(u.id));
     }
   }

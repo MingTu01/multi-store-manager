@@ -40,6 +40,12 @@ stderr.txt
 _fulltest.js
 test-browser.js
 test-*.js
+test-*.png
+temp_*.txt
+_check_*.js
+_seed_*.js
+_restore.js
+_restart.js
 
 # Screenshots
 ScreenShot_*.png
@@ -51,6 +57,7 @@ ScreenShot_*.png
 apps/server/data/_restore.js
 apps/server/data/auto-backup.json
 apps/server/data/notification-settings.json
+apps/server/data/jwt-secret
 
 # Lock files
 package-lock.json

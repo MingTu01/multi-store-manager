@@ -53,11 +53,11 @@ export function PeriodTabs({
       </div>
       {period !== 'all' && (
         <div className="flex items-center justify-center gap-3">
-          <button onClick={() => shift(-1)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
+          <button onClick={(e) => { e.stopPropagation(); shift(-1); }} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
             <ChevronLeft className="h-4 w-4 text-slate-500" />
           </button>
           <span className="min-w-[120px] text-center text-sm font-medium text-slate-700">{fmtDate()}</span>
-          <button onClick={() => shift(1)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
+          <button onClick={(e) => { e.stopPropagation(); shift(1); }} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
             <ChevronRight className="h-4 w-4 text-slate-500" />
           </button>
         </div>
