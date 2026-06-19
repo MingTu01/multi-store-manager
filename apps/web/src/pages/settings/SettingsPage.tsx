@@ -330,18 +330,13 @@ export default function SettingsPage() {
           clearInterval(poll);
           // Show last step as in-progress
           setUpdateSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
-          // Check if SSE is already connected (server already back)
-          const checkSSE = () => {
-            const sseStatus = document.querySelector('[data-sse-status]') as HTMLElement;
-            if (sseStatus?.dataset.sseStatus === 'connected') {
-              setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
-              setUpgrading(false);
-              setUpgradeComplete(true);
-              return true;
-            }
-            return false;
-          };
-          if (checkSSE()) return;
+          // Check if SSE already reconnected (server already back)
+          if ((window as any).__sseReconnected) {
+            setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+            setUpgrading(false);
+            setUpgradeComplete(true);
+            return;
+          }
           // Listen for server-ready SSE event
           const handleReady = () => {
             window.removeEventListener('server-ready', handleReady);
@@ -349,7 +344,12 @@ export default function SettingsPage() {
             setUpgrading(false);
             setUpgradeComplete(true);
           };
-          window.addEventListener('server-ready', handleReady);
+          // Check if already reconnected
+          if ((window as any).__sseReconnected) {
+            handleReady();
+          } else {
+            window.addEventListener('server-ready', handleReady);
+          }
           // Fallback: mark complete after 60s
           setTimeout(() => {
             window.removeEventListener('server-ready', handleReady);
