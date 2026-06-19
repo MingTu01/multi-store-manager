@@ -58,7 +58,11 @@ export function useSSE(): ConnectionStatus {
         } catch {}
       });
 
-      es.onopen = () => setStatus('connected');
+      es.onopen = () => {
+        setStatus('connected');
+        // Dispatch server-ready event when SSE reconnects after server restart
+        window.dispatchEvent(new CustomEvent('server-ready'));
+      };
       es.onerror = () => {
         setStatus('disconnected');
         es.close();
