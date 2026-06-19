@@ -329,10 +329,10 @@ export default function SettingsPage() {
           restartDetected = true;
           clearInterval(poll);
           // Show last step as in-progress
-          setUpdateSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
+          setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
           // Check if SSE already reconnected (server already back)
           if ((window as any).__sseReconnected) {
-            setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+            setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
             setUpgradeComplete(true);
             return;
