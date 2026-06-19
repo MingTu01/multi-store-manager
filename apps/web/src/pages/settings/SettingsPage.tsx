@@ -326,13 +326,48 @@ export default function SettingsPage() {
             }, 2000);
           }
         } else if (maxStep >= 3 && !restartDetected) {
-          // Server restarted (step reset to 0 after seeing high step)
           restartDetected = true;
           clearInterval(poll);
-          setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
-          setUpgrading(false);
-          setUpgradeComplete(true);
-          setTimeout(() => window.location.reload(), 2000);
+          // Show last step as in-progress (not done)
+          setUpdateSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
+          // Poll until server comes back
+          const checkReady = setInterval(async () => {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 3000);
+      } catch {
+        if (maxStep >= 3 && !restartDetected) {
+          restartDetected = true;
+          clearInterval(poll);
+          // Show last step as in-progress (not done)
+          setUpdateSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
+          // Poll until server comes back
+          const checkReady = setInterval(async () => {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 3000);
+              const r = await fetch('/api/system/info', { signal: controller.signal });
+              clearTimeout(timeout);
+              if (r.ok) {
+                clearInterval(checkReady);
+                setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+                setUpgrading(false);
+                setUpgradeComplete(true);
+              }
+            } catch {}
+          }, 3000);
+          // Fallback: mark complete after 60s
+          setTimeout(() => {
+            clearInterval(checkReady);
+            setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+            setUpgrading(false);
+            setUpgradeComplete(true);
+          }, 60000);
+        }
+      }
+            setUpgrading(false);
+            setUpgradeComplete(true);
+          }, 60000);
         }
       } catch {
         // Server restarting — if we already saw high steps, mark complete
