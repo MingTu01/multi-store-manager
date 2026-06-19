@@ -330,6 +330,18 @@ export default function SettingsPage() {
           clearInterval(poll);
           // Show last step as in-progress
           setUpdateSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
+          // Check if SSE is already connected (server already back)
+          const checkSSE = () => {
+            const sseStatus = document.querySelector('[data-sse-status]') as HTMLElement;
+            if (sseStatus?.dataset.sseStatus === 'connected') {
+              setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+              setUpgrading(false);
+              setUpgradeComplete(true);
+              return true;
+            }
+            return false;
+          };
+          if (checkSSE()) return;
           // Listen for server-ready SSE event
           const handleReady = () => {
             window.removeEventListener('server-ready', handleReady);
