@@ -227,14 +227,26 @@ export default function SettingsPage() {
       const handleRestartPoll = () => {
         if (restartDetected) return;
         restartDetected = true;
-        setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: true })));
-        setUpgradeComplete(true);
-        setUpdating(false);
+        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1 })));
         let attempts = 0;
         const rp = setInterval(async () => {
           attempts++;
-          try { await fetch('/api/system/info'); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
-          catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
+          try {
+            const ctrl = new AbortController();
+            const tmo = setTimeout(() => ctrl.abort(), 3000);
+            await fetch('/api/system/info', { signal: ctrl.signal });
+            clearTimeout(tmo); clearInterval(rp);
+            setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+            setUpgradeComplete(true);
+            setUpdating(false);
+          } catch {
+            if (attempts > 30) {
+              clearInterval(rp);
+              setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+              setUpgradeComplete(true);
+              setUpdating(false);
+            }
+          }
         }, 2000);
       };
       es.addEventListener('complete', () => {
@@ -354,17 +366,14 @@ export default function SettingsPage() {
         if (maxStep >= 3 && !restartDetected) {
           restartDetected = true;
           clearInterval(poll);
-          // Show last step as in-progress
           setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
-          // Listen for server-ready SSE event
           const handleReady = () => {
             window.removeEventListener('server-ready', handleReady);
             setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
             setUpgradeComplete(true);
           };
-          window.addEventListener('server-ready', handleReady);
-          // Fallback: mark complete after 60s
+          if ((window as any).__sseReconnected) { handleReady(); } else { window.addEventListener('server-ready', handleReady); }
           setTimeout(() => {
             window.removeEventListener('server-ready', handleReady);
             setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
