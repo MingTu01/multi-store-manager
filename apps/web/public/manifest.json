@@ -1,23 +1,42 @@
 {
   "name": "Multi Shop Link",
   "short_name": "Multi Shop Link",
-  "description": "Multi Store Management Platform",
-  "theme_color": "#3b63f7",
-  "background_color": "#ffffff",
+  "description": "多门店经营管理平台",
+  "theme_color": "#6366f1",
+  "background_color": "#f8fafc",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
+  "scope": "/",
   "lang": "zh-CN",
+  "categories": [
+    "business",
+    "finance"
+  ],
   "icons": [
     {
       "src": "/logo-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

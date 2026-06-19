@@ -138,39 +138,75 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
     const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const dbDir = join(BASE_DIR, 'data');
-    // S2: 使用 JSON.stringify 安全转义路径，防止代码注入
-    const safeDbDir = JSON.stringify(dbDir);
-    const safeFilepath = JSON.stringify(filepath);
-    const restoreScript = [
-      'const fs=require("fs"),path=require("path"),{spawn}=require("child_process");',
-      'const dir=' + safeDbDir + ';',
-      'const zipPath=' + safeFilepath + ';',
-      'setTimeout(()=>{',
-      '  try{fs.unlinkSync(path.join(dir,"store.db"));}catch{}',
-      '  try{fs.unlinkSync(path.join(dir,"store.db-wal"));}catch{}',
-      '  try{fs.unlinkSync(path.join(dir,"store.db-shm"));}catch{}',
-      '  const AdmZip=require("adm-zip");',
-      '  const zip=new AdmZip(zipPath);',
-      '  zip.extractAllTo(dir,true);',
-      '  console.log("Restore complete");',
-      '  setTimeout(()=>{',
-      '    const child=spawn(process.execPath,["--import","tsx","src/index.ts"],',
-      '      {detached:true,stdio:"ignore",cwd:dir.replace(/\\\\data$/,"")});',
-      '    child.unref();process.exit(1);',
-      '  },1000);',
-      '},1000);'
-    ].join('\n');
-    const restorePath = join(BASE_DIR, 'data', '_restore.js');
-    writeFileSync(restorePath, restoreScript);
+
+    // Step 1: Backup current DB before restore
+    try {
+      const preBackup = new AdmZip();
+      const dbFile = join(dbDir, 'store.db');
+      if (existsSync(dbFile)) preBackup.addLocalFile(dbFile, '', 'store.db');
+      const walFile = join(dbDir, 'store.db-wal');
+      if (existsSync(walFile)) preBackup.addLocalFile(walFile, '', 'store.db-wal');
+      const shmFile = join(dbDir, 'store.db-shm');
+      if (existsSync(shmFile)) preBackup.addLocalFile(shmFile, '', 'store.db-shm');
+      preBackup.writeZip(join(dbDir, '_pre-restore-backup.zip'));
+    } catch {}
+
+    // Step 2: Checkpoint WAL and close DB connections gracefully
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch {}
+
+    // Step 3: Delete old DB files
+    try { unlinkSync(join(dbDir, 'store.db')); } catch {}
+    try { unlinkSync(join(dbDir, 'store.db-wal')); } catch {}
+    try { unlinkSync(join(dbDir, 'store.db-shm')); } catch {}
+
+    // Step 4: Extract backup ZIP
+    const zip = new AdmZip(filepath);
+    zip.extractAllTo(dbDir, true);
+
+    // Step 5: Verify extracted files exist
+    const restoredDb = join(dbDir, 'store.db');
+    if (!existsSync(restoredDb)) {
+      // Rollback from pre-restore backup
+      try {
+        const rollback = new AdmZip(join(dbDir, '_pre-restore-backup.zip'));
+        rollback.extractAllTo(dbDir, true);
+      } catch {}
+      return res.status(500).json({ error: '恢复失败：备份文件中未找到数据库' });
+    }
+
+    // Step 6: Verify DB is readable
+    try {
+      const Database = require('better-sqlite3');
+      const testDb = new Database(restoredDb, { readonly: true });
+      const storeCount = testDb.prepare('SELECT count(*) as c FROM stores').get().c;
+      const userCount = testDb.prepare('SELECT count(*) as c FROM users').get().c;
+      testDb.close();
+      console.log('[Restore] Verified: ' + storeCount + ' stores, ' + userCount + ' users');
+    } catch (e: any) {
+      console.error('[Restore] DB verification failed:', e.message);
+      // Rollback
+      try {
+        const rollback = new AdmZip(join(dbDir, '_pre-restore-backup.zip'));
+        rollback.extractAllTo(dbDir, true);
+      } catch {}
+      return res.status(500).json({ error: '恢复失败：数据库验证失败 - ' + e.message });
+    }
+
     res.json({ message: '备份恢复成功，服务器即将重启...' });
+
+    // Step 7: Graceful restart
     setTimeout(() => {
-      ;
-      const cmd = process.platform === 'win32'
-        ? 'start /b cmd /c "cd /d ' + BASE_DIR + ' && node data/_restore.js"'
-        : 'cd ' + BASE_DIR + ' && nohup node data/_restore.js > /dev/null 2>&1 &';
-      exec(cmd, { cwd: BASE_DIR, windowsHide: true });
-      setTimeout(() => process.exit(0), 500);
-    }, 200);
+      try {
+        if (process.platform === 'win32') {
+          const { execSync } = require('child_process');
+          execSync('taskkill /F /PID ' + process.pid, { windowsHide: true });
+        } else {
+          process.kill(process.pid, 'SIGTERM');
+        }
+      } catch {}
+      // Fallback: force exit after 2s if SIGTERM didn't work
+      setTimeout(() => process.exit(0), 2000);
+    }, 500);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
