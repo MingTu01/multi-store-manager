@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [validating, setValidating] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showOnlineConfirm, setShowOnlineConfirm] = useState(false);
   const [upgradeSteps, setUpgradeSteps] = useState<{ msg: string; done: boolean }[]>([]);
   const [upgradeComplete, setUpgradeComplete] = useState(false);
   const [updateCheckResult, setUpdateCheckResult] = useState<any>(null);
@@ -197,12 +198,12 @@ export default function SettingsPage() {
   }, []);
 
   const handleOnlineUpdate = async () => {
-    if (!confirm('确定要在线更新到 v' + updateCheckResult.latestVersion + ' 吗？\n系统将自动备份数据库并重启。')) return;
+    setShowOnlineConfirm(true);
     setUpdating(true);
     setUpdateSteps([]);
     setShowProgressModal(true);
     setUpgradeComplete(false);
-    const onlineStepNames = ['正在备份数据', '正在下载更新', '下载完成', '正在解压', '正在更新', '更新完成', '正在重启', '重启成功'];
+    const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
     setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
     try {
       const token = localStorage.getItem('token');
@@ -286,6 +287,68 @@ export default function SettingsPage() {
       }
     } catch (err: any) { showMsg(false, err.message || '验证失败'); }
     finally { setValidating(false); }
+  };
+
+  const handleOnlineConfirm = async () => {
+    setShowOnlineConfirm(false);
+    setShowProgressModal(true);
+    setUpdating(true);
+    setUpgradeComplete(false);
+    const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
+    setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
+    try {
+      const token = localStorage.getItem('token');
+      let maxStep = 0;
+      let restartDetected = false;
+      const es = new EventSource('/api/system/upgrade-progress?token=' + encodeURIComponent(token || ''));
+      es.addEventListener('progress', (e) => {
+        try {
+          const d = JSON.parse(e.data);
+          if (d.step > maxStep) maxStep = d.step;
+          setUpdateSteps(prev => {
+            const steps = [...prev];
+            const idx = d.step - 1;
+            while (steps.length < d.step) steps.push({ msg: onlineStepNames[steps.length] || '', done: false });
+            if (idx >= 0 && idx < steps.length) {
+              steps[idx] = { msg: d.message || onlineStepNames[idx] || '', done: d.done || false };
+            }
+            return steps;
+          });
+        } catch {}
+      });
+      const handleRestartPoll = () => {
+        if (restartDetected) return;
+        restartDetected = true;
+        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1 })));
+        let attempts = 0;
+        const rp = setInterval(async () => {
+          attempts++;
+          try {
+            const ctrl = new AbortController();
+            const tmo = setTimeout(() => ctrl.abort(), 3000);
+            await fetch('/api/system/info', { signal: ctrl.signal });
+            clearTimeout(tmo); clearInterval(rp);
+            setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+            setUpgradeComplete(true);
+            setUpdating(false);
+          } catch {
+            if (attempts > 30) {
+              clearInterval(rp);
+              setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+              setUpgradeComplete(true);
+              setUpdating(false);
+            }
+          }
+        }, 2000);
+      };
+      es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
+      es.onerror = () => { es.close(); handleRestartPoll(); };
+      await new Promise(r => setTimeout(r, 1000));
+      await api.post('/system/do-update', {});
+    } catch (e: any) {
+      setUpdateSteps(prev => [...prev, { msg: '更新失败: ' + (e.message || '未知错误'), done: false }]);
+      setUpdating(false);
+    }
   };
 
   const handleStartUpgrade = () => {
@@ -731,6 +794,28 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
+      {/* === Online Update Confirm Modal === */}
+      <Modal open={showOnlineConfirm} onClose={() => setShowOnlineConfirm(false)} title="确认在线更新">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl bg-amber-50 p-3">
+            <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-700">
+              <div className="font-medium mb-1">更新前请确认：</div>
+              <ul className="list-disc list-inside space-y-0.5 text-xs text-amber-600">
+                <li>系统将自动备份当前数据库</li>
+                <li>更新过程中服务会短暂中断</li>
+                <li>建议在业务低峰期进行更新</li>
+              </ul>
+            </div>
+          </div>
+          <div className="text-sm text-slate-600">将更新到最新版本</div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowOnlineConfirm(false)} className="btn-ghost flex-1">取消</button>
+            <button onClick={handleOnlineConfirm} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">确认更新</button>
+          </div>
+        </div>
+      </Modal>
+
 
       {/* === Upgrade Progress Modal === */}
       <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
