@@ -274,7 +274,7 @@ app.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     try {
       const { eventBus } = require('./event-bus');
-      eventBus.broadcast({ type: 'system', action: 'server-ready' });
+      eventBus.broadcastSystem('server-ready');
       console.log('[SSE] Broadcasted server-ready');
     } catch (e) { console.log('[SSE] server-ready broadcast skipped:', e.message); }
   }, 1000);
