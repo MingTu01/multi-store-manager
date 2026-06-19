@@ -312,7 +312,7 @@ export default function SettingsPage() {
         if (r && r.step !== undefined && r.step > 0) {
           const step = Math.min(r.step, totalSteps);
           if (step > maxStep) maxStep = step;
-          setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < step })));
+          setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < step - 1 })));
           if (r.complete) {
             clearInterval(poll);
             setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
