@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
-import { PeriodTabs, type Period } from '../../components/PeriodTabs';
+import { PeriodTabs, usePageSwipe, type Period } from '../../components/PeriodTabs';
 import { MoneyDisplay } from '../../lib/format';
 import { useStore } from '../../stores/data';
 import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
@@ -39,6 +39,11 @@ export default function StoreReportPage() {
   const role = useStore((s) => s.user?.role) as string | undefined;
   const [period, setPeriod] = useState<Period>('day');
   const [date, setDate] = useState(new Date());
+
+    const swipeHandlers = usePageSwipe(
+    () => { const d = new Date(date); if (period === 'day') d.setDate(d.getDate() + 1); else if (period === 'week') d.setDate(d.getDate() + 7); else if (period === 'month') d.setMonth(d.getMonth() + 1); else if (period === 'year') d.setFullYear(d.getFullYear() + 1); setDate(d); },
+    () => { const d = new Date(date); if (period === 'day') d.setDate(d.getDate() - 1); else if (period === 'week') d.setDate(d.getDate() - 7); else if (period === 'month') d.setMonth(d.getMonth() - 1); else if (period === 'year') d.setFullYear(d.getFullYear() - 1); setDate(d); }
+  );
   const [data, setData] = useState<any>(null);
   const [store, setStore] = useState<any>(null);
   const [trend, setTrend] = useState<any[]>([]);
@@ -83,7 +88,7 @@ export default function StoreReportPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" {...swipeHandlers}>
       <PageHeader title={(store?.name || '') + ' 报表'} subtitle="经营数据" />
       <PeriodTabs period={period} onPeriodChange={setPeriod} date={date} onDateChange={setDate} hideYearAll={hideYearAll} />
 

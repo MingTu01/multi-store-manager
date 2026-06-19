@@ -14,7 +14,7 @@ const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'perms', label: '权限说明', icon: Info },
 ];
 
-export default function SettingsPage() {
+export default function SettingsPage() { 
   const [tab, setTab] = useState<Tab>('info');
   const [info, setInfo] = useState<any>(null);
   const [backups, setBackups] = useState<any[]>([]);
@@ -52,6 +52,20 @@ export default function SettingsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Notification channels config
+  const channels = [
+    { key: 'pushplus', label: 'PushPlus', fields: [{ f: 'pushplus_token', label: 'Token', secret: true }] },
+    { key: 'serverchan', label: 'Server酱', fields: [{ f: 'serverchan_key', label: 'SendKey', secret: true }] },
+    { key: 'wecom', label: '企业微信', fields: [{ f: 'wecom_corpid', label: 'CorpID' }, { f: 'wecom_agentid', label: 'AgentID' }, { f: 'wecom_secret', label: 'Secret', secret: true }, { f: 'wecom_userid', label: 'UserID' }, { f: 'wecom_proxy_url', label: '代理地址' }] },
+  ];
+  const reportOptions = [
+    { key: 'push_daily_report', label: '每日简报' },
+    { key: 'push_weekly_report', label: '每周简报' },
+    { key: 'push_monthly_report', label: '每月简报' },
+    { key: 'push_review_reminder', label: '待审核提醒' },
+    { key: 'push_alert', label: '异常警告' },
+  ];
 
   const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
 
@@ -282,9 +296,7 @@ export default function SettingsPage() {
   };
 
 
-  const handleStartUpgrade = () => {
-    const totalSteps = 4;
-    const stepNames = ['正在备份数据', '正在解压', '正在更新', '重启'];
+  const handleStartUpgrade = () => { setShowConfirmModal(true); };
 
   const handleConfirmUpgrade = async () => {
     setShowConfirmModal(false);
@@ -424,18 +436,6 @@ export default function SettingsPage() {
     try { await api.put('/system/notification-settings', updated); } catch {}
   };
 
-  const channels = [
-    { key: 'pushplus', label: 'PushPlus', fields: [{ f: 'pushplus_token', label: 'Token', secret: true }] },
-    { key: 'serverchan', label: 'Server酱', fields: [{ f: 'serverchan_key', label: 'SendKey', secret: true }] },
-    { key: 'wecom', label: '企业微信', fields: [{ f: 'wecom_corpid', label: 'CorpID' }, { f: 'wecom_agentid', label: 'AgentID' }, { f: 'wecom_secret', label: 'Secret', secret: true }, { f: 'wecom_userid', label: 'UserID' }, { f: 'wecom_proxy_url', label: '代理地址' }] },
-  ];
-  const reportOptions = [
-    { key: 'push_daily_report', label: '每日简报' },
-    { key: 'push_weekly_report', label: '每周简报' },
-    { key: 'push_monthly_report', label: '每月简报' },
-    { key: 'push_review_reminder', label: '待审核提醒' },
-    { key: 'push_alert', label: '异常警告' },
-  ];
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 placeholder:text-slate-400';
   const fmtUptime = (s: number) => { const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60); return (d > 0 ? d + '天 ' : '') + h + '小时 ' + m + '分钟'; };
 
@@ -838,5 +838,4 @@ export default function SettingsPage() {
       </Modal>
     </div>
   );
-}
 }

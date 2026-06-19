@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export type Period = 'day' | 'week' | 'month' | 'year' | 'all';
@@ -17,7 +18,8 @@ export function PeriodTabs({
   hideYearAll?: boolean;
 }) {
   const visible = hideYearAll ? tabs.filter(t => t.key !== 'year' && t.key !== 'all') : tabs;
-  const shift = (dir: number) => {
+
+  const shiftDate = (dir: number) => {
     const d = new Date(date);
     if (period === 'day') d.setDate(d.getDate() + dir);
     else if (period === 'week') d.setDate(d.getDate() + dir * 7);
@@ -25,10 +27,12 @@ export function PeriodTabs({
     else if (period === 'year') d.setFullYear(d.getFullYear() + dir);
     onDateChange(d);
   };
+
   const handleTabClick = (key: Period) => {
     onPeriodChange(key);
     onDateChange(new Date());
   };
+
   const fmtDate = () => {
     const d = date;
     if (period === 'day') return d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -41,6 +45,7 @@ export function PeriodTabs({
     if (period === 'year') return d.getFullYear() + '年';
     return '全部';
   };
+
   return (
     <div className="space-y-2">
       <div className="flex gap-1 rounded-xl bg-slate-100/80 p-1">
@@ -53,15 +58,34 @@ export function PeriodTabs({
       </div>
       {period !== 'all' && (
         <div className="flex items-center justify-center gap-3">
-          <button onClick={(e) => { e.stopPropagation(); shift(-1); }} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
+          <button onClick={() => shiftDate(-1)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
             <ChevronLeft className="h-4 w-4 text-slate-500" />
           </button>
           <span className="min-w-[120px] text-center text-sm font-medium text-slate-700">{fmtDate()}</span>
-          <button onClick={(e) => { e.stopPropagation(); shift(1); }} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
+          <button onClick={() => shiftDate(1)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/50">
             <ChevronRight className="h-4 w-4 text-slate-500" />
           </button>
         </div>
       )}
     </div>
   );
+}
+
+export function usePageSwipe(onSwipeLeft?: () => void, onSwipeRight?: () => void) {
+  const ref = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    ref.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - ref.current.x;
+    const dy = e.changedTouches[0].clientY - ref.current.y;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+      if (dx > 0) onSwipeRight?.();
+      else onSwipeLeft?.();
+    }
+  };
+
+  return { onTouchStart, onTouchEnd };
 }

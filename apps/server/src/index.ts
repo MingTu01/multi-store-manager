@@ -98,7 +98,7 @@ const POSSIBLE_WEB_DIST = [
   join('/app', 'apps', 'web', 'dist'),
 ];
 const WEB_DIST_PATH = POSSIBLE_WEB_DIST.find(p => existsSync(join(p, 'index.html'))) || POSSIBLE_WEB_DIST[0];
-console.log('[PATH] Web dist:', WEB_DIST_PATH);
+console.log('[PATH] Web dist:', WEB_DIST_PATH); console.log('[PATH] BASE_DIR:', BASE_DIR); console.log('[PATH] index.html content ref:', require('fs').readFileSync(require('path').join(WEB_DIST_PATH, 'index.html'), 'utf8').match(/index-[A-Za-z0-9_-]+\.js/)?.[0] || 'NONE');
 
 app.use(express.static(WEB_DIST_PATH, {
     maxAge: '1h',

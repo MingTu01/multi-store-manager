@@ -5,7 +5,7 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { MoneyDisplay, formatMoney } from '../../lib/format';
-import { PeriodTabs, type Period } from '../../components/PeriodTabs';
+import { PeriodTabs, usePageSwipe, type Period } from '../../components/PeriodTabs';
 import { useStore } from '../../stores/data';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Store, ArrowRight } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
@@ -17,6 +17,10 @@ const pctStr = (v: number) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState<Period>('day');
+  const swipeHandlers = usePageSwipe(
+    () => { const d = new Date(date); if (period === 'day') d.setDate(d.getDate() + 1); else if (period === 'week') d.setDate(d.getDate() + 7); else if (period === 'month') d.setMonth(d.getMonth() + 1); else if (period === 'year') d.setFullYear(d.getFullYear() + 1); setDate(d); },
+    () => { const d = new Date(date); if (period === 'day') d.setDate(d.getDate() - 1); else if (period === 'week') d.setDate(d.getDate() - 7); else if (period === 'month') d.setMonth(d.getMonth() - 1); else if (period === 'year') d.setFullYear(d.getFullYear() - 1); setDate(d); }
+  );
   const [date, setDate] = useState(new Date());
   const [stats, setStats] = useState<any>(null);
   const [stores, setStores] = useState<any[]>([]);
@@ -66,7 +70,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" {...swipeHandlers}>
       <PageHeader title="仪表盘" subtitle="经营数据总览" />
       <PeriodTabs period={period} onPeriodChange={setPeriod} date={date} onDateChange={setDate} />
 

@@ -1,61 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
-      manifest: {
-        name: 'Multi Shop Link',
-        short_name: 'Multi Shop Link',
-        description: 'Multi Shop Link - Multi Store Management Platform',
-        theme_color: '#3b63f7',
-        background_color: '#ffffff',
-        display: 'standalone',
-        orientation: 'portrait',
-        start_url: '/',
-        lang: 'zh-CN',
-        icons: [
-          { src: '/logo-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/logo-192.png', sizes: '512x512', type: 'image/png' },
-          { src: '/logo-192.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ]
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
-        cleanupOutdatedCaches: true,
-        navigateFallback: '/index.html',
-        skipWaiting: true,
-        clientsClaim: true,
-        runtimeCaching: [
-          {
-            urlPattern: /\/api\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'images-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 }
-            }
-          },
-          {
-            urlPattern: /\.(?:js|css|woff2)$/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'static-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 3600 }
-            }
-          }
-        ]
-      }
-    })
   ],
   server: {
     proxy: {
