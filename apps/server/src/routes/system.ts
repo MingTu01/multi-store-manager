@@ -541,9 +541,6 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
     })();
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
-      }
-    })();
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
 
 export default router;
+
