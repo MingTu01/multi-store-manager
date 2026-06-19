@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
+﻿export type Role = 'ADMIN' | 'STORE_ADMIN' | 'MANAGER' | 'STAFF' | 'SHAREHOLDER';
 
 const p: Record<string, Role[]> = {
   dashboard: ['ADMIN'],
@@ -11,7 +11,7 @@ const p: Record<string, Role[]> = {
   storeEntries: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeInventory: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeShifts: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
-  storePayroll: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
+  storePayroll: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'],
   storeDividends: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER'],
   storeStaff: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
   storeReport: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER', 'MANAGER'],

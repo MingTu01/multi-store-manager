@@ -268,7 +268,17 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log('Server running on http://0.0.0.0:' + PORT))
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('Server running on http://0.0.0.0:' + PORT);
+  // Broadcast server-ready to all SSE clients after startup
+  setTimeout(() => {
+    try {
+      const { eventBus } = require('./event-bus');
+      eventBus.broadcast({ type: 'system', action: 'server-ready' });
+      console.log('[SSE] Broadcasted server-ready');
+    } catch (e) { console.log('[SSE] server-ready broadcast skipped:', e.message); }
+  }, 1000);
+})
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {
       console.error('端口 ' + PORT + ' 无权限，请尝试其他端口: PORT=3000 node --import tsx src/index.ts');

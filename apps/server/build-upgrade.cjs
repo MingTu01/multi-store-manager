@@ -88,22 +88,24 @@ const versionFiles = ['package.json', 'apps/server/package.json'];
 for (const f of versionFiles) {
   const fp = path.join(base, f);
   if (fs.existsSync(fp)) {
-    zip.addLocalFile(fp, path.dirname(f), path.basename(f));
+    // Update version before adding
+    try { const pkg = JSON.parse(fs.readFileSync(fp, "utf-8")); if (pkg.version !== version) { pkg.version = version; fs.writeFileSync(fp, JSON.stringify(pkg, null, 2) + "\n", "utf-8"); } } catch (e) {}
+    zip.addLocalFile(fp, "", path.basename(f));
   }
 }
 
 // 添加服务端源码
 console.log('Adding server source...');
-addDir(path.join(__dirname, 'src'), 'apps/server/src');
+addDir(path.join(__dirname, 'src'), 'server-src');
 
 // 添加前端构建产物
 console.log('Adding web dist...');
-addDir(path.join(__dirname, 'public', 'web-dist'), 'apps/server/public/web-dist');
+addDir(path.join(__dirname, 'public', 'web-dist'), 'web-dist');
 
 // 添加前端构建产物（备份路径）
 const webDistPath = path.join(base, 'apps', 'web', 'dist');
 if (fs.existsSync(webDistPath)) {
-  addDir(webDistPath, 'apps/web/dist');
+  addDir(webDistPath, 'web-dist');
 }
 
 // 写入 ZIP

@@ -202,7 +202,7 @@ export default function SettingsPage() {
     setUpdateSteps([]);
     setShowProgressModal(true);
     setUpgradeComplete(false);
-    const onlineStepNames = ['备份数据库', '下载更新', '解压并覆盖文件', '重启服务', '完成'];
+    const onlineStepNames = ['正在备份数据', '正在下载更新', '下载完成', '正在解压', '正在更新', '更新完成', '正在重启', '重启成功'];
     setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
     try {
       const token = localStorage.getItem('token');
@@ -286,8 +286,8 @@ export default function SettingsPage() {
     setUpgrading(true);
     setUpgradeComplete(false);
     setUpgradeSteps([]);
-    const totalSteps = 5;
-    const stepNames = ['备份数据库', '解压升级包', '更新版本信息', '覆盖系统文件', '完成'];
+    const totalSteps = 4;
+    const stepNames = ['正在备份数据', '正在解压', '正在更新', '重启'];
     setUpgradeSteps(stepNames.map(n => ({ msg: n, done: false })));
     // Upload with progress
     const fd = new FormData();
@@ -308,7 +308,7 @@ export default function SettingsPage() {
     const poll = setInterval(async () => {
       pollRef.current = poll;
       try {
-        const r = await api.get('/system/upgrade/status');
+        const r = await api.get('/system/upgrade/status?t=' + Date.now());
         if (r && r.step !== undefined && r.step > 0) {
           const step = Math.min(r.step, totalSteps);
           if (step > maxStep) maxStep = step;
@@ -325,7 +325,7 @@ export default function SettingsPage() {
               catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
             }, 2000);
           }
-        } else if (maxStep >= 4 && !restartDetected) {
+        } else if (maxStep >= 3 && !restartDetected) {
           // Server restarted (step reset to 0 after seeing high step)
           restartDetected = true;
           clearInterval(poll);
@@ -702,52 +702,67 @@ export default function SettingsPage() {
 
       {/* === Upgrade Progress Modal === */}
       <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="mb-4">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>上传中...</span>
-                  <span>{uploadProgress}% {uploadSpeed && '| ' + uploadSpeed}</span>
-                </div>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full transition-all" style={{width: uploadProgress + '%'}} />
-                </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600 font-medium">上传升级包</span>
+                <span className="text-indigo-600 font-bold">{uploadProgress}%</span>
               </div>
-            )}
-            {(uploadProgress >= 100 || upgrading || updating) && (updating ? updateSteps : upgradeSteps).map((step, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 transition-all ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                {step.done ? <Check className="h-4 w-4" /> : i + 1}
+              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-300" style={{width: uploadProgress + '%'}} />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className={`text-sm ${step.done ? 'text-emerald-600 font-medium' : 'text-slate-400'}`}>
-                  {step.msg}
-                </div>
-                {step.msg && <div className="text-xs text-slate-500 mt-0.5 truncate">{step.msg}</div>}
-              </div>
-              {upgrading && step.done && <Check className="h-4 w-4 text-emerald-500 shrink-0" />}
+              {uploadSpeed && <div className="text-xs text-slate-400 text-right">{uploadSpeed}</div>}
             </div>
-          ))}
+          )}
+          {(uploadProgress >= 100 || upgrading || updating) && (
+            <div className="relative">
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
+              <div className="space-y-0">
+                {(updating ? updateSteps : upgradeSteps).map((step, i) => {
+                  const isActive = !step.done && (i === 0 || (updating ? updateSteps : upgradeSteps)[i-1]?.done);
+                  const isDone = step.done;
+                  return (
+                    <div key={i} className="relative flex items-start gap-4 pb-6 last:pb-0">
+                      <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-500 ${isDone ? 'border-emerald-500 bg-emerald-500 scale-110' : isActive ? 'border-indigo-500 bg-white shadow-lg shadow-indigo-200 animate-pulse' : 'border-slate-300 bg-white'}`}>
+                        {isDone ? <Check className="h-4 w-4 text-white" /> : isActive ? <div className="h-3 w-3 rounded-full bg-indigo-500 animate-ping" /> : <span className="text-xs font-bold text-slate-400">{i + 1}</span>}
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <div className={`text-sm font-medium transition-colors duration-300 ${isDone ? 'text-emerald-600' : isActive ? 'text-indigo-600' : 'text-slate-400'}`}>
+                          {step.msg}
+                        </div>
+                        {isActive && <div className="text-xs text-indigo-400 mt-1 animate-pulse">执行中...</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {(upgrading || updating) && !upgradeComplete && (
-            <div className="flex items-center justify-center gap-2 py-3 text-sm text-indigo-600">
-              <Loader2 className="h-4 w-4 animate-spin" />正在执行升级...
+            <div className="flex items-center justify-center gap-3 py-4 px-6 bg-indigo-50 rounded-xl">
+              <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />
+              <span className="text-sm font-medium text-indigo-600">正在执行升级...</span>
             </div>
           )}
           {upgradeComplete && (
-            <div className="space-y-3 border-t border-slate-100 pt-4">
-              <div className="rounded-xl bg-emerald-50 p-4 text-center">
-                <Check className="mx-auto h-8 w-8 text-emerald-500 mb-2" />
-                <div className="text-lg font-bold text-emerald-700">升级完成</div>
-                <div className="text-xs text-emerald-500 mt-1">系统已更新到最新版本</div>
+            <div className="space-y-4">
+              <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-6 text-center border border-emerald-200">
+                <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                  <Check className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div className="text-xl font-bold text-emerald-700 mb-1">升级完成</div>
+                <div className="text-sm text-emerald-500">系统已更新到最新版本</div>
               </div>
-              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2">
-                <RefreshCw className="h-4 w-4" />确认并刷新页面
+              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
+                <RefreshCw className="h-5 w-5" />确认并刷新页面
               </button>
             </div>
-          )}       </div>
+          )}
+        </div>
       </Modal>
 
-      {/* === Channel Edit Modal === */}
+{/* === Channel Edit Modal === */}
       <Modal open={!!editingChannel} onClose={() => setEditingChannel(null)} title={'配置 ' + (channels.find(c => c.key === editingChannel)?.label || '')}>
         <div className="space-y-4">
           {editingChannel && channels.find(c => c.key === editingChannel)?.fields.map((f: any) => (

@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -244,7 +244,9 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
     res.json({ message: '升级已开始', status: 'processing' });
     (async () => {
       try {
-        upgradeState = { step: 1, message: '正在备份数据库...', complete: false }; broadcastProgress('progress', { step: 1, total: 5, message: '正在备份数据库...' });
+        // Step 1: Backup database
+        upgradeState = { step: 1, message: '正在备份数据', complete: false };
+        broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
         const backupDir = join(BASE_DIR, 'backups');
         mkdirSync(backupDir, { recursive: true });
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -254,26 +256,18 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
         preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
-        upgradeState = { step: 1, message: '数据库备份完成', complete: false }; broadcastProgress('progress', { step: 1, total: 5, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 500));
-        upgradeState = { step: 2, message: '正在解压升级包...', complete: false }; broadcastProgress('progress', { step: 2, total: 5, message: '正在解压升级包...' });
+        // Step 2: Extract
+        upgradeState = { step: 2, message: '正在解压', complete: false };
+        broadcastProgress('progress', { step: 2, total: 4, message: '正在解压' });
         const extractDir = join(BASE_DIR, 'uploads', 'extract-' + Date.now());
         mkdirSync(extractDir, { recursive: true });
         const zip = new AdmZip(file.path);
         zip.extractAllTo(extractDir, true);
-        upgradeState = { step: 2, message: '升级包解压完成', complete: false }; broadcastProgress('progress', { step: 2, total: 5, message: '升级包解压完成', done: true });
         await new Promise(r => setTimeout(r, 500));
-        upgradeState = { step: 3, message: '正在更新版本信息...', complete: false }; broadcastProgress('progress', { step: 3, total: 5, message: '正在更新版本信息...' });
-        try {
-          const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
-          if (existsSync(pkgPath)) {
-            const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-            writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
-          }
-        } catch {}
-        upgradeState = { step: 3, message: '版本信息已更新', complete: false }; broadcastProgress('progress', { step: 3, total: 5, message: '版本信息已更新', done: true });
-        await new Promise(r => setTimeout(r, 500));
-        upgradeState = { step: 4, message: '正在覆盖文件...', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '正在覆盖文件...' });
+        console.log('[Upgrade] Step 3: Starting file copy...');         // Step 3: Update files
+        upgradeState = { step: 3, message: '正在更新', complete: false };
+        broadcastProgress('progress', { step: 3, total: 4, message: '正在更新' });
         const copyDir = (src: string, dest: string) => {
           mkdirSync(dest, { recursive: true });
           for (const entry of readdirSync(src, { withFileTypes: true })) {
@@ -285,34 +279,40 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         };
         const webDist = join(extractDir, 'web-dist');
         const serverSrc = join(extractDir, 'server-src');
-        console.log('[Upgrade] Extract dir:', extractDir);
-        console.log('[Upgrade] web-dist exists:', existsSync(webDist), '→', join(BASE_DIR, 'public', 'web-dist'));
-        console.log('[Upgrade] server-src exists:', existsSync(serverSrc), '→', join(BASE_DIR, 'src'));
         if (existsSync(webDist)) {
-          copyDir(webDist, join(BASE_DIR, 'public', 'web-dist'));
-          console.log('[Upgrade] web-dist copied successfully');
+          // Clean old files before copying
+          const webDest = join(BASE_DIR, 'public', 'web-dist');
+          if (existsSync(webDest)) rmSync(webDest, { recursive: true, force: true });
+          copyDir(webDist, webDest);
         } else {
-          console.log('[Upgrade] ERROR: web-dist not found in ZIP!');
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
         if (existsSync(serverSrc)) {
           copyDir(serverSrc, join(BASE_DIR, 'src'));
-          console.log('[Upgrade] server-src copied successfully');
         } else {
-          console.log('[Upgrade] ERROR: server-src not found in ZIP!');
           broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
           return;
         }
-        upgradeState = { step: 4, message: '文件覆盖完成', complete: false }; broadcastProgress('progress', { step: 4, total: 5, message: '文件覆盖完成', done: true });
+        // Update version
+        try {
+          const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
+          if (existsSync(pkgPath)) {
+            const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+            writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
+          }
+        } catch {}
+        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
         await new Promise(r => setTimeout(r, 500));
-        upgradeState = { step: 5, message: '升级完成', complete: true }; broadcastProgress('progress', { step: 5, total: 5, message: '升级完成', done: true });
-        broadcastProgress('ready', { message: '升级已完成，正在重启服务...' });
+        // Step 4: Restart
+        upgradeState = { step: 4, message: '重启', complete: false };
+        broadcastProgress('progress', { step: 4, total: 4, message: '重启', done: true });
+        broadcastProgress('complete', { message: '升级完成' });
         // Auto-restart after upgrade - send SIGTERM to self
         setTimeout(() => {
           console.log('[Upgrade] Sending SIGTERM for restart...');
           process.kill(process.pid, 'SIGTERM');
-        }, 2000);
+        }, 3000);
       } catch (err: any) {
         broadcastProgress('error', { message: '升级失败: ' + err.message });
       }
@@ -448,7 +448,12 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
     const latestVersion = latestData.version;
     
     // Compare versions
-    const hasUpdate = latestVersion !== currentVersion;
+    const parseVersion = (v: string) => v.replace(/^v/, '').split('.').map(Number);
+    const current = parseVersion(currentVersion);
+    const latest = parseVersion(latestVersion);
+    const hasUpdate = latest[0] > current[0] || 
+                      (latest[0] === current[0] && latest[1] > current[1]) || 
+                      (latest[0] === current[0] && latest[1] === current[1] && latest[2] > current[2]);
     
     res.json({ currentVersion, latestVersion, hasUpdate });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -468,7 +473,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         console.log('[Update] Starting backup...');
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         try {
-        broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据库...' });
+        broadcastProgress('progress', { step: 1, total: 8, message: '正在备份数据' });
         const backupDir = join(BASE_DIR, 'backups');
         console.log('[Update] Creating backup dir:', backupDir);
         mkdirSync(backupDir, { recursive: true });
@@ -481,24 +486,24 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
         preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
         console.log('[Update] Backup zip created');
-        broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
+        broadcastProgress('progress', { step: 1, total: 8, message: '正在备份数据', done: true });
         } catch (backupErr) { console.error('[Update] Backup error:', backupErr.message); }
         await new Promise(r => setTimeout(r, 500));
         
         // Step 2: Download latest code
         console.log('[Update] Starting download...');
-        broadcastProgress('progress', { step: 2, total: 4, message: '正在下载更新...' });
+        broadcastProgress('progress', { step: 2, total: 8, message: '正在下载更新' });
         const zipUrl = 'https://github.com/' + DEPLOY_REPO + '/archive/refs/heads/main.zip';
         console.log('[Update] Download URL:', zipUrl);
         const zipRes = await fetchWithProxy(zipUrl);
         if (!zipRes) throw new Error('无法下载更新包');
         
         const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
-        broadcastProgress('progress', { step: 2, total: 4, message: '下载完成', done: true });
+        broadcastProgress('progress', { step: 3, total: 8, message: '下载完成', done: true });
         await new Promise(r => setTimeout(r, 500));
         
         // Step 3: Extract and update
-        broadcastProgress('progress', { step: 3, total: 4, message: '正在应用更新...' });
+        broadcastProgress('progress', { step: 4, total: 8, message: '正在解压' });
         const extractDir = join(BASE_DIR, 'uploads', 'extract-' + now);
         mkdirSync(extractDir, { recursive: true });
         
@@ -537,12 +542,13 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         // Cleanup extract dir
         rmSync(extractDir, { recursive: true, force: true });
         
-        broadcastProgress('progress', { step: 3, total: 4, message: '更新应用完成', done: true });
+        broadcastProgress('progress', { step: 5, total: 8, message: '正在更新', done: true });
         await new Promise(r => setTimeout(r, 500));
+        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
         
         // Step 4: Restart
-        broadcastProgress('progress', { step: 4, total: 4, message: '正在重启服务...' });
-        broadcastProgress('complete', { message: '更新完成，服务即将重启...' });
+        broadcastProgress('progress', { step: 6, total: 8, message: '更新完成', done: true });
+        broadcastProgress('progress', { step: 7, total: 8, message: '正在重启' });
         
         setTimeout(() => {
           console.log('[Update] Restarting via process.exit...');

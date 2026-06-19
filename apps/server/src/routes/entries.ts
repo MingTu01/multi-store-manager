@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
@@ -51,7 +51,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
     const qp = [...params];
-    let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id' + whereClause + ' ORDER BY e.created_at DESC';
+    let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name, u.name AS creator_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN users u ON e.created_by = u.id' + whereClause + ' ORDER BY e.created_at DESC';
     if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
     const totalPages = Math.ceil(total / ps);
     res.json({ data: db.prepare(sql).all(...qp), total, page: p, pageSize: ps, totalPages });

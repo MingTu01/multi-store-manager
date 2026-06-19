@@ -132,7 +132,7 @@ export default function StoreEntriesPage() {
               {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500" /> : <ArrowDownCircle className="h-5 w-5 text-rose-500" />}
               <div>
                 <div className="text-sm font-medium text-slate-800">{e.category_name || '未分类'}</div>
-                <div className="text-xs text-slate-400">{e.note || ''} · {e.created_at || e.date}</div>
+                <div className="text-xs text-slate-400">{e.note || ''} · {e.creator_name || '未知'} · {e.created_at || e.date}</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
