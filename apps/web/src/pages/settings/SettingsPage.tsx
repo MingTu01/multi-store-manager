@@ -40,8 +40,8 @@ export default function SettingsPage() {
   const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
   const [validating, setValidating] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showProgressModal, setShowProgressModal] = useState(false);
   const [showOnlineConfirm, setShowOnlineConfirm] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
   const [upgradeSteps, setUpgradeSteps] = useState<{ msg: string; done: boolean }[]>([]);
   const [upgradeComplete, setUpgradeComplete] = useState(false);
   const [updateCheckResult, setUpdateCheckResult] = useState<any>(null);
@@ -202,7 +202,7 @@ export default function SettingsPage() {
   };
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
     if (!file.name.endsWith('.zip')) { showMsg(false, '请上传ZIP格式的升级包'); return; }
     setUpgradeFile(file);
     setUpgradeInfo(null);
@@ -266,14 +266,10 @@ export default function SettingsPage() {
             setUpgradeComplete(true);
             setUpdating(false);
           } catch {
-            if (attempts > 30) {
-              clearInterval(rp);
-              setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
-              setUpgradeComplete(true);
-              setUpdating(false);
-            }
+            if (attempts > 30) { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }
           }
         }, 2000);
+        setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 60000);
       };
       es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
       es.onerror = () => { es.close(); handleRestartPoll(); };
@@ -285,9 +281,10 @@ export default function SettingsPage() {
     }
   };
 
+
   const handleStartUpgrade = () => {
-    setShowConfirmModal(true);
-  };
+    const totalSteps = 4;
+    const stepNames = ['正在备份数据', '正在解压', '正在更新', '重启'];
 
   const handleConfirmUpgrade = async () => {
     setShowConfirmModal(false);
@@ -841,4 +838,5 @@ export default function SettingsPage() {
       </Modal>
     </div>
   );
+}
 }

@@ -67,7 +67,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = 'manual-' + now + '.zip';
-    db.pragma('wal_checkpoint(TRUNCATE)');
+    console.log('[Update] Running WAL checkpoint...'); db.pragma('wal_checkpoint(TRUNCATE)'); console.log('[Update] WAL checkpoint done');
     const dbDir = join(BASE_DIR, 'data');
     const zipPath = join(backupDir, filename);
     const zip = new AdmZip();
@@ -246,7 +246,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
       try {
         // Step 1: Backup database
         upgradeState = { step: 1, message: '正在备份数据', complete: false };
-        broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
+        console.log('[Update] Step 1: Starting backup...'); broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
         const backupDir = join(BASE_DIR, 'backups');
         mkdirSync(backupDir, { recursive: true });
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -255,7 +255,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db'), '', 'store.db');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
-        preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
+        console.log('[Update] Creating backup zip...'); preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip')); console.log('[Update] Backup zip created');
         await new Promise(r => setTimeout(r, 500));
         // Step 2: Extract
         upgradeState = { step: 2, message: '正在解压', complete: false };
