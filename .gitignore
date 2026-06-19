@@ -18,7 +18,8 @@ dist/
 # Server data (preserved on server, not in git)
 apps/server/uploads/
 apps/server/backups/
-apps/server/data/
+apps/server/data/*
+!apps/server/data/version.json
 
 # IDE
 .vscode/
