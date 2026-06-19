@@ -1,6 +1,6 @@
 {
   "name": "multi-shop-link",
-  "version": "1.1.46",
+  "version": "1.1.47",
   "dependencies": {},
   "devDependencies": {
     "adm-zip": "^0.5.17",

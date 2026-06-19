@@ -24,6 +24,16 @@ export function useSSE(): ConnectionStatus {
 
       es.addEventListener('open', () => setStatus('connected'));
 
+      es.addEventListener('system', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.action === 'server-ready') {
+            // Server has restarted, dispatch custom event
+            window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));
+          }
+        } catch {}
+      });
+
       es.addEventListener('data-change', (e) => {
         try {
           const data = JSON.parse(e.data);
