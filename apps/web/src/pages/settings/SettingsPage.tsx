@@ -329,18 +329,10 @@ export default function SettingsPage() {
           restartDetected = true;
           clearInterval(poll);
           // Show last step as in-progress
-          setUpgradeSteps(stepNames.map((n, i) => ({ msg: n, done: i < stepNames.length - 1 })));
-          // Check if SSE already reconnected (server already back)
-          if ((window as any).__sseReconnected) {
-            setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
-            setUpgrading(false);
-            setUpgradeComplete(true);
-            return;
-          }
           // Listen for server-ready SSE event
           const handleReady = () => {
             window.removeEventListener('server-ready', handleReady);
-            setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+            setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
             setUpgradeComplete(true);
           };
@@ -353,7 +345,7 @@ export default function SettingsPage() {
           // Fallback: mark complete after 60s
           setTimeout(() => {
             window.removeEventListener('server-ready', handleReady);
-            setUpdateSteps(stepNames.map(n => ({ msg: n, done: true })));
+            setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
             setUpgradeComplete(true);
           }, 60000);
