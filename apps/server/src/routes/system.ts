@@ -313,10 +313,38 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             else copyFileSync(srcPath, destPath);
           }
         };
+        // --- 清理清单机制: 升级包内的 cleanup.json 声明需要删除的旧文件 ---
+        const cleanupJsonPath = join(extractDir, 'cleanup.json');
+        if (existsSync(cleanupJsonPath)) {
+          try {
+            const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
+            console.log('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
+            // 删除旧文件
+            if (Array.isArray(cleanup.deleteFiles)) {
+              for (const f of cleanup.deleteFiles) {
+                const target = join(BASE_DIR, f);
+                if (existsSync(target)) {
+                  try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e: any) { console.warn('[Upgrade] Failed to delete', f, e.message); }
+                }
+              }
+            }
+            // 删除旧目录
+            if (Array.isArray(cleanup.deleteDirs)) {
+              for (const d of cleanup.deleteDirs) {
+                const target = join(BASE_DIR, d);
+                if (existsSync(target)) {
+                  try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e: any) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
+                }
+              }
+            }
+            broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件完成' });
+          } catch (e: any) {
+            console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
+          }
+        }
         const webDist = join(extractDir, 'web-dist');
         const serverSrc = join(extractDir, 'server-src');
         if (existsSync(webDist)) {
-          // Clean old files before copying
           const webDest = join(BASE_DIR, 'public', 'web-dist');
           if (existsSync(webDest)) rmSync(webDest, { recursive: true, force: true });
           copyDir(webDist, webDest);
@@ -325,10 +353,26 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           return;
         }
         if (existsSync(serverSrc)) {
-          copyDir(serverSrc, join(BASE_DIR, 'src'));
+          // 先清理旧的 src 目录，再复制新文件（和 web-dist 一致的策略）
+          const srcDest = join(BASE_DIR, 'src');
+          if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
+          copyDir(serverSrc, srcDest);
         } else {
           broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
           return;
+        }
+        // --- 后置脚本: 升级包内的 post-upgrade.cjs 自动执行 ---
+        const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
+        if (existsSync(postUpgradeScript)) {
+          try {
+            console.log('[Upgrade] Running post-upgrade script...');
+            broadcastProgress('progress', { step: 3, total: 4, message: '正在执行后置脚本' });
+            const { execSync } = require('child_process');
+            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            console.log('[Upgrade] Post-upgrade script completed');
+          } catch (e: any) {
+            console.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
+          }
         }
         // Update version
         try {
@@ -338,7 +382,8 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
           }
         } catch {}
-        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
+        // 清理临时解压目录
+        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };

@@ -108,6 +108,28 @@ if (fs.existsSync(webDistPath)) {
   addDir(webDistPath, 'web-dist');
 }
 
+// 生成清理清单 cleanup.json
+const cleanupManifest = {
+  version: version,
+  description: 'Upgrade to v' + version,
+  deleteFiles: [
+    'chi_sim.traineddata',   // Tesseract.js OCR 模型 (v1.1.67 移除)
+    'eng.traineddata',       // Tesseract.js OCR 模型 (v1.1.67 移除)
+  ],
+  deleteDirs: [],
+};
+zip.addFile('cleanup.json', Buffer.from(JSON.stringify(cleanupManifest, null, 2), 'utf8'));
+console.log('  Added cleanup.json (cleanup manifest)');
+
+// 打包后置脚本 post-upgrade.cjs
+const postUpgradeScript = path.join(__dirname, 'post-upgrade.cjs');
+if (fs.existsSync(postUpgradeScript)) {
+  zip.addLocalFile(postUpgradeScript, '', 'post-upgrade.cjs');
+  console.log('  Added post-upgrade.cjs');
+} else {
+  console.warn('  Warning: post-upgrade.cjs not found, skipping');
+}
+
 // 写入 ZIP
 zip.writeZip(zipPath);
 
