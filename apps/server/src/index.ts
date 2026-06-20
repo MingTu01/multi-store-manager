@@ -47,13 +47,23 @@ const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
     : (origin, callback) => {
-        // 只允许无 origin 的请求（如移动端、Postman）
+        // Allow no-origin requests (mobile, Postman)
         if (!origin) {
           callback(null, true);
         } else {
-          // 未配置 CORS_ORIGIN 时拒绝所有跨域请求
-          console.warn('[CORS] Blocked origin:', origin, '(set CORS_ORIGIN env to allow)');
-          callback(new Error('CORS not allowed'));
+          try {
+            const originUrl = new URL(origin);
+            const port = process.env.PORT || 3001;
+            // Allow same-origin requests
+            if (originUrl.port === String(port) && (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1')) {
+              callback(null, true);
+            } else {
+              console.warn('[CORS] Blocked:', origin, '(set CORS_ORIGIN env to allow)');
+              callback(new Error('CORS not allowed'));
+            }
+          } catch {
+            callback(new Error('CORS not allowed'));
+          }
         }
       },
   credentials: true
