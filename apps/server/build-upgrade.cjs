@@ -95,6 +95,35 @@ for (const f of versionFiles) {
 }
 
 // 添加服务端源码
+
+// === 打包前验证: esbuild transform 检查所有 .ts 文件 ===
+{
+  const esbuild = require('esbuild');
+  const srcDir = path.join(__dirname, 'src');
+  let errorCount = 0;
+  function checkDir(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) { checkDir(fullPath); continue; }
+      if (!entry.name.endsWith('.ts') || entry.name.endsWith('.d.ts')) continue;
+      try {
+        esbuild.transformSync(fs.readFileSync(fullPath, 'utf-8'), { loader: 'ts', target: 'node20' });
+      } catch (e) {
+        const rel = path.relative(__dirname, fullPath);
+        console.error('  FAIL: ' + rel + ' - ' + (e.message || '').split('\n')[0]);
+        errorCount++;
+      }
+    }
+  }
+  console.log('Validating source code with esbuild transform...');
+  checkDir(srcDir);
+  if (errorCount > 0) {
+    console.error('\nERROR: ' + errorCount + ' file(s) have compilation errors. Fix them before packaging.');
+    process.exit(1);
+  }
+  console.log('Validation PASSED - all .ts files compile OK\n');
+}
+
 console.log('Adding server source...');
 addDir(path.join(__dirname, 'src'), 'server-src');
 
@@ -106,6 +135,24 @@ addDir(path.join(__dirname, 'public', 'web-dist'), 'web-dist');
 const webDistPath = path.join(base, 'apps', 'web', 'dist');
 if (fs.existsSync(webDistPath)) {
   addDir(webDistPath, 'web-dist');
+}
+
+// 打包清理清单 cleanup.json
+const cleanupJsonPath = path.join(__dirname, 'cleanup.json');
+if (fs.existsSync(cleanupJsonPath)) {
+  zip.addLocalFile(cleanupJsonPath, '', 'cleanup.json');
+  console.log('  Added cleanup.json');
+} else {
+  console.warn('  Warning: cleanup.json not found');
+}
+
+// 打包后置脚本 post-upgrade.cjs
+const postUpgradeScript = path.join(__dirname, 'post-upgrade.cjs');
+if (fs.existsSync(postUpgradeScript)) {
+  zip.addLocalFile(postUpgradeScript, '', 'post-upgrade.cjs');
+  console.log('  Added post-upgrade.cjs');
+} else {
+  console.warn('  Warning: post-upgrade.cjs not found, skipping');
 }
 
 // 写入 ZIP

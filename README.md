@@ -11,7 +11,7 @@
 | 后端 | Express 5 + TypeScript + SQLite (WAL) |
 | 前端 | Vite 8 + React 19 + TypeScript + Tailwind CSS 4 |
 | PWA | vite-plugin-pwa（Service Worker + manifest） |
-| OCR | Tesseract.js（离线中文识别） |
+| OCR | 阿里云 OCR（在线识别） |
 | 拖动排序 | @dnd-kit |
 | 图表 | Recharts |
 | 端口 | 3001（可通过 PORT 环境变量修改） |

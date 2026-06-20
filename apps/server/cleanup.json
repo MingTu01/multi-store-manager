@@ -1,0 +1,9 @@
+{
+  "version": "1.1.68",
+  "description": "Cleanup old Tesseract.js files and other legacy artifacts",
+  "deleteFiles": [
+    "chi_sim.traineddata",
+    "eng.traineddata"
+  ],
+  "deleteDirs": []
+}

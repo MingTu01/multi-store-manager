@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
@@ -60,12 +60,13 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    const user = (req as any).user;
+    if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权新增记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
     if (amount === undefined || amount === null || isNaN(Number(amount))) return res.status(400).json({ error: '请输入有效金额' });
     if (Number(amount) < 0) return res.status(400).json({ error: '金额不能为负数' });
     if (Number(amount) > 9999999) return res.status(400).json({ error: '金额不能超过999万' });
-    const user = (req as any).user;
     let categoryName = category || '';
     let catId = category_id || null;
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }

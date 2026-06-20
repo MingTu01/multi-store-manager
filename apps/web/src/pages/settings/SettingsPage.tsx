@@ -1,17 +1,18 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
 
-type Tab = 'info' | 'backup' | 'upgrade' | 'notif' | 'perms';
+type Tab = 'info' | 'backup' | 'upgrade' | 'notif' | 'perms' | 'ocr';
 const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'info', label: '系统信息', icon: Server },
   { key: 'backup', label: '数据备份', icon: Database },
   { key: 'upgrade', label: '系统升级', icon: Upload },
   { key: 'notif', label: '消息推送', icon: Send },
   { key: 'perms', label: '权限说明', icon: Info },
+  { key: 'ocr', label: 'OCR 配置', icon: ScanLine },
 ];
 
 export default function SettingsPage() { 
@@ -52,6 +53,11 @@ export default function SettingsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSpeed, setUploadSpeed] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // OCR config states
+  const [ocrConfig, setOcrConfig] = useState<any>(null);
+  const [ocrForm, setOcrForm] = useState({ accessKeyId: '', accessKeySecret: '', endpoint: 'ocr-api.cn-hangzhou.aliyuncs.com', regionId: 'cn-hangzhou' });
+  const [ocrSaving, setOcrSaving] = useState(false);
+  const [showOcrKey, setShowOcrKey] = useState(false);
 
   // Notification channels config
   const channels = [
@@ -83,7 +89,28 @@ export default function SettingsPage() {
         channels.forEach(ch => { status[ch.key] = ch.fields.every(f => d[f.f]); });
         setChannelStatus(status);
       }).catch(() => {});
+    if (tab === 'ocr') {
+      api.get('/health-cert/config').then((d: any) => {
+        setOcrConfig(d);
+        if (d.endpoint) setOcrForm(f => ({ ...f, endpoint: d.endpoint }));
+        if (d.regionId) setOcrForm(f => ({ ...f, regionId: d.regionId }));
+      }).catch(() => {});
+    }
   }, [tab]);
+
+  // === OCR Config ===
+  const handleSaveOcr = async () => {
+    if (!ocrForm.accessKeyId || !ocrForm.accessKeySecret) { showMsg(false, '请填写 AccessKeyId 和 AccessKeySecret'); return; }
+    setOcrSaving(true);
+    try {
+      const d: any = await api.post('/health-cert/config', ocrForm);
+      showMsg(true, d.message || '配置已保存');
+      setOcrForm(f => ({ ...f, accessKeyId: '', accessKeySecret: '' }));
+      const cfg = await api.get('/health-cert/config');
+      setOcrConfig(cfg);
+    } catch (e: any) { showMsg(false, e.message || '保存失败'); }
+    finally { setOcrSaving(false); }
+  };
 
   // === Backup ===
   const handleBackup = async () => {
@@ -649,6 +676,54 @@ export default function SettingsPage() {
             ))}
           </div>
         </GlassCard>
+      )}
+
+      {/* === OCR Config === */}
+      {tab === 'ocr' && (
+        <div className="space-y-4">
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={'flex h-10 w-10 items-center justify-center rounded-full ' + (ocrConfig?.configured ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500')}>
+                <ScanLine className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-slate-800">阿里云 OCR 服务</div>
+                <div className={'text-xs ' + (ocrConfig?.configured ? 'text-emerald-600' : 'text-amber-600')}>
+                  {ocrConfig?.configured ? '已配置' : '未配置'}
+                  {ocrConfig?.configured && ocrConfig?.accessKeyIdHint && <span className="ml-1 text-slate-400">(KeyID: {ocrConfig.accessKeyIdHint})</span>}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500 leading-relaxed">
+              配置阿里云 OCR 服务后，可使用健康证自动识别功能。请前往 <a href="https://ram.console.aliyun.com/manage/ak" target="_blank" className="text-indigo-500 underline">阿里云控制台</a> 获取 AccessKey。
+            </div>
+          </GlassCard>
+          <GlassCard className="p-5 space-y-4">
+            <div className="text-sm font-semibold text-slate-700">配置密钥</div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">AccessKeyId *</label>
+              <input value={ocrForm.accessKeyId} onChange={e => setOcrForm(f => ({ ...f, accessKeyId: e.target.value }))} className={inputCls} placeholder="请输入 AccessKeyId" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">AccessKeySecret *</label>
+              <div className="relative">
+                <input type={showOcrKey ? 'text' : 'password'} value={ocrForm.accessKeySecret} onChange={e => setOcrForm(f => ({ ...f, accessKeySecret: e.target.value }))} className={inputCls + ' pr-10'} placeholder="请输入 AccessKeySecret" />
+                <button onClick={() => setShowOcrKey(!showOcrKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {showOcrKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">Endpoint</label>
+              <input value={ocrForm.endpoint} onChange={e => setOcrForm(f => ({ ...f, endpoint: e.target.value }))} className={inputCls} placeholder="ocr-api.cn-hangzhou.aliyuncs.com" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600">RegionId</label>
+              <input value={ocrForm.regionId} onChange={e => setOcrForm(f => ({ ...f, regionId: e.target.value }))} className={inputCls} placeholder="cn-shanghai" />
+            </div>
+            <button onClick={handleSaveOcr} disabled={ocrSaving} className="btn w-full disabled:opacity-50"><Save className="mr-1.5 h-4 w-4 inline" />{ocrSaving ? '保存中..' : '保存配置'}</button>
+          </GlassCard>
+        </div>
       )}
 
         {/* === Restore Progress Modal === */}

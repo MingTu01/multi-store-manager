@@ -222,10 +222,9 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
 });
 
 // 自动备份配置 — ADMIN
-router.get('/auto-backup', (req: AuthRequest, res: Response, next) => {
-  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); next(); }),
 router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
@@ -244,6 +243,7 @@ router.put('/auto-backup', (req: AuthRequest, res: Response) => {
 
 // 升级相关 — ADMIN
 router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.write('event: connected\ndata: {}\n\n');
   sseClients.add(res);
@@ -301,10 +301,11 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const zip = new AdmZip(file.path);
         zip.extractAllTo(extractDir, true);
         await new Promise(r => setTimeout(r, 500));
-        console.log('[Upgrade] Step 3: Starting file copy...');         // Step 3: Update files
+        console.log('[Upgrade] Step 3: Starting file copy...');
+        // Step 3: Update files
         upgradeState = { step: 3, message: '正在更新', complete: false };
         broadcastProgress('progress', { step: 3, total: 4, message: '正在更新' });
-        const copyDir = (src: string, dest: string) => {
+        const copyDir = (src, dest) => {
           mkdirSync(dest, { recursive: true });
           for (const entry of readdirSync(src, { withFileTypes: true })) {
             const srcPath = join(src, entry.name);
@@ -313,24 +314,95 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             else copyFileSync(srcPath, destPath);
           }
         };
+        // 清空目录内容但保留目录本身（Docker volume mount 不能删除挂载点）
+        const clearDir = (dir) => {
+          if (!existsSync(dir)) return;
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const fullPath = join(dir, entry.name);
+            if (entry.isDirectory()) rmSync(fullPath, { recursive: true, force: true });
+            else { try { unlinkSync(fullPath); } catch {} }
+          }
+        };
+        // --- 清理清单机制 ---
+        const cleanupJsonPath = join(extractDir, 'cleanup.json');
+        if (existsSync(cleanupJsonPath)) {
+          try {
+            const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
+            console.log('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
+            if (Array.isArray(cleanup.deleteFiles)) {
+              for (const f of cleanup.deleteFiles) {
+                const target = join(BASE_DIR, f);
+                if (existsSync(target)) {
+                  try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e) { console.warn('[Upgrade] Failed to delete', f, e.message); }
+                }
+              }
+            }
+            if (Array.isArray(cleanup.deleteDirs)) {
+              for (const d of cleanup.deleteDirs) {
+                const target = join(BASE_DIR, d);
+                if (existsSync(target)) {
+                  try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
+                }
+              }
+            }
+            broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件完成' });
+          } catch (e) {
+            console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
+          }
+        }
+        // === 更新 web-dist ===
         const webDist = join(extractDir, 'web-dist');
-        const serverSrc = join(extractDir, 'server-src');
         if (existsSync(webDist)) {
-          // Clean old files before copying
           const webDest = join(BASE_DIR, 'public', 'web-dist');
-          if (existsSync(webDest)) rmSync(webDest, { recursive: true, force: true });
+          if (existsSync(webDest)) clearDir(webDest);
           copyDir(webDist, webDest);
+          console.log('[Upgrade] web-dist updated');
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
-        if (existsSync(serverSrc)) {
-          copyDir(serverSrc, join(BASE_DIR, 'src'));
-        } else {
+        // === 更新服务端代码 ===
+        const serverSrc = join(extractDir, 'server-src');
+        if (!existsSync(serverSrc)) {
           broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
           return;
         }
-        // Update version
+        const srcDest = join(BASE_DIR, 'src');
+        clearDir(srcDest);
+        copyDir(serverSrc, srcDest);
+        console.log('[Upgrade] server-src updated');
+        // === 更新 package.json ===
+        const pkgFile = join(extractDir, 'package.json');
+        if (existsSync(pkgFile)) {
+          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
+          console.log('[Upgrade] package.json updated');
+        }
+        // === npm install (失败必须中止升级) ===
+        try {
+          console.log('[Upgrade] Running npm install...');
+          broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
+          const { execSync } = require('child_process');
+          execSync('npm install --omit=dev', { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
+          console.log('[Upgrade] npm install completed');
+        } catch (e) {
+          console.error('[Upgrade] npm install FAILED:', e.message);
+          broadcastProgress('error', { message: '依赖安装失败，请检查服务器 npm 环境: ' + e.message });
+          return;
+        }
+        // === 后置脚本 ===
+        const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
+        if (existsSync(postUpgradeScript)) {
+          try {
+            console.log('[Upgrade] Running post-upgrade script...');
+            broadcastProgress('progress', { step: 3, total: 4, message: '正在执行后置脚本' });
+            const { execSync } = require('child_process');
+            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            console.log('[Upgrade] Post-upgrade script completed');
+          } catch (e) {
+            console.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
+          }
+        }
+        // === 更新版本号 ===
         try {
           const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
           if (existsSync(pkgPath)) {
@@ -338,13 +410,15 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
           }
         } catch {}
+        // 清理临时解压目录
+        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };
         broadcastProgress('progress', { step: 4, total: 4, message: '重启', done: true });
         broadcastProgress('complete', { message: '升级完成' });
-        // Auto-restart after upgrade - send SIGTERM to self
+        // Auto-restart after upgrade
         setTimeout(() => {
           console.log('[Upgrade] Sending SIGTERM for restart...');
           process.kill(process.pid, 'SIGTERM');
@@ -538,26 +612,64 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const zip = new AdmZip(zipBuffer);
         zip.extractAllTo(extractDir, true);
         const extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
-        const srcDir = join(extractedFolder, 'src');
-        if (existsSync(srcDir)) {
-          const destSrc = join(BASE_DIR, 'src');
-          rmSync(destSrc, { recursive: true, force: true });
-          cpSync(srcDir, destSrc, { recursive: true });
+        
+        // --- cleanup.json 清理清单 ---
+        const cleanupJsonPath = join(extractedFolder, 'cleanup.json');
+        if (existsSync(cleanupJsonPath)) {
+          try {
+            const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
+            console.log('[Update] Processing cleanup.json:', cleanup.description || '');
+            if (Array.isArray(cleanup.deleteFiles)) {
+              for (const f of cleanup.deleteFiles) {
+                const target = join(BASE_DIR, f);
+                if (existsSync(target)) {
+                  try { unlinkSync(target); console.log('[Update] Deleted:', f); } catch (e: any) { console.warn('[Update] Failed to delete', f, e.message); }
+                }
+              }
+            }
+            if (Array.isArray(cleanup.deleteDirs)) {
+              for (const d of cleanup.deleteDirs) {
+                const target = join(BASE_DIR, d);
+                if (existsSync(target)) {
+                  try { rmSync(target, { recursive: true, force: true }); console.log('[Update] Deleted dir:', d); } catch (e: any) { console.warn('[Update] Failed to delete dir', d, e.message); }
+                }
+              }
+            }
+          } catch (e: any) { console.warn('[Update] Failed to process cleanup.json:', e.message); }
         }
+        
         const publicDir = join(extractedFolder, 'public');
         if (existsSync(publicDir)) {
           const destPublic = join(BASE_DIR, 'public');
+          if (existsSync(destPublic)) {
+            const webDistDest = join(destPublic, 'web-dist');
+            if (existsSync(webDistDest)) clearDir(webDistDest);
+          }
           cpSync(publicDir, destPublic, { recursive: true });
+          console.log('[Update] web-dist updated');
+        }
+        // === 更新服务端代码 ===
+        const srcDir = join(extractedFolder, 'src');
+        if (existsSync(srcDir)) {
+          const destSrc = join(BASE_DIR, 'src');
+          clearDir(destSrc);
+          cpSync(srcDir, destSrc, { recursive: true });
+          console.log('[Update] server-src updated');
         }
         const pkgFile = join(extractedFolder, 'package.json');
-        if (existsSync(pkgFile)) {
-          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
-        }
+        if (existsSync(pkgFile)) copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
         const versionFile = join(extractedFolder, 'data', 'version.json');
-        if (existsSync(versionFile)) {
-          copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+        if (existsSync(versionFile)) copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+        const postUpgradeScript = join(extractedFolder, 'post-upgrade.cjs');
+        if (existsSync(postUpgradeScript)) {
+          try {
+            console.log('[Update] Running post-upgrade script...');
+            const { execSync } = require('child_process');
+            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            console.log('[Update] Post-upgrade completed');
+          } catch (e) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
         }
-        rmSync(extractDir, { recursive: true, force: true });
+        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         broadcastProgress('progress', { step: 3, total: 4, message: '更新完成', done: true });
         await new Promise(r => setTimeout(r, 1000));
         

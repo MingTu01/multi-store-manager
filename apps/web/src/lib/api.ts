@@ -1,3 +1,5 @@
+﻿let isRedirectingToLogin = false;
+
 const headers = () => ({ Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' });
 const token = () => localStorage.getItem('token');
 
@@ -75,15 +77,16 @@ async function parseError(r: Response, silent = false): Promise<Error> {
   try {
     const data = await r.json();
     if (r.status === 401) {
-      // Login endpoint: show actual error from backend (e.g. wrong credentials)
       if ((r.url && r.url.includes('/auth/login')) || (typeof window !== 'undefined' && window.location.pathname === '/login')) {
         return new Error(data.error || data.message || '用户名或密码错误');
       }
-      localStorage.removeItem('token');
-      // Only redirect if not in silent mode and not already on login
-      if (!silent && location.pathname !== '/login') {
+        if (!isRedirectingToLogin) {
+            isRedirectingToLogin = true;
+            localStorage.removeItem('token');
+            if (!silent && location.pathname !== '/login') {
         location.href = '/login';
-      }
+            }
+        }
       return new Error(data.error || data.message || '登录已过期，请重新登录');
     }
     return new Error(data.error || data.message || '请求失败');

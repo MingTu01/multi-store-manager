@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
@@ -25,12 +25,13 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [stores, setStores] = useState<any[]>([]);
   const [trend, setTrend] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const nav = useNavigate();
   const dataVersion = useDataVersion('global');
 
   const dateStr = date.toISOString().split('T')[0];
   useEffect(() => {
-    api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(() => {});
+    api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
     api.get('/dashboard/trend?period=' + period).then((d: any) => setTrend(d.trend || [])).catch(() => {});
   }, [period, dateStr, dataVersion]);
@@ -73,6 +74,12 @@ export default function DashboardPage() {
     <div className="space-y-4" {...swipeHandlers}>
       <PageHeader title="仪表盘" subtitle="经营数据总览" />
       <PeriodTabs period={period} onPeriodChange={setPeriod} date={date} onDateChange={setDate} />
+
+      {loadError && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-600">
+          {loadError}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {metrics.map((c) => (

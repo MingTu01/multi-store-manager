@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { invalidateCache } from './api';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
@@ -11,15 +11,14 @@ export function useSSE(): ConnectionStatus {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const tokenRaw = localStorage.getItem('token');
-    if (!tokenRaw) return;
-    const token: string = tokenRaw;
     let stopped = false;
 
     function connect() {
       if (stopped) return;
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) { setStatus('disconnected'); return; }
       setStatus('connecting');
-      const es = new EventSource('/api/sse?token=' + encodeURIComponent(token));
+      const es = new EventSource('/api/sse?token=' + encodeURIComponent(currentToken));
       esRef.current = es;
 
       es.addEventListener('open', () => setStatus('connected'));
@@ -69,6 +68,7 @@ export function useSSE(): ConnectionStatus {
       es.onerror = () => {
         setStatus('disconnected');
         es.close();
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
         if (!stopped) reconnectTimer.current = setTimeout(connect, 3000);
       };
     }

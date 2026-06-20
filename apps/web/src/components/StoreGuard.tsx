@@ -1,12 +1,14 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
 import { canAccess } from '../lib/permissions';
 import { Power, Camera, Upload, Lock, ArrowLeft } from 'lucide-react';
 import { uploadImage } from '../lib/image';
+import { safeImageUrl } from '../lib/image';
 import { GlassCard } from './GlassCard';
 import { Modal } from './Modal';
+import { showToast } from './Toast';
 
 export function StoreGuard({ children }: { children: React.ReactNode }) {
   const { storeId } = useParams();
@@ -58,7 +60,12 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   ];
   let permKey = 'storeOverview';
   for (const [suffix, key] of permMap) {
-    if (path.endsWith(suffix)) { permKey = key; break; }
+    // Match /store/:id/suffix or /store/:id/suffix/xxx
+    const pattern = '/store/' + storeId + suffix;
+    if (path === pattern || path.startsWith(pattern + '/')) {
+      permKey = key;
+      break;
+    }
   }
   if (user && !canAccess(permKey, user.role)) {
     return <Navigate to="/" replace />;
@@ -80,7 +87,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
       try {
         const url = await uploadImage(file, api, 'shifts');
         setPhotos((p) => [...p, url]);
-      } catch (err: any) { alert(err.message || '上传失败'); }
+      } catch (err: any) { showToast(err.message || '上传失败', 'error'); }
     }
   };
 
@@ -90,7 +97,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
       await api.post('/stores/' + storeId + '/shifts/open', { photos });
       setShowOpen(false); setPhotos([]);
       setTimeout(() => { setShowOpen(false); setPhotos([]); load(); }, 500);
-    } catch (e: any) { alert(e.message || '开店失败'); }
+    } catch (e: any) { showToast(e.message || '开店失败', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -131,7 +138,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
                 <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.multiple = true; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Upload className="h-4 w-4" />上传</button>
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
-              {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>}
+              {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={safeImageUrl(p)} className="h-16 w-16 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>}
             </div>
             <button onClick={handleOpen} disabled={saving || photos.length === 0} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? '提交中...' : '确认开店'}</button>
           </div>

@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 
 # Build output
@@ -65,3 +65,7 @@ package-lock.json
 
 # Staging
 _staging*/
+
+# Aliyun OCR credentials
+aliyun-credentials.json
+data/aliyun-credentials.json

@@ -19,11 +19,20 @@ function getJwtSecret(): string {
     // 生成 64 字节随机 secret
     const secret = crypto.randomBytes(64).toString('hex');
     mkdirSync(dataDir, { recursive: true });
-    writeFileSync(secretFile, secret, 'utf-8');
-    console.log('[AUTH] Generated new JWT secret and saved to', secretFile);
+    try {
+      writeFileSync(secretFile, secret, 'utf-8');
+      console.log('[AUTH] Generated new JWT secret and saved to', secretFile);
+    } catch (writeErr) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[AUTH] ⚠️ 生产环境警告: JWT_SECRET 环境变量未设置且无法写入 secret 文件，使用进程内随机 secret（重启后失效）');
+      }
+    }
     return secret;
   } catch (err) {
     console.error('[AUTH] Failed to read/write JWT secret file:', err);
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[AUTH] ⚠️ 生产环境警告: JWT_SECRET 环境变量未设置且 secret 文件不可用，使用进程内随机 secret（重启后失效）。建议设置 JWT_SECRET 环境变量以确保令牌持久化。');
+    }
     // 兜底：进程内随机 secret（重启后失效，但不会崩溃）
     return crypto.randomBytes(64).toString('hex');
   }

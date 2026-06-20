@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { signToken, authMiddleware, AuthRequest } from '../auth.js';
+import { opLog } from '../oplog.js';
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
       if (exists) return res.status(400).json({ error: '账号已存在' });
       updates.push('username=?'); vals.push(username);
     }
-    if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); updates.push('username=?'); vals.push(phone); }
+    if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); }
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {
@@ -62,6 +63,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     updates.push("updated_at=datetime('now','localtime')");
     vals.push(req.user.id);
     db.prepare('UPDATE users SET ' + updates.join(',') + ' WHERE id=?').run(...vals);
+    if (oldPassword && newPassword) { opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip); }
     const updated = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address FROM users WHERE id = ?').get(req.user.id) as any;
     res.json({ user: updated, message: '信息已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -77,6 +79,7 @@ router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
     if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
+    opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     res.json({ message: '密码修改成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
