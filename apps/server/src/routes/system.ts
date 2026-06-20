@@ -515,6 +515,31 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+
+// Version comparison utilities
+const parseVersion = (v: string) => v.replace(/^v/, '').split('.').map(Number);
+const compareVersions = (v1: string, v2: string): number => {
+  const parts1 = parseVersion(v1);
+  const parts2 = parseVersion(v2);
+  for (let i = 0; i < 3; i++) {
+    if (parts1[i] > parts2[i]) return 1;
+    if (parts1[i] < parts2[i]) return -1;
+  }
+  return 0;
+};
+const getVersionDiff = (current: string, target: string) => {
+  const c = parseVersion(current);
+  const t = parseVersion(target);
+  return {
+    major: t[0] - c[0],
+    minor: t[1] - c[1],
+    patch: t[2] - c[2],
+    totalMinor: (t[0] - c[0]) * 100 + (t[1] - c[1])
+  };
+};
+// Maximum supported minor version jump
+const MAX_MINOR_JUMP = 5;
+
 // GitHub Proxy mirrors for China
 const GITHUB_PROXIES = ['https://ghfast.top/', 'https://gh-proxy.com/'];
 const DEPLOY_REPO = 'MingTu01/multi-shop-link-deploy';
@@ -541,6 +566,7 @@ async function fetchWithProxy(url: string, opts?: any): Promise<Response | null>
 }
 
 // Check for updates
+// Check for updates
 router.get('/check-update', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
@@ -557,15 +583,48 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
     const latestData = await versionRes.json();
     const latestVersion = latestData.version;
     
-    // Compare versions
-    const parseVersion = (v: string) => v.replace(/^v/, '').split('.').map(Number);
-    const current = parseVersion(currentVersion);
-    const latest = parseVersion(latestVersion);
-    const hasUpdate = latest[0] > current[0] || 
-                      (latest[0] === current[0] && latest[1] > current[1]) || 
-                      (latest[0] === current[0] && latest[1] === current[1] && latest[2] > current[2]);
+    // Compare versions using utility functions
+    const hasUpdate = compareVersions(currentVersion, latestVersion) < 0;
     
-    res.json({ currentVersion, latestVersion, hasUpdate });
+    // Version compatibility check
+    const diff = getVersionDiff(currentVersion, latestVersion);
+    const isCompatible = diff.totalMinor <= MAX_MINOR_JUMP;
+    let upgradePath = [];
+    let warning = '';
+    
+    if (hasUpdate && !isCompatible) {
+      // Generate intermediate upgrade path
+      const currentParts = parseVersion(currentVersion);
+      const latestParts = parseVersion(latestVersion);
+      let stepMajor = currentParts[0];
+      let stepMinor = currentParts[1];
+      
+      while (stepMajor < latestParts[0] || (stepMajor === latestParts[0] && stepMinor < latestParts[1])) {
+        stepMinor += MAX_MINOR_JUMP;
+        if (stepMinor > 99) {
+          stepMajor++;
+          stepMinor = stepMinor - 100;
+        }
+        const stepVersion = stepMajor + '.' + stepMinor + '.0';
+        upgradePath.push('v' + stepVersion);
+      }
+      upgradePath.push('v' + latestVersion);
+      
+      warning = '当前版本与目标版本差距过大（跨越 ' + diff.totalMinor + ' 个次版本），建议分步升级以确保数据安全';
+    }
+    
+    res.json({
+      currentVersion,
+      latestVersion,
+      hasUpdate,
+      compatibility: {
+        isCompatible,
+        diff,
+        maxMinorJump: MAX_MINOR_JUMP,
+        upgradePath,
+        warning
+      }
+    });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

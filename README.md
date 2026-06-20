@@ -2,7 +2,7 @@
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.1.65**
+**当前版本：v1.1.73**
 
 ## 技术栈
 
@@ -15,8 +15,8 @@
 | 拖动排序 | @dnd-kit |
 | 图表 | Recharts |
 | 端口 | 3001（可通过 PORT 环境变量修改） |
-| 启动 | `cd apps/server && node --import tsx src/index.ts` |
-| 构建 | `cd apps/web && npx vite build` |
+| 启动 | cd apps/server && node --import tsx src/index.ts |
+| 构建 | cd apps/web && npx vite build |
 
 ## 项目仓库
 
@@ -56,9 +56,17 @@
 | 员工 (STAFF) | 基础操作 |
 | 股东 (SHAREHOLDER) | 只读查看 |
 
+## 版本兼容性
+
+- **最大跳跃版本数**：5 个次版本
+- **兼容性检查**：在线更新时自动检测版本跨度
+- **升级路径建议**：跨度太大时自动生成建议的中间版本
+
+详见 [UPGRADE.md](UPGRADE.md)
+
 ## 快速开始
 
-```bash
+`ash
 # 克隆源码
 git clone https://github.com/MingTu01/multi-store-manager.git
 cd multi-store-manager
@@ -72,6 +80,34 @@ cd ../web && npx vite build
 
 # 启动服务
 cd ../server && node --import tsx src/index.ts
-```
+`
 
-默认管理员账号：`admin / 123456`
+默认管理员账号：dmin / 123456
+
+## Docker 部署
+
+`ash
+# 克隆部署仓库
+git clone https://github.com/MingTu01/multi-shop-link-deploy.git
+cd multi-shop-link-deploy
+
+# 启动容器
+docker-compose up -d
+`
+
+## 更新日志
+
+### v1.1.73
+- 新增版本兼容性检查功能
+- 在线更新时自动检测版本跨度
+- 跨度太大时显示警告和建议升级路径
+- 修复 version.json 编码问题
+
+### v1.1.70
+- 安全修复：防止通过员工 API 修改管理员密码
+- 添加密码修改审计日志
+
+### v1.1.65
+- PWA 开屏页面优化
+- 数据恢复功能修复
+- 移动端滑动手势支持
