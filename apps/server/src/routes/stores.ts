@@ -205,8 +205,14 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   try {
+    const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
+    if (!targetUser) return res.status(404).json({ error: '员工不存在' });
+    if (targetUser.role === 'ADMIN') return res.status(403).json({ error: '不允许修改管理员账户，请联系管理员' });
+    if (targetUser.store_id && String(targetUser.store_id) !== String(req.params.storeId)) {
+      return res.status(403).json({ error: '该员工不属于此门店' });
+    }
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
     const fields = [];
     const vals = [];
@@ -220,10 +226,12 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     if (status !== undefined) { fields.push('status=?'); vals.push(status); }
     if (password) { fields.push('password_hash=?'); vals.push(bcrypt.hashSync(password, 10)); }
     if (fields.length > 0) {
+      fields.push("updated_at=datetime('now','localtime')");
       vals.push(req.params.id);
       db.prepare('UPDATE users SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
     }
-    opLog(req.user.id, req.params.storeId, '修改员工', '修改员工 #' + req.params.id);
+    const opDetail = password ? '修改员工 #' + req.params.id + ' (含密码修改)' : '修改员工 #' + req.params.id;
+    opLog(req.user.id, req.params.storeId, '修改员工', opDetail, req.ip);
 
     triggerNotification({
       type: 'staff',
