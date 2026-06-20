@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+﻿import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import { mkdirSync } from 'fs';
@@ -345,5 +345,24 @@ try {
     for (const [name, type, order] of defaultCategories) stmt.run(name, type, order);
   }
 } catch (e) { /* categories table may not exist yet */ }
+
+// SQLite 写重试辅助函数 - 用于关键写操作时处理 SQLITE_BUSY
+export function dbRunWithRetry(fn: () => any, maxRetries = 3, delayMs = 50): any {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return fn();
+    } catch (err: any) {
+      if (err.code === 'SQLITE_BUSY' && i < maxRetries - 1) {
+        const wait = delayMs * Math.pow(2, i);
+        console.warn(`[DB] SQLITE_BUSY, retry ${i + 1}/${maxRetries} after ${wait}ms`);
+        // 同步等待 (better-sqlite3 是同步的)
+        const end = Date.now() + wait;
+        while (Date.now() < end) {}
+        continue;
+      }
+      throw err;
+    }
+  }
+}
 
 export default db;

@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -222,10 +222,9 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
 });
 
 // 自动备份配置 — ADMIN
-router.get('/auto-backup', (req: AuthRequest, res: Response, next) => {
-  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' }); next(); }),
 router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
@@ -244,6 +243,7 @@ router.put('/auto-backup', (req: AuthRequest, res: Response) => {
 
 // 升级相关 — ADMIN
 router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
+  if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.write('event: connected\ndata: {}\n\n');
   sseClients.add(res);

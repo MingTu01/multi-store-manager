@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { NavLink, useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../stores/data';
 import { api } from '../lib/api';
@@ -12,7 +12,7 @@ import { getRoleLabel, getRoleBg, getRoleColor } from '../lib/role';
 export function Sidebar() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchUnread = useNotificationStore((s) => s.fetchUnread);
-  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 300000); return () => clearInterval(t); }, [fetchUnread]);
+  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 60000); return () => clearInterval(t); }, [fetchUnread]);
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();

@@ -49,6 +49,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
 // PUT /items/:id - update master item
 router.put('/items/:id', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { name, quantity, photo, status, sort_order } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -77,6 +78,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 // 领出物品
 router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { storeId } = req.params;
     const { quantity } = req.body;
     if (!quantity || quantity <= 0) return res.status(400).json({ error: '请输入领出数量' });
@@ -120,6 +122,7 @@ router.post('/checks', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const items = db.prepare('SELECT * FROM inventory_master WHERE store_id = ? ORDER BY sort_order ASC').all(storeId) as any[];
     if (items.length === 0) return res.status(400).json({ error: '请先添加物品' });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const result = db.prepare('INSERT INTO inventory_checks (store_id, status, checked_by) VALUES (?,?,?)').run(storeId, 'in_progress', req.user.id);
     const checkId = result.lastInsertRowid;
     const stmt = db.prepare('INSERT INTO inventory_check_items (check_id, master_id, name, expected_qty, consumption, actual_qty, status) VALUES (?,?,?,?,?,?,?)');
@@ -144,6 +147,7 @@ router.get('/checks/:id', (req: AuthRequest, res: Response) => {
 // PUT /checks/:id/items/:itemId - update check item
 router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { consumption, actual_qty, status } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -161,6 +165,7 @@ router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
 // POST /checks/:id/complete - complete check, update master quantities
 router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ?').get(req.params.id) as any;
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ?').all(check.id) as any[];
@@ -179,6 +184,7 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
 // POST /checks/batch-complete - create check, save results, complete, update master
 router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
   try {
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { results } = req.body;
     if (!Array.isArray(results) || results.length === 0) return res.status(400).json({ error: '无盘点数据' });

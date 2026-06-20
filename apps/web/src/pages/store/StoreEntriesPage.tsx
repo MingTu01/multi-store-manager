@@ -9,6 +9,7 @@ import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { Pagination } from '../../components/Pagination';
 import { Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { showToast } from '../../components/Toast';
 // 获取本地日期
 function getLocalDate(): string {
   const now = new Date();
@@ -37,13 +38,14 @@ export default function StoreEntriesPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = () => {
     if (!storeId) return;
     api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + (isReadonly ? '&period=day' : '')).then((d) => {
       setEntries(d.entries || d.data || []);
       setTotal(d.total || 0);
-    }).catch(() => {});
+    }).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});
     api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d)).catch(() => {});
   };
@@ -90,13 +92,13 @@ export default function StoreEntriesPage() {
         navigate('.', { replace: true, state: {} });
       }
       load();
-    } catch (e: any) { alert(e.message || '保存失败'); }
+    } catch (e: any) { showToast(e.message || '保存失败', 'error'); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除？')) return;
-    try { await api.del('/stores/' + storeId + '/entries/' + id); load(); } catch (e: any) { alert(e.message || '删除失败'); }
+    try { await api.del('/stores/' + storeId + '/entries/' + id); load(); } catch (e: any) { showToast(e.message || '删除失败', 'error'); }
   };
 
   const cats = categories.filter((c: any) => c.type === form.type);
@@ -122,6 +124,12 @@ export default function StoreEntriesPage() {
           <div className={'mt-1 text-2xl font-bold ' + (stats.profit >= 0 ? 'text-emerald-600' : 'text-rose-500')}>{stats.profit.toLocaleString()}</div>
         </GlassCard>)}
       </div>
+
+      {loadError && (
+        <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-600">
+          {loadError}
+        </div>
+      )}
 
       <GlassCard className="divide-y divide-slate-100">
         {entries.length === 0 ? (

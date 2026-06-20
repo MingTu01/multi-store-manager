@@ -24,7 +24,9 @@ const p: Record<string, Role[]> = {
   storeNotificationSettings: ['ADMIN', 'STORE_ADMIN'],
 };
 
-export function canAccess(key: string, role?: Role): boolean {
+export type PermissionKey = string;
+
+export function canAccess(key: PermissionKey, role?: Role): boolean {
   if (!role) return false;
   const allowed = p[key];
   if (!allowed) return false;

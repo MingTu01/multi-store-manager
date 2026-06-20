@@ -10,17 +10,50 @@ interface SSEClient {
 class EventBus {
   private clients: Map<string, SSEClient> = new Map();
   private counter = 0;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   addClient(userId: number, res: Response): string {
     const id = 'client_' + (++this.counter);
     this.clients.set(id, { id, userId, res });
     console.log('[SSE] Client connected: ' + id + ' (user ' + userId + '), total: ' + this.clients.size);
+    // 第一个客户端连接时启动心跳
+    if (this.clients.size === 1) {
+      this.startHeartbeat();
+    }
     return id;
   }
 
   removeClient(id: string) {
     this.clients.delete(id);
     console.log('[SSE] Client disconnected: ' + id + ', total: ' + this.clients.size);
+    // 没有客户端时停止心跳
+    if (this.clients.size === 0) {
+      this.stopHeartbeat();
+    }
+  }
+
+  /** 启动 SSE 心跳，每 30 秒发送一次 */
+  private startHeartbeat() {
+    if (this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(() => {
+      for (const [, client] of this.clients) {
+        try {
+          client.res.write(':heartbeat\n\n');
+        } catch {
+          // 忽略写入失败，dead client 会在下次 broadcast 时清理
+        }
+      }
+    }, 30000);
+    console.log('[SSE] Heartbeat started');
+  }
+
+  /** 停止心跳 */
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      console.log('[SSE] Heartbeat stopped');
+    }
   }
 
   /** Broadcast a data change event to all connected clients */

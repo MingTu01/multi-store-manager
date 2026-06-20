@@ -18,10 +18,11 @@ const UPLOAD_DIRS = ['avatars', 'stores', 'shifts', 'inventory', 'health'];
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('\u53ea\u80fd\u4e0a\u4f20\u56fe\u7247\u6587\u4ef6'));
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('不支持的文件类型，仅允许 JPEG/PNG/GIF/WebP'));
   },
 });
 

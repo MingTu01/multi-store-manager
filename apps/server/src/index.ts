@@ -252,9 +252,10 @@ process.on('unhandledRejection', (reason) => {
 app.use((err: any, req: any, res: any, next: any) => {
   console.error(`[${new Date().toISOString()}] ERROR ${req.method} ${req.path}:`, err.message);
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ error: '文件大小超过限制 (最大1MB)' });
+    return res.status(400).json({ error: '文件大小超过限制 (最大5MB)' });
   }
-  res.status(500).json({ error: err.message || '服务器内部错误' });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(500).json({ error: isProd ? '服务器内部错误' : (err.message || '服务器内部错误') });
 });
 
 

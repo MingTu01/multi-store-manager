@@ -1,4 +1,4 @@
-// 图片压缩、上传工具 - WebP 格式
+﻿// 图片压缩、上传工具 - WebP 格式
 
 /** 验证文件是否为图片 */
 export function isImageFile(file: File): boolean {
@@ -139,4 +139,12 @@ export async function handleImageFiles(files: FileList | File[], maxWidth = 600,
     results.push(compressed);
   }
   return results;
+}
+
+/** 校验图片 URL 安全性，防止 XSS 和无效 URL */
+export function safeImageUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('data:image/')) return url;
+  if (url.startsWith('/') || url.startsWith('https://') || url.startsWith('http://')) return url;
+  return '';
 }

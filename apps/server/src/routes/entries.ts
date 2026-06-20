@@ -60,6 +60,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    const user = (req as any).user;
+    if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权新增记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
     if (amount === undefined || amount === null || isNaN(Number(amount))) return res.status(400).json({ error: '请输入有效金额' });
