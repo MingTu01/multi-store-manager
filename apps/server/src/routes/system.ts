@@ -301,10 +301,11 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const zip = new AdmZip(file.path);
         zip.extractAllTo(extractDir, true);
         await new Promise(r => setTimeout(r, 500));
-        console.log('[Upgrade] Step 3: Starting file copy...');         // Step 3: Update files
+        console.log('[Upgrade] Step 3: Starting file copy...');
+        // Step 3: Update files
         upgradeState = { step: 3, message: '正在更新', complete: false };
         broadcastProgress('progress', { step: 3, total: 4, message: '正在更新' });
-        const copyDir = (src: string, dest: string) => {
+        const copyDir = (src, dest) => {
           mkdirSync(dest, { recursive: true });
           for (const entry of readdirSync(src, { withFileTypes: true })) {
             const srcPath = join(src, entry.name);
@@ -313,55 +314,86 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             else copyFileSync(srcPath, destPath);
           }
         };
-        // --- 清理清单机制: 升级包内的 cleanup.json 声明需要删除的旧文件 ---
+        // --- 清理清单机制 ---
         const cleanupJsonPath = join(extractDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
           try {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
             console.log('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
-            // 删除旧文件
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
                 const target = join(BASE_DIR, f);
                 if (existsSync(target)) {
-                  try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e: any) { console.warn('[Upgrade] Failed to delete', f, e.message); }
+                  try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e) { console.warn('[Upgrade] Failed to delete', f, e.message); }
                 }
               }
             }
-            // 删除旧目录
             if (Array.isArray(cleanup.deleteDirs)) {
               for (const d of cleanup.deleteDirs) {
                 const target = join(BASE_DIR, d);
                 if (existsSync(target)) {
-                  try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e: any) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
+                  try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
                 }
               }
             }
             broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件完成' });
-          } catch (e: any) {
+          } catch (e) {
             console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
         }
+        // === 更新 web-dist ===
         const webDist = join(extractDir, 'web-dist');
-        const serverSrc = join(extractDir, 'server-src');
         if (existsSync(webDist)) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
           if (existsSync(webDest)) rmSync(webDest, { recursive: true, force: true });
           copyDir(webDist, webDest);
+          console.log('[Upgrade] web-dist updated');
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
-        if (existsSync(serverSrc)) {
-          // 先清理旧的 src 目录，再复制新文件（和 web-dist 一致的策略）
-          const srcDest = join(BASE_DIR, 'src');
-          if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
-          copyDir(serverSrc, srcDest);
-        } else {
+        // === 更新服务端代码（先验证再替换，失败回滚） ===
+        const serverSrc = join(extractDir, 'server-src');
+        if (!existsSync(serverSrc)) {
           broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
           return;
         }
-        // --- 后置脚本: 升级包内的 post-upgrade.cjs 自动执行 ---
+        // 1) 备份旧 src 到临时目录
+        const srcDest = join(BASE_DIR, 'src');
+        const srcBackup = join(BASE_DIR, 'uploads', '_src_backup_' + Date.now());
+        if (existsSync(srcDest)) {
+          copyDir(srcDest, srcBackup);
+          console.log('[Upgrade] Old src backed up to', srcBackup);
+        }
+        // 2) 复制新 src
+        if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
+        copyDir(serverSrc, srcDest);
+        console.log('[Upgrade] New src copied');
+        // 3) 验证新代码能否通过 esbuild 编译
+        let validationPassed = false;
+        try {
+          broadcastProgress('progress', { step: 3, total: 4, message: '正在验证新代码...' });
+          const { execSync: execSyncValid } = require('child_process');
+          // 用 esbuild 做语法检查 — 如果编译失败会抛异常
+          execSyncValid('node -e "require(\'esbuild\').buildSync({ entryPoints: [\'' + join(srcDest, 'index.ts').replace(/\\/g, '\\') + '\'], bundle: false, write: false, platform: \'node\', target: \'node20\' })"', { cwd: BASE_DIR, timeout: 30000, stdio: 'pipe' });
+          validationPassed = true;
+          console.log('[Upgrade] Code validation PASSED');
+        } catch (valErr) {
+          console.error('[Upgrade] Code validation FAILED:', valErr.message);
+          // 4) 验证失败 — 回滚旧代码
+          if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
+          if (existsSync(srcBackup)) {
+            copyDir(srcBackup, srcDest);
+            rmSync(srcBackup, { recursive: true, force: true });
+          }
+          broadcastProgress('error', { message: '升级失败: 新代码编译错误，已回滚到旧版本。错误: ' + (valErr.stderr || valErr.message || '').slice(0, 200) });
+          return;
+        }
+        // 5) 验证通过 — 清理备份
+        if (existsSync(srcBackup)) {
+          try { rmSync(srcBackup, { recursive: true, force: true }); } catch {}
+        }
+        // === 后置脚本 ===
         const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
@@ -370,11 +402,11 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             const { execSync } = require('child_process');
             execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
             console.log('[Upgrade] Post-upgrade script completed');
-          } catch (e: any) {
+          } catch (e) {
             console.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
           }
         }
-        // Update version
+        // === 更新版本号 ===
         try {
           const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
           if (existsSync(pkgPath)) {
@@ -383,13 +415,14 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         } catch {}
         // 清理临时解压目录
-        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
+        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
+        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };
         broadcastProgress('progress', { step: 4, total: 4, message: '重启', done: true });
         broadcastProgress('complete', { message: '升级完成' });
-        // Auto-restart after upgrade - send SIGTERM to self
+        // Auto-restart after upgrade
         setTimeout(() => {
           console.log('[Upgrade] Sending SIGTERM for restart...');
           process.kill(process.pid, 'SIGTERM');
@@ -609,12 +642,6 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           } catch (e: any) { console.warn('[Update] Failed to process cleanup.json:', e.message); }
         }
         
-        const srcDir = join(extractedFolder, 'src');
-        if (existsSync(srcDir)) {
-          const destSrc = join(BASE_DIR, 'src');
-          if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
-          cpSync(srcDir, destSrc, { recursive: true });
-        }
         const publicDir = join(extractedFolder, 'public');
         if (existsSync(publicDir)) {
           const destPublic = join(BASE_DIR, 'public');
@@ -623,13 +650,35 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             if (existsSync(webDistDest)) rmSync(webDistDest, { recursive: true, force: true });
           }
           cpSync(publicDir, destPublic, { recursive: true });
+          console.log('[Update] web-dist updated');
+        }
+        const srcDir = join(extractedFolder, 'src');
+        if (existsSync(srcDir)) {
+          const destSrc = join(BASE_DIR, 'src');
+          const srcBackup = join(BASE_DIR, 'uploads', '_src_backup_' + Date.now());
+          if (existsSync(destSrc)) { cpSync(destSrc, srcBackup, { recursive: true }); console.log('[Update] Old src backed up'); }
+          if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
+          cpSync(srcDir, destSrc, { recursive: true });
+          console.log('[Update] New src copied');
+          try {
+            broadcastProgress('progress', { step: 3, total: 4, message: '正在验证新代码...' });
+            const { execSync: execSyncValid } = require('child_process');
+            const entryPath = join(destSrc, 'index.ts').replace(/\\/g, '\\\\');
+            execSyncValid("node -e \"require('esbuild').buildSync({ entryPoints: ['" + entryPath + "'], bundle: false, write: false, platform: 'node', target: 'node20' })\"", { cwd: BASE_DIR, timeout: 30000, stdio: 'pipe' });
+            console.log('[Update] Code validation PASSED');
+            if (existsSync(srcBackup)) { try { rmSync(srcBackup, { recursive: true, force: true }); } catch {} }
+          } catch (valErr) {
+            console.error('[Update] Code validation FAILED:', valErr.message);
+            if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
+            if (existsSync(srcBackup)) { cpSync(srcBackup, destSrc, { recursive: true }); rmSync(srcBackup, { recursive: true, force: true }); }
+            broadcastProgress('error', { message: '更新失败: 新代码编译错误，已回滚到旧版本' });
+            return;
+          }
         }
         const pkgFile = join(extractedFolder, 'package.json');
         if (existsSync(pkgFile)) copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
         const versionFile = join(extractedFolder, 'data', 'version.json');
         if (existsSync(versionFile)) copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
-        
-        // --- post-upgrade.cjs 后置脚本 ---
         const postUpgradeScript = join(extractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
@@ -637,10 +686,9 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             const { execSync } = require('child_process');
             execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
             console.log('[Update] Post-upgrade completed');
-          } catch (e: any) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
+          } catch (e) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
         }
-        
-        rmSync(extractDir, { recursive: true, force: true });
+        try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         broadcastProgress('progress', { step: 3, total: 4, message: '更新完成', done: true });
         await new Promise(r => setTimeout(r, 1000));
         
