@@ -314,6 +314,15 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             else copyFileSync(srcPath, destPath);
           }
         };
+        // 清空目录内容但保留目录本身（Docker volume mount 不能删除挂载点）
+        const clearDir = (dir) => {
+          if (!existsSync(dir)) return;
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const fullPath = join(dir, entry.name);
+            if (entry.isDirectory()) rmSync(fullPath, { recursive: true, force: true });
+            else { try { unlinkSync(fullPath); } catch {} }
+          }
+        };
         // --- 清理清单机制 ---
         const cleanupJsonPath = join(extractDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
@@ -345,7 +354,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const webDist = join(extractDir, 'web-dist');
         if (existsSync(webDist)) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
-          if (existsSync(webDest)) rmSync(webDest, { recursive: true, force: true });
+          if (existsSync(webDest)) clearDir(webDest);
           copyDir(webDist, webDest);
           console.log('[Upgrade] web-dist updated');
         } else {
@@ -366,7 +375,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           console.log('[Upgrade] Old src backed up to', srcBackup);
         }
         // 2) 复制新 src
-        if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
+        clearDir(srcDest);
         copyDir(serverSrc, srcDest);
         console.log('[Upgrade] New src copied');
         // 3) 验证新代码能否通过 esbuild 编译
@@ -381,7 +390,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         } catch (valErr) {
           console.error('[Upgrade] Code validation FAILED:', valErr.message);
           // 4) 验证失败 — 回滚旧代码
-          if (existsSync(srcDest)) rmSync(srcDest, { recursive: true, force: true });
+          clearDir(srcDest);
           if (existsSync(srcBackup)) {
             copyDir(srcBackup, srcDest);
             rmSync(srcBackup, { recursive: true, force: true });
@@ -647,7 +656,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           const destPublic = join(BASE_DIR, 'public');
           if (existsSync(destPublic)) {
             const webDistDest = join(destPublic, 'web-dist');
-            if (existsSync(webDistDest)) rmSync(webDistDest, { recursive: true, force: true });
+            if (existsSync(webDistDest)) clearDir(webDistDest);
           }
           cpSync(publicDir, destPublic, { recursive: true });
           console.log('[Update] web-dist updated');
@@ -657,7 +666,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           const destSrc = join(BASE_DIR, 'src');
           const srcBackup = join(BASE_DIR, 'uploads', '_src_backup_' + Date.now());
           if (existsSync(destSrc)) { cpSync(destSrc, srcBackup, { recursive: true }); console.log('[Update] Old src backed up'); }
-          if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
+          clearDir(destSrc);
           cpSync(srcDir, destSrc, { recursive: true });
           console.log('[Update] New src copied');
           try {
@@ -669,7 +678,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             if (existsSync(srcBackup)) { try { rmSync(srcBackup, { recursive: true, force: true }); } catch {} }
           } catch (valErr) {
             console.error('[Update] Code validation FAILED:', valErr.message);
-            if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
+            clearDir(destSrc);
             if (existsSync(srcBackup)) { cpSync(srcBackup, destSrc, { recursive: true }); rmSync(srcBackup, { recursive: true, force: true }); }
             broadcastProgress('error', { message: '更新失败: 新代码编译错误，已回滚到旧版本' });
             return;
