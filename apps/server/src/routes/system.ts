@@ -361,47 +361,16 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
-        // === 更新服务端代码（先验证再替换，失败回滚） ===
+        // === 更新服务端代码 ===
         const serverSrc = join(extractDir, 'server-src');
         if (!existsSync(serverSrc)) {
           broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
           return;
         }
-        // 1) 备份旧 src 到临时目录
         const srcDest = join(BASE_DIR, 'src');
-        const srcBackup = join(BASE_DIR, 'uploads', '_src_backup_' + Date.now());
-        if (existsSync(srcDest)) {
-          copyDir(srcDest, srcBackup);
-          console.log('[Upgrade] Old src backed up to', srcBackup);
-        }
-        // 2) 复制新 src
         clearDir(srcDest);
         copyDir(serverSrc, srcDest);
-        console.log('[Upgrade] New src copied');
-        // 3) 验证新代码能否通过 esbuild 编译
-        let validationPassed = false;
-        try {
-          broadcastProgress('progress', { step: 3, total: 4, message: '正在验证新代码...' });
-          const { execSync: execSyncValid } = require('child_process');
-          // 用 esbuild 做语法检查 — 如果编译失败会抛异常
-          execSyncValid('node -e "require(\'esbuild\').buildSync({ entryPoints: [\'' + join(srcDest, 'index.ts').replace(/\\/g, '\\') + '\'], bundle: false, write: false, platform: \'node\', target: \'node20\' })"', { cwd: BASE_DIR, timeout: 30000, stdio: 'pipe' });
-          validationPassed = true;
-          console.log('[Upgrade] Code validation PASSED');
-        } catch (valErr) {
-          console.error('[Upgrade] Code validation FAILED:', valErr.message);
-          // 4) 验证失败 — 回滚旧代码
-          clearDir(srcDest);
-          if (existsSync(srcBackup)) {
-            copyDir(srcBackup, srcDest);
-            rmSync(srcBackup, { recursive: true, force: true });
-          }
-          broadcastProgress('error', { message: '升级失败: 新代码编译错误，已回滚到旧版本。错误: ' + (valErr.stderr || valErr.message || '').slice(0, 200) });
-          return;
-        }
-        // 5) 验证通过 — 清理备份
-        if (existsSync(srcBackup)) {
-          try { rmSync(srcBackup, { recursive: true, force: true }); } catch {}
-        }
+        console.log('[Upgrade] server-src updated');
         // === 后置脚本 ===
         const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
@@ -661,28 +630,13 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           cpSync(publicDir, destPublic, { recursive: true });
           console.log('[Update] web-dist updated');
         }
+        // === 更新服务端代码 ===
         const srcDir = join(extractedFolder, 'src');
         if (existsSync(srcDir)) {
           const destSrc = join(BASE_DIR, 'src');
-          const srcBackup = join(BASE_DIR, 'uploads', '_src_backup_' + Date.now());
-          if (existsSync(destSrc)) { cpSync(destSrc, srcBackup, { recursive: true }); console.log('[Update] Old src backed up'); }
           clearDir(destSrc);
           cpSync(srcDir, destSrc, { recursive: true });
-          console.log('[Update] New src copied');
-          try {
-            broadcastProgress('progress', { step: 3, total: 4, message: '正在验证新代码...' });
-            const { execSync: execSyncValid } = require('child_process');
-            const entryPath = join(destSrc, 'index.ts').replace(/\\/g, '\\\\');
-            execSyncValid("node -e \"require('esbuild').buildSync({ entryPoints: ['" + entryPath + "'], bundle: false, write: false, platform: 'node', target: 'node20' })\"", { cwd: BASE_DIR, timeout: 30000, stdio: 'pipe' });
-            console.log('[Update] Code validation PASSED');
-            if (existsSync(srcBackup)) { try { rmSync(srcBackup, { recursive: true, force: true }); } catch {} }
-          } catch (valErr) {
-            console.error('[Update] Code validation FAILED:', valErr.message);
-            clearDir(destSrc);
-            if (existsSync(srcBackup)) { cpSync(srcBackup, destSrc, { recursive: true }); rmSync(srcBackup, { recursive: true, force: true }); }
-            broadcastProgress('error', { message: '更新失败: 新代码编译错误，已回滚到旧版本' });
-            return;
-          }
+          console.log('[Update] server-src updated');
         }
         const pkgFile = join(extractedFolder, 'package.json');
         if (existsSync(pkgFile)) copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
