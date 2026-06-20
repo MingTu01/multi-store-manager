@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -44,80 +44,76 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     const config = getAliyunOCRConfig();
 
     // 动态导入阿里云 OCR SDK
-    let OCR;
+    let OcrClient;
     try {
       const mod = await import('@alicloud/ocr-api20210707');
-      OCR = mod.default || mod;
+      OcrClient = mod.default?.default || mod.default || mod;
+      var { RecognizeGeneralStructureRequest } = mod;
     } catch (importErr: any) {
       return res.status(500).json({ error: 'OCR SDK 加载失败，请确认已安装 @alicloud/ocr-api20210707' });
     }
 
-    const { Config } = await import('@alicloud/openapi-core');
-    const apiConfig = new Config({
+    const client = new OcrClient({
       accessKeyId: config.accessKeyId,
       accessKeySecret: config.accessKeySecret,
       endpoint: config.endpoint,
       regionId: config.regionId,
+      readTimeout: 30000,
+      connectTimeout: 10000,
     });
 
-    const client = new OCR(apiConfig);
     const imageBuffer = readFileSync(imagePath);
+    const { Readable } = await import('stream');
 
-    // 调用健康证识别 API
+    // 调用通用票证抽取 API（结构化 KV 提取，适合健康证）
     let ocrResult: any;
     try {
-      const RecognizeHealthCertificateRequest = (await import('@alicloud/ocr-api20210707')).RecognizeHealthCertificateRequest;
-      const request = new RecognizeHealthCertificateRequest({
-        body: imageBuffer,
-        url: undefined,
-      });
-      ocrResult = await client.recognizeHealthCertificate(request);
+      const request = new RecognizeGeneralStructureRequest({ body: Readable.from(imageBuffer) });
+      ocrResult = await client.recognizeGeneralStructure(request);
     } catch (apiErr: any) {
-      // 尝试通用文字识别作为兜底
-      try {
-        const RecognizeGeneralRequest = (await import('@alicloud/ocr-api20210707')).RecognizeGeneralRequest;
-        const request = new RecognizeGeneralRequest({
-          body: imageBuffer,
-          url: undefined,
-        });
-        ocrResult = await client.recognizeGeneral(request);
-      } catch (fallbackErr: any) {
-        const errMsg = apiErr.message || 'OCR 识别失败';
-        // 脱敏：不暴露密钥和内部错误细节
-        if (errMsg.includes('AccessKey') || errMsg.includes('InvalidAccessKey')) {
-          return res.status(500).json({ error: '阿里云认证失败，请检查 AccessKey 配置' });
-        }
-        return res.status(500).json({ error: 'OCR 识别失败: ' + (errMsg.length > 100 ? errMsg.slice(0, 100) + '...' : errMsg) });
+      const errMsg = apiErr.message || 'OCR 识别失败';
+      if (errMsg.includes('AccessKey') || errMsg.includes('InvalidAccessKey')) {
+        return res.status(500).json({ error: '阿里云认证失败，请检查 AccessKey 配置' });
       }
+      console.error("[OCR] API Error:", errMsg); return res.status(500).json({ error: 'OCR 识别失败: ' + (errMsg.length > 200 ? errMsg.slice(0, 200) + '...' : errMsg) });
     }
 
-    // 解析 OCR 结果
-    const data = ocrResult?.body?.data || ocrResult?.data || {};
-    let ocrName = data.name || data.Name || '';
+    // 解析 OCR 结果 — recognizeGeneralStructure 返回结构化 KV 数据
+    const ocrBody = ocrResult?.body || {};
+    const ocrData = ocrBody?.data || {};
+    const subImages = ocrData?.subImages || [];
+    const kvData = subImages[0]?.kvInfo?.data || {};
+
+    let ocrName = kvData['姓名'] || kvData['name'] || kvData['Name'] || '';
     let ocrExpiry = '';
 
-    // 尝试从有效期字段提取日期
-    const validityPeriod = data.validityPeriod || data.ValidityPeriod || data.endDate || data.EndDate || '';
-    if (validityPeriod) {
-      const dateMatch = String(validityPeriod).match(/(\d{4})[年\-\/](\d{1,2})[月\-\/](\d{1,2})/);
+    // 清洗姓名：去掉前导数字、空格、特殊字符
+    ocrName = ocrName.replace(/^\d+\s*/, '').replace(/\s+/g, '').trim();
+
+    // 从体检日期字段提取日期（格式：2026年06月04日(有效期一年)）
+    const examDateField = kvData['体检日期'] || kvData['有效期'] || kvData['有效日期'] || '';
+    if (examDateField) {
+      // 匹配：2026年06月04日(有效期一年) 或 2026年06月04日
+      const dateMatch = String(examDateField).match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
       if (dateMatch) {
         ocrExpiry = dateMatch[1] + '-' + dateMatch[2].padStart(2, '0') + '-' + dateMatch[3].padStart(2, '0');
       }
     }
 
-    // 如果结构化字段为空，从原始文本中提取
-    const rawText = data.content || data.Content || ocrResult?.body?.content || '';
-    if (!ocrName && rawText) {
-      const nameMatch = String(rawText).match(/姓\s*名\s*[:：]?\s*([^性别身证年月日体检发机有至期关效]{2,4})/);
-      if (nameMatch) ocrName = nameMatch[1].trim();
-    }
-    if (!ocrExpiry && rawText) {
-      const dateText = String(rawText).replace(/户/g, '月').replace(/扩/g, '日').replace(/目/g, '月');
-      const dateMatch = dateText.match(/(\d{4})[年\-\/](\d{1,2})[月\-\/](\d{1,2})/);
-      if (dateMatch) {
-        ocrExpiry = dateMatch[1] + '-' + dateMatch[2].padStart(2, '0') + '-' + dateMatch[3].padStart(2, '0');
+    // 兜底：如果没解析到日期，遍历所有 KV 寻找日期格式
+    if (!ocrExpiry) {
+      for (const [, v] of Object.entries(kvData)) {
+        const s = String(v || '');
+        const m = s.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+        if (m) {
+          ocrExpiry = m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+          break;
+        }
       }
     }
+
+    // 原始文本用于前端展示
+    const rawText = Object.entries(kvData).map(([k, v]) => k + ': ' + v).join('\n');
 
     // 姓名匹配
     const user = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.id) as any;
@@ -143,6 +139,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     }
     const realDaysLeft = realExpiryStr ? Math.ceil((new Date(realExpiryStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : -1;
 
+    console.log("[OCR] Parsed: name=[" + ocrName + "] expiry=[" + ocrExpiry + "] kvKeys=" + Object.keys(kvData).join(","));
     res.json({
       ocrName,
       ocrExpiry,

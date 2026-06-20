@@ -23,7 +23,7 @@ function loadCredentials(): AliyunOCRConfig {
     return {
       accessKeyId: process.env.ALIYUN_ACCESS_KEY_ID,
       accessKeySecret: process.env.ALIYUN_ACCESS_KEY_SECRET,
-      endpoint: process.env.ALIYUN_OCR_ENDPOINT || 'ocr-api.cn-shanghai.aliyuncs.com',
+      endpoint: process.env.ALIYUN_OCR_ENDPOINT || 'ocr-api.cn-hangzhou.aliyuncs.com',
       regionId: process.env.ALIYUN_OCR_REGION || 'cn-shanghai',
     };
   }
@@ -37,14 +37,14 @@ function loadCredentials(): AliyunOCRConfig {
         return {
           accessKeyId: cred.accessKeyId,
           accessKeySecret: cred.accessKeySecret,
-          endpoint: cred.endpoint || 'ocr-api.cn-shanghai.aliyuncs.com',
+          endpoint: cred.endpoint || 'ocr-api.cn-hangzhou.aliyuncs.com',
           regionId: cred.regionId || 'cn-shanghai',
         };
       }
     } catch {}
   }
 
-  return { accessKeyId: '', accessKeySecret: '', endpoint: 'ocr-api.cn-shanghai.aliyuncs.com', regionId: 'cn-shanghai' };
+  return { accessKeyId: '', accessKeySecret: '', endpoint: 'ocr-api.cn-hangzhou.aliyuncs.com', regionId: 'cn-hangzhou' };
 }
 
 let _config: AliyunOCRConfig | null = null;
@@ -66,7 +66,7 @@ export function saveAliyunCredentials(accessKeyId: string, accessKeySecret: stri
   const cred = {
     accessKeyId,
     accessKeySecret,
-    endpoint: endpoint || 'ocr-api.cn-shanghai.aliyuncs.com',
+    endpoint: endpoint || 'ocr-api.cn-hangzhou.aliyuncs.com',
     regionId: regionId || 'cn-shanghai',
   };
   writeFileSync(credPath, JSON.stringify(cred, null, 2), 'utf-8');
