@@ -14,7 +14,7 @@
 | 密码加密 | bcryptjs | - |
 | UI 图标 | lucide-react | - |
 | CSS | Tailwind CSS | 4.x |
-| OCR | Tesseract.js | 7.x |
+| OCR | 阿里云 OCR | 7.x |
 
 ## 目录结构
 
