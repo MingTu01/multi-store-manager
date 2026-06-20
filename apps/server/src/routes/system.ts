@@ -583,25 +583,63 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const zip = new AdmZip(zipBuffer);
         zip.extractAllTo(extractDir, true);
         const extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
+        
+        // --- cleanup.json 清理清单 ---
+        const cleanupJsonPath = join(extractedFolder, 'cleanup.json');
+        if (existsSync(cleanupJsonPath)) {
+          try {
+            const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
+            console.log('[Update] Processing cleanup.json:', cleanup.description || '');
+            if (Array.isArray(cleanup.deleteFiles)) {
+              for (const f of cleanup.deleteFiles) {
+                const target = join(BASE_DIR, f);
+                if (existsSync(target)) {
+                  try { unlinkSync(target); console.log('[Update] Deleted:', f); } catch (e: any) { console.warn('[Update] Failed to delete', f, e.message); }
+                }
+              }
+            }
+            if (Array.isArray(cleanup.deleteDirs)) {
+              for (const d of cleanup.deleteDirs) {
+                const target = join(BASE_DIR, d);
+                if (existsSync(target)) {
+                  try { rmSync(target, { recursive: true, force: true }); console.log('[Update] Deleted dir:', d); } catch (e: any) { console.warn('[Update] Failed to delete dir', d, e.message); }
+                }
+              }
+            }
+          } catch (e: any) { console.warn('[Update] Failed to process cleanup.json:', e.message); }
+        }
+        
         const srcDir = join(extractedFolder, 'src');
         if (existsSync(srcDir)) {
           const destSrc = join(BASE_DIR, 'src');
-          rmSync(destSrc, { recursive: true, force: true });
+          if (existsSync(destSrc)) rmSync(destSrc, { recursive: true, force: true });
           cpSync(srcDir, destSrc, { recursive: true });
         }
         const publicDir = join(extractedFolder, 'public');
         if (existsSync(publicDir)) {
           const destPublic = join(BASE_DIR, 'public');
+          if (existsSync(destPublic)) {
+            const webDistDest = join(destPublic, 'web-dist');
+            if (existsSync(webDistDest)) rmSync(webDistDest, { recursive: true, force: true });
+          }
           cpSync(publicDir, destPublic, { recursive: true });
         }
         const pkgFile = join(extractedFolder, 'package.json');
-        if (existsSync(pkgFile)) {
-          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
-        }
+        if (existsSync(pkgFile)) copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
         const versionFile = join(extractedFolder, 'data', 'version.json');
-        if (existsSync(versionFile)) {
-          copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+        if (existsSync(versionFile)) copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+        
+        // --- post-upgrade.cjs 后置脚本 ---
+        const postUpgradeScript = join(extractedFolder, 'post-upgrade.cjs');
+        if (existsSync(postUpgradeScript)) {
+          try {
+            console.log('[Update] Running post-upgrade script...');
+            const { execSync } = require('child_process');
+            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            console.log('[Update] Post-upgrade completed');
+          } catch (e: any) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
         }
+        
         rmSync(extractDir, { recursive: true, force: true });
         broadcastProgress('progress', { step: 3, total: 4, message: '更新完成', done: true });
         await new Promise(r => setTimeout(r, 1000));

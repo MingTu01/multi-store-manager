@@ -1,4 +1,4 @@
-name: Build and Deploy
+﻿name: Build and Deploy
 
 on:
   push:
@@ -54,9 +54,10 @@ jobs:
           cp ../apps/server/tsconfig.json .
           cp ../apps/server/seed.ts . 2>/dev/null || true
 
-          # Copy OCR data
-          cp ../apps/server/chi_sim.traineddata . 2>/dev/null || true
-          cp ../apps/server/eng.traineddata . 2>/dev/null || true
+
+          # Copy upgrade support files
+          cp ../apps/server/cleanup.json . 2>/dev/null || true
+          cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
 
           # Update version
           VERSION=$(node -p "require('./package.json').version")
