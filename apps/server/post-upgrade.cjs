@@ -1,13 +1,10 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * Multi Shop Link - 升级后置脚本
  * 
  * 升级完成后自动执行，负责：
  * 1. 安装/更新 npm 依赖
  * 2. 清理临时文件
- * 3. 其他升级后的收尾工作
- * 
- * 此文件会被打包到升级包中，由 system.ts 升级逻辑自动调用
  */
 
 const { execSync } = require('child_process');
@@ -15,40 +12,56 @@ const path = require('path');
 const fs = require('fs');
 
 const BASE_DIR = process.cwd();
-const SERVER_DIR = path.join(BASE_DIR, 'apps', 'server');
 
 console.log('[PostUpgrade] Starting post-upgrade tasks...');
+console.log('[PostUpgrade] BASE_DIR:', BASE_DIR);
 
-// 1. 安装 npm 依赖
+// 1. 安装 npm 依赖 — 按优先级查找 package.json
 console.log('[PostUpgrade] Installing npm dependencies...');
 try {
-  // 检查 package.json 是否存在
-  const pkgPath = path.join(SERVER_DIR, 'package.json');
-  if (fs.existsSync(pkgPath)) {
-    execSync('npm install --production', { 
-      cwd: SERVER_DIR, 
-      timeout: 120000, 
-      stdio: 'pipe' 
-    });
-    console.log('[PostUpgrade] npm install completed');
-  } else {
-    // 如果 apps/server/package.json 不存在，尝试根目录
-    const rootPkg = path.join(BASE_DIR, 'package.json');
-    if (fs.existsSync(rootPkg)) {
-      execSync('npm install --production', { 
-        cwd: BASE_DIR, 
-        timeout: 120000, 
+  const candidates = [
+    path.join(BASE_DIR, 'package.json'),                    // Docker: /app/package.json
+    path.join(BASE_DIR, 'apps', 'server', 'package.json'),  // Monorepo: apps/server/package.json
+  ];
+  
+  let installDir = null;
+  for (const pkgPath of candidates) {
+    if (fs.existsSync(pkgPath)) {
+      installDir = path.dirname(pkgPath);
+      console.log('[PostUpgrade] Found package.json at:', pkgPath);
+      break;
+    }
+  }
+  
+  if (installDir) {
+    try {
+      execSync('npm install --omit=dev', { 
+        cwd: installDir, 
+        timeout: 180000, 
         stdio: 'pipe' 
       });
-      console.log('[PostUpgrade] npm install completed (root)');
+      console.log('[PostUpgrade] npm install completed in:', installDir);
+    } catch (e) {
+      console.warn('[PostUpgrade] Full npm install failed, trying individual packages...');
+      try {
+        execSync('npm install @alicloud/ocr-api20210707 @alicloud/openapi-core --omit=dev', {
+          cwd: installDir,
+          timeout: 120000,
+          stdio: 'pipe'
+        });
+        console.log('[PostUpgrade] Individual package install completed');
+      } catch (e2) {
+        console.error('[PostUpgrade] Individual install also failed:', e2.message);
+      }
     }
+  } else {
+    console.warn('[PostUpgrade] No package.json found, skipping npm install');
   }
 } catch (e) {
   console.warn('[PostUpgrade] npm install failed (non-fatal):', e.message);
-  // 不抛出异常，升级不应因 npm install 失败而中断
 }
 
-// 2. 清理可能残留的临时文件
+// 2. 清理临时文件
 console.log('[PostUpgrade] Cleaning up temporary files...');
 try {
   const uploadsDir = path.join(BASE_DIR, 'uploads');
@@ -67,5 +80,17 @@ try {
 } catch (e) {
   console.warn('[PostUpgrade] Cleanup failed:', e.message);
 }
+
+// 3. 删除已废弃的 tesseract 模型文件（如果存在）
+try {
+  const tessFiles = ['chi_sim.traineddata', 'eng.traineddata'];
+  for (const f of tessFiles) {
+    const fp = path.join(BASE_DIR, f);
+    if (fs.existsSync(fp)) {
+      fs.unlinkSync(fp);
+      console.log('[PostUpgrade] Removed obsolete file:', f);
+    }
+  }
+} catch {}
 
 console.log('[PostUpgrade] All post-upgrade tasks completed');

@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -371,6 +371,24 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         clearDir(srcDest);
         copyDir(serverSrc, srcDest);
         console.log('[Upgrade] server-src updated');
+        // === 更新 package.json ===
+        const pkgFile = join(extractDir, 'package.json');
+        if (existsSync(pkgFile)) {
+          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
+          console.log('[Upgrade] package.json updated');
+        }
+        // === npm install (失败必须中止升级) ===
+        try {
+          console.log('[Upgrade] Running npm install...');
+          broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
+          const { execSync } = require('child_process');
+          execSync('npm install --omit=dev', { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
+          console.log('[Upgrade] npm install completed');
+        } catch (e) {
+          console.error('[Upgrade] npm install FAILED:', e.message);
+          broadcastProgress('error', { message: '依赖安装失败，请检查服务器 npm 环境: ' + e.message });
+          return;
+        }
         // === 后置脚本 ===
         const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
