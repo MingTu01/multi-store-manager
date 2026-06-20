@@ -70,6 +70,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       yoyStart = (d.getFullYear() - 1) + '-01-01'; yoyEnd = (d.getFullYear() - 1) + '-12-31';
     } else {
       const wStart = new Date(d); wStart.setFullYear(wStart.getFullYear() - 1);
+      yoyStart = wStart.toISOString().slice(0, 10);
       const wEnd = new Date(wStart); wEnd.setDate(wEnd.getDate() + 6);
       yoyEnd = wEnd.toISOString().slice(0, 10);
     }
