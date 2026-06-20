@@ -5,13 +5,14 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./apps/server/data:/app/data
+      - app-data:/app/data
       - ./uploads:/app/uploads
       - ./backups:/app/backups
       - ./apps/server/public/web-dist:/app/public/web-dist
     environment:
       - NODE_ENV=production
       - PORT=3001
-      # 生产环境请在 .env 文件中设置 JWT_SECRET
-      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret}
+      - JWT_SECRET=${JWT_SECRET:?请在.env文件中设置JWT_SECRET}
     restart: unless-stopped
+volumes:
+  app-data:

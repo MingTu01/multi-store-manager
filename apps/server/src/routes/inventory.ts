@@ -169,12 +169,15 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
     const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ?').get(req.params.id) as any;
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ?').all(check.id) as any[];
-    for (const item of items) {
-      const newQty = item.actual_qty || 0;
-      const finalStatus = newQty <= 0 ? 'pending' : (item.status || 'normal');
-      db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, finalStatus, item.master_id);
-    }
-    db.prepare("UPDATE inventory_checks SET status = 'completed' WHERE id = ?").run(req.params.id);
+    const completeCheck = db.transaction((checkId: number) => {
+      for (const item of items) {
+        const newQty = item.actual_qty || 0;
+        const finalStatus = newQty <= 0 ? 'pending' : (item.status || 'normal');
+        db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, finalStatus, item.master_id);
+      }
+      db.prepare("UPDATE inventory_checks SET status = 'completed' WHERE id = ?").run(checkId);
+    });
+    completeCheck(Number(req.params.id));
     opLog(req.user.id, check.store_id, '盘点', '完成盘点 #' + req.params.id);
     res.json({ message: '盘点完成' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -189,28 +192,26 @@ router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
     const { results } = req.body;
     if (!Array.isArray(results) || results.length === 0) return res.status(400).json({ error: '无盘点数据' });
     
-    // Create check
-    const checkResult = db.prepare('INSERT INTO inventory_checks (store_id, status, checked_by) VALUES (?,?,?)').run(storeId, 'completed', req.user.id);
-    const checkId = checkResult.lastInsertRowid;
     
-    const insertItem = db.prepare('INSERT INTO inventory_check_items (check_id, master_id, name, expected_qty, consumption, actual_qty, status) VALUES (?,?,?,?,?,?,?)');
-    const updateMaster = db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?');
-    
-    for (const r of results) {
-      const consumption = r.consumption || 0;
-      const actual = r.actual_qty || 0;
-      const expected = r.expected_qty || 0;
-      // Auto-determine status
-      let status = r.status || 'normal';
-      if (consumption + actual !== expected) status = 'diff';
-      if (actual === 0 && consumption === 0) status = 'empty';
-      
-      insertItem.run(checkId, r.item_id, r.name || '', expected, consumption, actual, status);
-      // Update master quantity to actual
-      const finalStatus = actual <= 0 ? 'pending' : status;
-      updateMaster.run(actual, finalStatus, r.item_id);
-    }
-    
+    const batchComplete = db.transaction((storeId: string, userId: number, resultsArr: any[]) => {
+      const checkResult = db.prepare('INSERT INTO inventory_checks (store_id, status, checked_by) VALUES (?,?,?)').run(storeId, 'completed', userId);
+      const checkId = checkResult.lastInsertRowid;
+      const insertItem = db.prepare('INSERT INTO inventory_check_items (check_id, master_id, name, expected_qty, consumption, actual_qty, status) VALUES (?,?,?,?,?,?,?)');
+      const updateMaster = db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?');
+      for (const r of resultsArr) {
+        const consumption = r.consumption || 0;
+        const actual = r.actual_qty || 0;
+        const expected = r.expected_qty || 0;
+        let status = r.status || 'normal';
+        if (consumption + actual !== expected) status = 'diff';
+        if (actual === 0 && consumption === 0) status = 'empty';
+        insertItem.run(checkId, r.item_id, r.name || '', expected, consumption, actual, status);
+        const finalStatus = actual <= 0 ? 'pending' : status;
+        updateMaster.run(actual, finalStatus, r.item_id);
+      }
+      return checkId;
+    });
+    const checkId = batchComplete(storeId, req.user.id, results);
     opLog(req.user.id, storeId, '盘点', '完成盘点 #' + checkId);
     res.json({ id: checkId, message: '盘点完成' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

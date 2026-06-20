@@ -323,8 +323,17 @@ for (const sql of indexes) {
 // Seed default admin user
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
-  const hash = bcrypt.hashSync('123456', 10);
-  db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)").run('admin', hash, '管理员', 'ADMIN');
+  const crypto = require('crypto');
+  const randomPassword = crypto.randomBytes(8).toString('hex');
+  const hash = bcrypt.hashSync(randomPassword, 10);
+  db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")
+    .run('admin', hash, '管理员', 'ADMIN');
+  console.log('========================================');
+  console.log('管理员账号已创建:');
+  console.log('用户名: admin');
+  console.log('密码: ' + randomPassword);
+  console.log('请立即登录并修改密码！');
+  console.log('========================================');
 }
 
 // Seed default notification settings

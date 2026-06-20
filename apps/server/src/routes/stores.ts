@@ -133,15 +133,24 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     }
     const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(req.params.id) as any;
     if (!store) return res.status(404).json({ error: '门店不存在' });
-    db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM entries WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM inventory_checks WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM store_opens WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM dividends WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM payroll WHERE store_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM handovers WHERE store_id = ?').run(req.params.id);
-    db.prepare("UPDATE users SET store_id = NULL WHERE store_id = ?").run(req.params.id);
-    db.prepare('DELETE FROM stores WHERE id = ?').run(req.params.id);
+    const deleteStore = db.transaction((storeId: string) => {
+      db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM entries WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM payroll_items WHERE payroll_id IN (SELECT id FROM payroll WHERE store_id = ?)').run(storeId);
+      db.prepare('DELETE FROM payroll WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM dividend_details WHERE dividend_id IN (SELECT id FROM dividends WHERE store_id = ?)').run(storeId);
+      db.prepare('DELETE FROM dividends WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM inventory_check_items WHERE check_id IN (SELECT id FROM inventory_checks WHERE store_id = ?)').run(storeId);
+      db.prepare('DELETE FROM inventory_checks WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM inventory_master WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM handovers WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM store_opens WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM notifications WHERE store_id = ?').run(storeId);
+      db.prepare('DELETE FROM op_logs WHERE store_id = ?').run(storeId);
+      db.prepare("DELETE FROM users WHERE store_id = ? AND role != 'ADMIN'").run(storeId);
+      db.prepare('DELETE FROM stores WHERE id = ?').run(storeId);
+    });
+    deleteStore(req.params.id);
     opLog(req.user.id, 0, '删除门店', '删除门店: ' + store.name);
 
     triggerNotification({

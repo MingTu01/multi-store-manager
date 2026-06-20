@@ -203,7 +203,7 @@ export default function StoreDividendsPage() {
                 <div className="border-t border-slate-200 pt-3 space-y-3">
                   {(showSlip.items && showSlip.items.length > 0 ? showSlip.items : shareholders).map((item: any, i: number) => {
                     const ratio = item.ratio || 0;
-                    const pct = (ratio * 100).toFixed(0);
+                    const pct = totalRatio > 0 ? (ratio / totalRatio * 100).toFixed(0) : '0';
                     const amount = item.amount || calcAmount(showSlip.total_amount || 0, ratio);
                     return (
                       <div key={i} className="flex items-center justify-between">

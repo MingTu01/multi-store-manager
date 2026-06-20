@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
-import { useSSE } from './lib/sse';
+
 import { canAccess } from './lib/permissions';
 import { AppShell } from './layouts/AppShell';
 import { StoreGuard } from './components/StoreGuard';
@@ -55,7 +55,6 @@ export default function App() {
   const restore = useStore((s) => s.restore);
   useEffect(() => { restore(); }, [restore]);
   const user = useStore((s) => s.user);
-  useSSE();
 
   return (
     <Suspense fallback={<Loading />}>

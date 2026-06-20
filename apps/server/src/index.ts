@@ -27,7 +27,7 @@ import uploadRouter from './routes/upload.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';
-import { startReportScheduler } from './report-scheduler.js';
+
 import { eventBus } from './event-bus.js';
 
 import { fileURLToPath } from 'url';
@@ -47,9 +47,14 @@ const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
     : (origin, callback) => {
-        if (!origin) console.warn('[CORS] No origin header, allowing request');
-        else console.warn('[CORS] Dynamic origin allowed:', origin, '(Set CORS_ORIGIN env for production)');
-        callback(null, origin || true);
+        // 只允许无 origin 的请求（如移动端、Postman）
+        if (!origin) {
+          callback(null, true);
+        } else {
+          // 未配置 CORS_ORIGIN 时拒绝所有跨域请求
+          console.warn('[CORS] Blocked origin:', origin, '(set CORS_ORIGIN env to allow)');
+          callback(new Error('CORS not allowed'));
+        }
       },
   credentials: true
 };
@@ -65,15 +70,17 @@ app.use((req, res, next) => {
   // 防止信息泄露
   res.removeHeader('X-Powered-By');
   // CSP - 允许内联样式（Tailwind需要），禁止外部脚本
-  res.setHeader('Content-Security-Policy', 
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "img-src 'self' data: blob:; " +
-    "font-src 'self' data:; " +
-    "connect-src 'self' ws: wss:; " +
-    "frame-ancestors 'self';"
-  );
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: http: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' http: https: ws: wss:",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ].join('; '));
   // Referrer策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
@@ -231,8 +238,7 @@ function setupCron() {
 setupAutoBackup();
 setupCron();
 
-// 启动健康证到期检查
-startReportScheduler();
+
 
 app.get('{*splat}', (req, res) => {
   if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');

@@ -17,7 +17,17 @@ import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, bui
 import { safePath } from '../middleware/store-access.js';
 
 const router = Router();
-const upload = multer({ dest: join(BASE_DIR, 'uploads') });
+const upload = multer({
+  dest: join(BASE_DIR, 'uploads'),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    if (file.mimetype === 'application/zip' || file.originalname.endsWith('.zip')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只允许上传 ZIP 文件'));
+    }
+  }
+});
 
 // SSE clients for upgrade progress
 const sseClients: Set<Response> = new Set();

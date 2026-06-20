@@ -4,7 +4,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..', '..');
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { existsSync, mkdirSync, renameSync, readFileSync } from 'fs';
 import multer from 'multer';
 import db from '../db.js';
@@ -14,7 +14,15 @@ import { triggerNotification } from '../notify-trigger.js';
 import { getAliyunOCRConfig, isAliyunOCRConfigured, saveAliyunCredentials, reloadAliyunOCRConfig } from '../lib/aliyun-ocr.js';
 
 const router = Router();
-const upload = multer({ dest: join(BASE_DIR, 'uploads') });
+const upload = multer({
+  dest: join(BASE_DIR, 'uploads'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('只允许上传图片文件'));
+  }
+});
 
 router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) => {
   try {
@@ -39,6 +47,12 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: '请提供图片路径' });
     const imagePath = join(BASE_DIR, url.replace(/^\//, ''));
+    // Path traversal protection
+    const resolvedPath = resolve(imagePath);
+    const uploadsDir = resolve(BASE_DIR, 'uploads');
+    if (!resolvedPath.startsWith(uploadsDir)) {
+      return res.status(400).json({ error: '无效的文件路径' });
+    }
     if (!existsSync(imagePath)) return res.status(404).json({ error: '图片不存在' });
 
     const config = getAliyunOCRConfig();
@@ -191,8 +205,13 @@ router.get('/config', (req: AuthRequest, res: Response) => {
 router.put('/save', (req: AuthRequest, res: Response) => {
   try {
     const { url, name, expiry, verified } = req.body;
-    db.prepare('UPDATE users SET health_cert_url = ?, health_cert_name = ?, health_cert_expiry = ?, health_cert_verified = ? WHERE id = ?')
-      .run(url || '', name || '', expiry || '', verified ? 1 : 0, req.user.id);
+    if (isAdmin(req.user.role)) {
+      db.prepare('UPDATE users SET health_cert_url = ?, health_cert_name = ?, health_cert_expiry = ?, health_cert_verified = ? WHERE id = ?')
+        .run(url || '', name || '', expiry || '', verified ? 1 : 0, req.user.id);
+    } else {
+      db.prepare('UPDATE users SET health_cert_url = ?, health_cert_name = ?, health_cert_expiry = ? WHERE id = ?')
+        .run(url || '', name || '', expiry || '', req.user.id);
+    }
     const realExpiry = expiry || '';
     if (realExpiry) {
       const exp = new Date(realExpiry);

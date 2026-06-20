@@ -90,8 +90,11 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档' });
-    db.prepare("UPDATE dividends SET status = 'archived' WHERE id = ?").run(req.params.id);
-    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '分红', dividend.total_amount, '分红支出 #' + req.params.id + ' ' + (dividend.note || ''), localDate(), req.user?.id);
+    const archiveDividend = db.transaction((dividendId: number, storeId: string, userId: number) => {
+      db.prepare("UPDATE dividends SET status = 'archived' WHERE id = ?").run(dividendId);
+      db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(storeId, '支出', '分红', dividend.total_amount, '分红支出 #' + dividendId + ' ' + (dividend.note || ''), localDate(), userId);
+    });
+    archiveDividend(Number(req.params.id), req.params.storeId, req.user.id);
     opLog(req.user.id, req.params.storeId, '归档分红', '归档分红 #' + req.params.id);
 
     triggerNotification({

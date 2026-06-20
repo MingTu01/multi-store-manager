@@ -95,7 +95,7 @@ export default function StoreInventoryPage() {
         const oi = prev.findIndex(i => i.id === active.id);
         const ni = prev.findIndex(i => i.id === over.id);
         const r = arrayMove(prev, oi, ni);
-        api.put('/stores/' + storeId + '/inventory/items/reorder', { ids: r.map(it => it.id) }).catch(() => {});
+        api.post('/stores/' + storeId + '/inventory/items/reorder', { order: r.map((it, idx) => ({ id: it.id, sort_order: idx })) }).catch(() => {});
         return r;
       });
     }

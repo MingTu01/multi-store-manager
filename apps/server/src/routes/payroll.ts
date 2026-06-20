@@ -132,8 +132,12 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
     if (payroll.status === 'confirmed') return res.status(400).json({ error: '工资单已确认' });
-    db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(req.params.id);
-    db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(req.params.storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + req.params.id, (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(), req.user.id);
+    const confirmPayroll = db.transaction((payrollId: number, storeId: string, userId: number) => {
+      db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(payrollId);
+      const dateStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })();
+      db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + payrollId, dateStr, userId);
+    });
+    confirmPayroll(Number(req.params.id), req.params.storeId, req.user.id);
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
 
     triggerNotification({
