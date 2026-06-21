@@ -325,6 +325,13 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         };
         // copyDir: copy files recursively (overwrite existing)
+        // === 检测升级包格式 ===
+        let workDir = extractDir;
+        const ghDir = join(extractDir, 'multi-shop-link-deploy-main');
+        if (existsSync(ghDir) && (existsSync(join(ghDir, 'src')) || existsSync(join(ghDir, 'public')))) {
+          workDir = ghDir;
+          console.log('[Upgrade] Detected GitHub archive format');
+        }
         // --- 清理清单机制 ---
         const cleanupJsonPath = join(workDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
@@ -351,14 +358,6 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           } catch (e) {
             console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
-        }
-        try {
-        // === 检测升级包格式 ===
-        let workDir = extractDir;
-        const ghDir = join(extractDir, 'multi-shop-link-deploy-main');
-        if (existsSync(ghDir) && (existsSync(join(ghDir, 'src')) || existsSync(join(ghDir, 'public')))) {
-          workDir = ghDir;
-          console.log('[Upgrade] Detected GitHub archive format');
         }
         // === 更新 web-dist ===
         const webDist1 = join(workDir, 'web-dist');
@@ -425,12 +424,6 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         // 清理临时解压目录
         try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
-        } catch (copyErr) {
-          console.error('[Upgrade] FILE COPY FAILED:', copyErr.message);
-          console.error('[Upgrade] STACK:', copyErr.stack);
-          broadcastProgress('error', { message: '升级失败: ' + copyErr.message });
-          return;
-        }
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };
