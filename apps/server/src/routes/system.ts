@@ -334,7 +334,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           }
         };
         // --- 清理清单机制 ---
-        const cleanupJsonPath = join(extractDir, 'cleanup.json');
+        const cleanupJsonPath = join(workDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
           try {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
@@ -360,29 +360,40 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
         }
+        // === 检测升级包格式 ===
+        let workDir = extractDir;
+        const ghDir = join(extractDir, 'multi-shop-link-deploy-main');
+        if (existsSync(ghDir) && (existsSync(join(ghDir, 'src')) || existsSync(join(ghDir, 'public')))) {
+          workDir = ghDir;
+          console.log('[Upgrade] Detected GitHub archive format');
+        }
         // === 更新 web-dist ===
-        const webDist = join(extractDir, 'web-dist');
-        if (existsSync(webDist)) {
+        const webDist1 = join(workDir, 'web-dist');
+        const webDist2 = join(workDir, 'public', 'web-dist');
+        const webDistSrc = existsSync(webDist1) ? webDist1 : (existsSync(webDist2) ? webDist2 : null);
+        if (webDistSrc) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
           if (existsSync(webDest)) clearDir(webDest);
-          copyDir(webDist, webDest);
+          copyDir(webDistSrc, webDest);
           console.log('[Upgrade] web-dist updated');
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
         // === 更新服务端代码 ===
-        const serverSrc = join(extractDir, 'server-src');
-        if (!existsSync(serverSrc)) {
-          broadcastProgress('error', { message: '升级失败: server-src目录不存在' });
+        const sSrc1 = join(workDir, 'server-src');
+        const sSrc2 = join(workDir, 'src');
+        const sSrc = existsSync(sSrc1) ? sSrc1 : (existsSync(sSrc2) ? sSrc2 : null);
+        if (!sSrc) {
+          broadcastProgress('error', { message: '升级失败: 服务端代码目录不存在' });
           return;
         }
         const srcDest = join(BASE_DIR, 'src');
         clearDir(srcDest);
-        copyDir(serverSrc, srcDest);
-        console.log('[Upgrade] server-src updated');
+        copyDir(sSrc, srcDest);
+        console.log('[Upgrade] server code updated');
         // === 更新 package.json ===
-        const pkgFile = join(extractDir, 'package.json');
+        const pkgFile = join(workDir, 'package.json');
         if (existsSync(pkgFile)) {
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
           console.log('[Upgrade] package.json updated');
@@ -400,7 +411,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           return;
         }
         // === 后置脚本 ===
-        const postUpgradeScript = join(extractDir, 'post-upgrade.cjs');
+        const postUpgradeScript = join(workDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
             console.log('[Upgrade] Running post-upgrade script...');
@@ -414,7 +425,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         }
         // === 更新版本号 ===
         try {
-          const pkgPath = [join(extractDir, 'apps', 'web', 'package.json'), join(extractDir, 'apps', 'server', 'package.json'), join(extractDir, 'package.json')].find(p => existsSync(p)) || join(extractDir, 'package.json');
+          const pkgPath = [join(workDir, 'apps', 'web', 'package.json'), join(workDir, 'apps', 'server', 'package.json'), join(workDir, 'package.json')].find(p => existsSync(p)) || join(workDir, 'package.json');
           if (existsSync(pkgPath)) {
             const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
             writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
@@ -683,7 +694,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
         
         // --- cleanup.json 清理清单 ---
-        const cleanupJsonPath = join(extractedFolder, 'cleanup.json');
+        const cleanupJsonPath = join(realExtractedFolder, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
           try {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
@@ -707,7 +718,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           } catch (e: any) { console.warn('[Update] Failed to process cleanup.json:', e.message); }
         }
         
-        const publicDir = join(extractedFolder, 'public');
+        const publicDir = join(realExtractedFolder, 'public');
         if (existsSync(publicDir)) {
           const destPublic = join(BASE_DIR, 'public');
           if (existsSync(destPublic)) {
@@ -718,18 +729,25 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           console.log('[Update] web-dist updated');
         }
         // === 更新服务端代码 ===
-        const srcDir = join(extractedFolder, 'src');
-        if (existsSync(srcDir)) {
-          const destSrc = join(BASE_DIR, 'src');
-          clearDir(destSrc);
-          cpSync(srcDir, destSrc, { recursive: true });
-          console.log('[Update] server-src updated');
+        const srcDir = join(realExtractedFolder, 'src');
+        if (!existsSync(srcDir)) {
+          throw new Error('更新包中找不到 src/ 目录，更新包格式不正确');
         }
-        const pkgFile = join(extractedFolder, 'package.json');
-        if (existsSync(pkgFile)) copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
-        const versionFile = join(extractedFolder, 'data', 'version.json');
-        if (existsSync(versionFile)) copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
-        const postUpgradeScript = join(extractedFolder, 'post-upgrade.cjs');
+        const destSrc = join(BASE_DIR, 'src');
+        clearDir(destSrc);
+        cpSync(srcDir, destSrc, { recursive: true });
+        console.log('[Update] server-src updated');
+        const pkgFile = join(realExtractedFolder, 'package.json');
+        if (existsSync(pkgFile)) {
+          copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
+          console.log('[Update] package.json updated');
+        }
+        const versionFile = join(realExtractedFolder, 'data', 'version.json');
+        if (existsSync(versionFile)) {
+          copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
+          console.log('[Update] version.json updated');
+        }
+        const postUpgradeScript = join(realExtractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
             console.log('[Update] Running post-upgrade script...');
