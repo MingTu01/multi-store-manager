@@ -17,6 +17,7 @@ const AdminSettingsPage = lazy(() => import('./pages/settings/AdminSettingsPage'
 const StoreOverviewPage = lazy(() => import('./pages/store/StoreOverviewPage'));
 const StoreEntriesPage = lazy(() => import('./pages/store/StoreEntriesPage'));
 const StoreInventoryPage = lazy(() => import('./pages/store/StoreInventoryPage'));
+const StorePurchasePage = lazy(() => import('./pages/store/StorePurchasePage'));
 const StoreShiftsPage = lazy(() => import('./pages/store/StoreShiftsPage'));
 const StoreReportPage = lazy(() => import('./pages/store/StoreReportPage'));
 const StorePayrollPage = lazy(() => import('./pages/store/StorePayrollPage'));
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="store/:storeId" element={<StoreGuard><StoreOverviewPage /></StoreGuard>} />
           <Route path="store/:storeId/entries" element={<StoreGuard><StoreEntriesPage /></StoreGuard>} />
           <Route path="store/:storeId/inventory" element={<StoreGuard><StoreInventoryPage /></StoreGuard>} />
+<Route path="store/:storeId/purchase" element={<StoreGuard><StorePurchasePage /></StoreGuard>} />
           <Route path="store/:storeId/shifts" element={<StoreGuard><StoreShiftsPage /></StoreGuard>} />
           <Route path="store/:storeId/payroll" element={<StoreGuard><StorePayrollPage /></StoreGuard>} />
           <Route path="store/:storeId/dividends" element={<StoreGuard><StoreDividendsPage /></StoreGuard>} />

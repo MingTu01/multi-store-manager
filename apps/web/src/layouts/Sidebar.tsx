@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
 import { canAccess } from '../lib/permissions';
-import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft, Truck } from 'lucide-react';
 
 import { getRoleLabel, getRoleBg, getRoleColor } from '../lib/role';
 
@@ -31,6 +31,7 @@ export function Sidebar() {
     { to: '/store/' + storeId, icon: LayoutDashboard, label: '门店总览', key: 'storeOverview', end: true },
     { to: '/store/' + storeId + '/entries', icon: BookOpen, label: '记账', key: 'storeEntries' },
     { to: '/store/' + storeId + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
+  { to: '/store/' + storeId + '/purchase', icon: Truck, label: '进货', key: 'storePurchase' },
     { to: '/store/' + storeId + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
     { to: '/store/' + storeId + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
     { to: '/store/' + storeId + '/notifications', icon: Bell, label: '消息通知', key: 'storeNotifications', badge: true },

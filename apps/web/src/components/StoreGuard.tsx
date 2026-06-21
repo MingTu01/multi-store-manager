@@ -56,6 +56,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
     ['/settings', 'storeSettings'],
     ['/notifications', 'storeNotifications'],
     ['/notification-settings', 'storeNotificationSettings'],
+    ['/purchase', 'storePurchase'],
     ['/account', 'storeAccount'],
   ];
   let permKey = 'storeOverview';

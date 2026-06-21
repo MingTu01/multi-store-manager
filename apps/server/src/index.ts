@@ -23,6 +23,7 @@ import logsRouter from './routes/logs.js';
 import reportsRouter from './routes/reports.js';
 import dashboardRouter from './routes/dashboard.js';
 import healthCertRouter from './routes/health-cert.js';
+import purchaseRouter from './routes/purchase.js';
 import uploadRouter from './routes/upload.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
@@ -162,6 +163,7 @@ app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
 startHealthCheckScheduler();
 app.use('/api/health-cert', authMiddleware, healthCertRouter);
+app.use('/api/stores/:storeId/purchase', authMiddleware, requireStoreAccess, purchaseRouter);
 app.use('/api/upload', authMiddleware, uploadRouter);
 
 // Auto backup scheduler

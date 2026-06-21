@@ -243,6 +243,7 @@ export default function SettingsPage() {
   };
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    if (!file) return;
     const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
     if (!file.name.endsWith('.zip')) { showMsg(false, '请上传ZIP格式的升级包'); return; }
     setUpgradeFile(file);
@@ -316,7 +317,7 @@ export default function SettingsPage() {
           }, 2000);
           setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 120000);
         }, 5000);
-      };RestartPoll = () => {
+      };let RestartPoll: () => void; RestartPoll = () => {
         if (restartDetected) return;
         restartDetected = true;
         setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1 })));

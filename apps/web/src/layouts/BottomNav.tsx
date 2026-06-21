@@ -5,7 +5,7 @@ import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
-import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft, Truck } from 'lucide-react';
 
 export function BottomNav() {
   const user = useStore((s) => s.user);
@@ -53,6 +53,7 @@ export function BottomNav() {
     { to: '/store/' + storeId, icon: LayoutDashboard, label: '总览', key: 'storeOverview', end: true },
     { to: '/store/' + storeId + '/entries', icon: BookOpen, label: '记账', key: 'storeEntries' },
     { to: '/store/' + storeId + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
+    { to: '/store/' + storeId + '/purchase', icon: Truck, label: '进货', key: 'storePurchase' },
     { to: '/store/' + storeId + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
     { to: '/store/' + storeId + '/account', icon: User, label: '我的', key: 'storeAccount' },
   ];

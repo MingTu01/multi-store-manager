@@ -238,6 +238,26 @@ CREATE TABLE IF NOT EXISTS categories (
   sort_order INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
+
+CREATE TABLE IF NOT EXISTS purchase_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+CREATE TABLE IF NOT EXISTS purchase_records (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  item_id INTEGER NOT NULL,
+  morning_qty REAL DEFAULT 0,
+  afternoon_qty REAL DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  updated_at TEXT DEFAULT (datetime('now','localtime')),
+  UNIQUE(store_id, date, item_id)
+);
 `);
 
 // Migrations - add columns that may not exist
@@ -316,6 +336,9 @@ const indexes = [
   "CREATE INDEX IF NOT EXISTS idx_payroll_items_payroll ON payroll_items(payroll_id)",
   "CREATE INDEX IF NOT EXISTS idx_inventory_check_items_check ON inventory_check_items(check_id)",
   "CREATE INDEX IF NOT EXISTS idx_store_notification_settings_store ON store_notification_settings(store_id)",
+    "CREATE INDEX IF NOT EXISTS idx_purchase_items_store ON purchase_items(store_id, sort_order)",
+    "CREATE INDEX IF NOT EXISTS idx_purchase_records_store_date ON purchase_records(store_id, date)",
+    "CREATE INDEX IF NOT EXISTS idx_purchase_records_item ON purchase_records(item_id)",
 ];
 for (const sql of indexes) {
   try { db.exec(sql); } catch (e) { /* index may already exist */ }
