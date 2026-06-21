@@ -35,7 +35,14 @@ jobs:
         run: |
           # Clean old files (keep data, uploads, backups)
           cd deploy
-          rm -rf src/ public/ package.json tsconfig.json seed.ts *.traineddata
+          # Preserve Docker/deploy-specific files
+          rm -rf src/ public/ package.json tsconfig.json seed.ts *.traineddata 2>/dev/null || true
+          # Keep these files if they exist
+          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore; do
+            if [ -f "$f" ]; then
+              cp "$f" "/tmp/deploy-preserve-$f" 2>/dev/null || true
+            fi
+          done
 
           # Copy server source
           cp -r ../apps/server/src/ src/
@@ -58,6 +65,13 @@ jobs:
           # Copy upgrade support files
           cp ../apps/server/cleanup.json . 2>/dev/null || true
           cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
+
+          # Restore preserved Docker files
+          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore; do
+            if [ -f "/tmp/deploy-preserve-$f" ]; then
+              cp "/tmp/deploy-preserve-$f" "$f"
+            fi
+          done
 
           # Update version
           VERSION=$(node -p "require('./package.json').version")
