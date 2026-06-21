@@ -33,19 +33,26 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
     const typeFilter = type && type !== 'all' ? String(type) : '';
-    const whereClause = typeFilter ? 'WHERE n.user_id = ? AND n.type = ?' : 'WHERE n.user_id = ?';
+
+    // Build WHERE for count queries (no table alias)
+    const countWhere = typeFilter ? 'WHERE user_id = ? AND type = ?' : 'WHERE user_id = ?';
     const countParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
-    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + whereClause).get(...countParams) as any).count;
-    const unreadWhere = typeFilter ? 'WHERE n.user_id = ? AND n.read = 0 AND n.type = ?' : 'WHERE n.user_id = ? AND n.read = 0';
+
+    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + countWhere).get(...countParams) as any).count;
+    const unreadWhere = typeFilter ? 'WHERE user_id = ? AND read = 0 AND type = ?' : 'WHERE user_id = ? AND read = 0';
     const unreadParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
     const unread = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + unreadWhere).get(...unreadParams) as any).count;
+
+    // Build WHERE for SELECT query (with table alias n.)
+    const selWhere = typeFilter ? 'WHERE n.user_id = ? AND n.type = ?' : 'WHERE n.user_id = ?';
     const queryParams: any[] = typeFilter ? [req.user.id, typeFilter, ps, offset] : [req.user.id, ps, offset];
-    const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id ' + whereClause + ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(...queryParams);
+    const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id ' + selWhere + ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(...queryParams);
+
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});
+});;
 
 // GET /notifications/unread-count - 轻量API，仅返回未读数量
 router.get('/unread-count', (req: AuthRequest, res: Response) => {
