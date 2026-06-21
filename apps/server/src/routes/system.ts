@@ -324,15 +324,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             else copyFileSync(srcPath, destPath);
           }
         };
-        // 清空目录内容但保留目录本身（Docker volume mount 不能删除挂载点）
-        const clearDir = (dir) => {
-          if (!existsSync(dir)) return;
-          for (const entry of readdirSync(dir, { withFileTypes: true })) {
-            const fullPath = join(dir, entry.name);
-            if (entry.isDirectory()) rmSync(fullPath, { recursive: true, force: true });
-            else { try { unlinkSync(fullPath); } catch {} }
-          }
-        };
+        // copyDir: copy files recursively (overwrite existing)
         // --- 清理清单机制 ---
         const cleanupJsonPath = join(workDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
@@ -360,6 +352,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
         }
+        try {
         // === 检测升级包格式 ===
         let workDir = extractDir;
         const ghDir = join(extractDir, 'multi-shop-link-deploy-main');
@@ -373,7 +366,6 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const webDistSrc = existsSync(webDist1) ? webDist1 : (existsSync(webDist2) ? webDist2 : null);
         if (webDistSrc) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
-          if (existsSync(webDest)) clearDir(webDest);
           copyDir(webDistSrc, webDest);
           console.log('[Upgrade] web-dist updated');
         } else {
@@ -389,7 +381,6 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           return;
         }
         const srcDest = join(BASE_DIR, 'src');
-        clearDir(srcDest);
         copyDir(sSrc, srcDest);
         console.log('[Upgrade] server code updated');
         // === 更新 package.json ===
@@ -434,6 +425,12 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         // 清理临时解压目录
         try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
+        } catch (copyErr) {
+          console.error('[Upgrade] FILE COPY FAILED:', copyErr.message);
+          console.error('[Upgrade] STACK:', copyErr.stack);
+          broadcastProgress('error', { message: '升级失败: ' + copyErr.message });
+          return;
+        }
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };
@@ -691,7 +688,17 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         mkdirSync(extractDir, { recursive: true });
         const zip = new AdmZip(zipBuffer);
         zip.extractAllTo(extractDir, true);
-        const extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
+        let extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
+        if (!existsSync(extractedFolder)) {
+          const entries = readdirSync(extractDir, { withFileTypes: true }).filter(e => e.isDirectory());
+          if (entries.length === 1) {
+            extractedFolder = join(extractDir, entries[0].name);
+            console.log('[Update] Using extracted folder:', entries[0].name);
+          } else {
+            throw new Error('解压后找不到更新目录，可能更新包格式不正确');
+          }
+        }
+        const realExtractedFolder = extractedFolder;
         
         // --- cleanup.json 清理清单 ---
         const cleanupJsonPath = join(realExtractedFolder, 'cleanup.json');
@@ -723,9 +730,8 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           const destPublic = join(BASE_DIR, 'public');
           if (existsSync(destPublic)) {
             const webDistDest = join(destPublic, 'web-dist');
-            if (existsSync(webDistDest)) clearDir(webDistDest);
-          }
-          cpSync(publicDir, destPublic, { recursive: true });
+            }
+          cpSync(publicDir, destPublic, { recursive: true, force: true });
           console.log('[Update] web-dist updated');
         }
         // === 更新服务端代码 ===
@@ -734,8 +740,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           throw new Error('更新包中找不到 src/ 目录，更新包格式不正确');
         }
         const destSrc = join(BASE_DIR, 'src');
-        clearDir(destSrc);
-        cpSync(srcDir, destSrc, { recursive: true });
+        cpSync(srcDir, destSrc, { recursive: true, force: true });
         console.log('[Update] server-src updated');
         const pkgFile = join(realExtractedFolder, 'package.json');
         if (existsSync(pkgFile)) {
