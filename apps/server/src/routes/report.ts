@@ -11,22 +11,22 @@ function getDateRange(period: string, dateStr: string) {
   if (period === 'day') {
     start = end = dateStr;
     const prev = new Date(d); prev.setDate(prev.getDate() - 1);
-    prevStart = prevEnd = prev.toISOString().slice(0, 10);
+    prevStart = prevEnd = localDate(prev);
   } else if (period === 'week') {
     const day = d.getDay() || 7;
     const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
     const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-    start = mon.toISOString().slice(0, 10); end = sun.toISOString().slice(0, 10);
+    start = localDate(mon); end = localDate(sun);
     const pMon = new Date(mon); pMon.setDate(pMon.getDate() - 7);
     const pSun = new Date(pMon); pSun.setDate(pMon.getDate() + 6);
-    prevStart = pMon.toISOString().slice(0, 10); prevEnd = pSun.toISOString().slice(0, 10);
+    prevStart = localDate(pMon); prevEnd = localDate(pSun);
   } else if (period === 'month') {
     start = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
     const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    end = last.toISOString().slice(0, 10);
+    end = localDate(last);
     const pStart = new Date(d.getFullYear(), d.getMonth() - 1, 1);
     const pEnd = new Date(d.getFullYear(), d.getMonth(), 0);
-    prevStart = pStart.toISOString().slice(0, 10); prevEnd = pEnd.toISOString().slice(0, 10);
+    prevStart = localDate(pStart); prevEnd = localDate(pEnd);
   } else if (period === 'year') {
     start = d.getFullYear() + '-01-01'; end = d.getFullYear() + '-12-31';
     prevStart = (d.getFullYear() - 1) + '-01-01'; prevEnd = (d.getFullYear() - 1) + '-12-31';
@@ -61,18 +61,18 @@ router.get('/', (req: AuthRequest, res: Response) => {
     let yoyStart: string, yoyEnd: string;
     if (period === 'day') {
       const yoyD = new Date(d); yoyD.setFullYear(yoyD.getFullYear() - 1);
-      yoyStart = yoyEnd = yoyD.toISOString().slice(0, 10);
+      yoyStart = yoyEnd = localDate(yoyD);
     } else if (period === 'month') {
       yoyStart = (d.getFullYear() - 1) + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
       const yoyLast = new Date(d.getFullYear() - 1, d.getMonth() + 1, 0);
-      yoyEnd = yoyLast.toISOString().slice(0, 10);
+      yoyEnd = localDate(yoyLast);
     } else if (period === 'year') {
       yoyStart = (d.getFullYear() - 1) + '-01-01'; yoyEnd = (d.getFullYear() - 1) + '-12-31';
     } else {
       const wStart = new Date(d); wStart.setFullYear(wStart.getFullYear() - 1);
-      yoyStart = wStart.toISOString().slice(0, 10);
+      yoyStart = localDate(wStart);
       const wEnd = new Date(wStart); wEnd.setDate(wEnd.getDate() + 6);
-      yoyEnd = wEnd.toISOString().slice(0, 10);
+      yoyEnd = localDate(wEnd);
     }
     const yoyData = queryStats(storeId, yoyStart, yoyEnd);
 

@@ -1,4 +1,4 @@
-import { localDate } from '../lib/utils.js';
+import { localDate, localDateTime } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
@@ -95,7 +95,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { name, address, initial_capital } = req.body;
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const now = localDateTime();
     db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
     const photos = req.body.photos;
     if (Array.isArray(photos)) {

@@ -10,6 +10,7 @@ import multer from 'multer';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin } from '../lib/roles.js';
+import { localDate } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { getAliyunOCRConfig, isAliyunOCRConfigured, saveAliyunCredentials, reloadAliyunOCRConfig } from '../lib/aliyun-ocr.js';
 
@@ -149,7 +150,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     if (ocrExpiry) {
       const d = new Date(ocrExpiry);
       d.setFullYear(d.getFullYear() + 1);
-      realExpiryStr = d.toISOString().slice(0, 10);
+      realExpiryStr = localDate(d);
     }
     const realDaysLeft = realExpiryStr ? Math.ceil((new Date(realExpiryStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : -1;
 
