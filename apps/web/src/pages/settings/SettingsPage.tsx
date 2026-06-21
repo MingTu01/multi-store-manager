@@ -294,6 +294,31 @@ export default function SettingsPage() {
       const handleRestartPoll = () => {
         if (restartDetected) return;
         restartDetected = true;
+        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1, msg: i === prev.length - 1 ? '服务器重启中...' : s.msg })));
+        setTimeout(() => {
+          let attempts = 0;
+          const rp = setInterval(async () => {
+            attempts++;
+            try {
+              const ctrl = new AbortController();
+              const tmo = setTimeout(() => ctrl.abort(), 3000);
+              const res = await fetch('/api/system/info', { signal: ctrl.signal });
+              clearTimeout(tmo);
+              if (res.ok) {
+                clearInterval(rp);
+                setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+                setUpgradeComplete(true);
+                setUpdating(false);
+              }
+            } catch {
+              if (attempts > 60) { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }
+            }
+          }, 2000);
+          setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 120000);
+        }, 5000);
+      };RestartPoll = () => {
+        if (restartDetected) return;
+        restartDetected = true;
         setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1 })));
         let attempts = 0;
         const rp = setInterval(async () => {
