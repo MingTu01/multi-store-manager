@@ -155,7 +155,23 @@ if (fs.existsSync(postUpgradeScript)) {
   console.warn('  Warning: post-upgrade.cjs not found, skipping');
 }
 
-// 写入 ZIP
+
+// === BOM 检测 ===
+{
+  const bomFiles = ['post-upgrade.cjs', 'cleanup.json'];
+  for (const f of bomFiles) {
+    const fp = require('path').join(__dirname, f);
+    if (fs.existsSync(fp)) {
+      const buf = fs.readFileSync(fp);
+      if (buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF) {
+        console.error('ERROR: ' + f + ' has UTF-8 BOM. Removing...');
+        fs.writeFileSync(fp, buf.slice(3));
+      }
+    }
+  }
+}
+
+        // 写入 ZIP
 zip.writeZip(zipPath);
 
 const stat = fs.statSync(zipPath);

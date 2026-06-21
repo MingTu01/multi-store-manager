@@ -29,3 +29,24 @@ SQLite数据库(apps/server/data/store.db)
 修订号: Bug修复时递增（如 v1.0.0 -> v1.0.1）
 打包ZIP: 必须用tar命令或Node.js，确保路径用正斜杠
 --- project-doc ---
+
+
+## 升级功能红线规则（2026-06-21 血泪教训）
+
+### 强制检查清单 — 修改升级相关代码前必须逐条确认
+
+1. **禁止先删后复制** — 永远先把新文件复制到临时目录，确认全部成功后再原子替换。绝对不能先 clearDir 再 copyDir。
+2. **禁止 fire-and-forget 异步** — 破坏性操作（文件替换、数据库迁移）必须有同步错误反馈，不能只靠 SSE 广播。
+3. **全局搜索同类代码** — 修一个 toISOString() 就要搜所有 toISOString()；修一个 clearDir 就要搜所有 clearDir。不许只改一处。
+4. **BOM / CRLF 检测** — 所有 .cjs / .sh 文件打包前必须检测 BOM 头和换行符。
+5. **变量作用域验证** — 重命名或移动变量声明后，必须确认所有引用点都在正确的作用域内。
+6. **Docker volume mount 意识** — /app/data、/app/uploads、/app/public/web-dist 是 volume mount，操作等于直接操作宿主机文件。
+7. **升级后必须端到端测试** — 在 Docker 测试环境里完整走一遍：ZIP 升级 + 在线升级 + 登录 + 记账 + 查看时间。缺一不可。
+
+### 升级包打包规范
+
+- 打包前：esbuild 验证所有 .ts 文件编译通过
+- 打包时：检测 post-upgrade.cjs 和 cleanup.json 无 BOM
+- 打包后：用 AdmZip 验证 ZIP 结构完整
+- 部署前：在 Docker 测试环境验证升级成功
+
