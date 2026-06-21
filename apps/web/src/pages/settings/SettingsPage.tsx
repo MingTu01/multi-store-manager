@@ -339,7 +339,39 @@ export default function SettingsPage() {
         setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 60000);
       };
       es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
-      es.onerror = () => { es.close(); handleRestartPoll(); };
+      // Polling fallback for upgrade status (used when SSE fails)
+        const pollUpgradeStatus = async () => {
+          if (restartDetected) return;
+          try {
+            const ctrl = new AbortController();
+            const tmo = setTimeout(() => ctrl.abort(), 5000);
+            const res = await fetch('/api/system/upgrade/status?token=' + encodeURIComponent(token || ''), { 
+              headers: { Authorization: 'Bearer ' + token }, signal: ctrl.signal 
+            });
+            clearTimeout(tmo);
+            if (res.ok) {
+              const state = await res.json();
+              if (state.step > 0 && state.step <= onlineStepNames.length) {
+                if (state.step > maxStep) maxStep = state.step;
+                setUpdateSteps(prev => {
+                  const steps = [...prev];
+                  const idx = state.step - 1;
+                  if (idx >= 0 && idx < steps.length) {
+                    steps[idx] = { msg: state.message || onlineStepNames[idx], done: state.complete || false };
+                  }
+                  return steps;
+                });
+              }
+              if (state.complete) { handleRestartPoll(); return; }
+            }
+          } catch {}
+          if (!restartDetected) setTimeout(pollUpgradeStatus, 2000);
+        };
+      es.onerror = () => { 
+        es.close(); 
+        console.log('[Upgrade] SSE failed, falling back to polling');
+        pollUpgradeStatus();
+      };
       await new Promise(r => setTimeout(r, 1000));
       await api.post('/system/do-update', {});
     } catch (e: any) {

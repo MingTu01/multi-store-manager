@@ -221,7 +221,7 @@ export default function StorePurchasePage() {
                 <span className="text-sm text-slate-800 truncate">{item.name}</span>
                 <div className="text-center">
                   {editing ? (
-                    <input type="number" min="0" step="0.5" value={item.record.morning_qty || ''} placeholder="0"
+                    <input type="number" min="0" step="1" value={item.record.morning_qty || ''} placeholder="0"
                       onChange={e => updateQty(item.id, 'morning_qty', e.target.value)}
                       className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-sm font-medium text-slate-800 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100" />
                   ) : (
@@ -230,7 +230,7 @@ export default function StorePurchasePage() {
                 </div>
                 <div className="text-center">
                   {editing ? (
-                    <input type="number" min="0" step="0.5" value={item.record.afternoon_qty || ''} placeholder="0"
+                    <input type="number" min="0" step="1" value={item.record.afternoon_qty || ''} placeholder="0"
                       onChange={e => updateQty(item.id, 'afternoon_qty', e.target.value)}
                       className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center text-sm outline-none focus:border-indigo-300" />
                   ) : (

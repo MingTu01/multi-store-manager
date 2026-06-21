@@ -87,14 +87,33 @@ cd ../server && node --import tsx src/index.ts
 
 ## Docker 部署
 
-`ash
+```bash
 # 克隆部署仓库
 git clone https://github.com/MingTu01/multi-shop-link-deploy.git
 cd multi-shop-link-deploy
 
-# 启动容器
+# 复制环境变量模板（生产环境必须配置）
+cp .env.example .env
+# 编辑 .env 填入你的域名和密钥
+
 docker-compose up -d
-`
+```
+
+### 环境变量
+
+在项目根目录创建 `.env` 文件：
+
+| 变量 | 必填 | 说明 | 示例 |
+|------|------|------|------|
+| `JWT_SECRET` | 是 | JWT 认证密钥，任意随机字符串 | `your-random-secret-key` |
+| `CORS_ORIGIN` | 生产必填 | 允许的前端域名，含协议，多个逗号分隔 | `https://your-domain.com` |
+| `PORT` | 否 | 服务端口，默认 3001 | `3001` |
+
+**CORS_ORIGIN 说明：**
+- 不设置时允许所有来源（仅限本地开发）
+- **生产环境必须设置**，否则通过域名访问时会被 CORS 拦截，导致登录、升级等功能失败
+- 如果同时通过域名和 IP 访问，用逗号分隔：`https://your-domain.com,http://server-ip:3001`
+
 
 ## 更新日志
 

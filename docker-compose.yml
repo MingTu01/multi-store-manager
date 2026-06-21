@@ -13,6 +13,9 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET:?请在.env文件中设置JWT_SECRET}
+      # 生产环境必须设置: 你的域名(含协议)，多个用逗号分隔
+      # 例: CORS_ORIGIN=https://your-domain.com
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
     restart: unless-stopped
 volumes:
   app-data:
