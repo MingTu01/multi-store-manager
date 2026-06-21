@@ -340,8 +340,11 @@ export default function SettingsPage() {
       };
       es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
       // Polling fallback for upgrade status (used when SSE fails)
+                // Robust polling: survives server restart, updates all completed steps
+        let pollAttempts = 0;
         const pollUpgradeStatus = async () => {
           if (restartDetected) return;
+          pollAttempts++;
           try {
             const ctrl = new AbortController();
             const tmo = setTimeout(() => ctrl.abort(), 5000);
@@ -355,25 +358,29 @@ export default function SettingsPage() {
                 if (state.step > maxStep) maxStep = state.step;
                 setUpdateSteps(prev => {
                   const steps = [...prev];
-                  const idx = state.step - 1;
-                  if (idx >= 0 && idx < steps.length) {
-                    steps[idx] = { msg: state.message || onlineStepNames[idx], done: state.complete || false };
+                  for (let i = 0; i < Math.min(state.step, onlineStepNames.length); i++) {
+                    const isDone = i < state.step - 1 || state.complete;
+                    steps[i] = { msg: i === state.step - 1 ? (state.message || onlineStepNames[i]) : onlineStepNames[i], done: isDone };
                   }
                   return steps;
                 });
               }
               if (state.complete) { handleRestartPoll(); return; }
+              pollAttempts = 0;
             }
-          } catch {}
-          if (!restartDetected) setTimeout(pollUpgradeStatus, 2000);
-        };
+          } catch {
+            // Server restarting, keep polling
+          }
+          if (!restartDetected) setTimeout(pollUpgradeStatus, pollAttempts > 10 ? 3000 : 2000);
+        };;
       es.onerror = () => { 
-        es.close(); 
-        console.log('[Upgrade] SSE failed, falling back to polling');
-        pollUpgradeStatus();
-      };
-      await new Promise(r => setTimeout(r, 1000));
-      await api.post('/system/do-update', {});
+          es.close(); 
+          console.log('[Upgrade] SSE failed, falling back to polling');
+        };
+        await new Promise(r => setTimeout(r, 1000));
+        await api.post('/system/do-update', {});
+        // Start polling after do-update is sent
+        setTimeout(pollUpgradeStatus, 500);
     } catch (e: any) {
       setUpdateSteps(prev => [...prev, { msg: '更新失败: ' + (e.message || '未知错误'), done: false }]);
       setUpdating(false);
