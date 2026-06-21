@@ -28,13 +28,19 @@ const router = Router();
 
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
-    const { page, pageSize } = req.query;
+    const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
     const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
-    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ?').get(req.user.id) as any).count;
-    const unread = (db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any).count;
-    const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id WHERE n.user_id = ? ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(req.user.id, ps, offset);
+    const typeFilter = type && type !== 'all' ? String(type) : '';
+    const whereClause = typeFilter ? 'WHERE n.user_id = ? AND n.type = ?' : 'WHERE n.user_id = ?';
+    const countParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
+    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + whereClause).get(...countParams) as any).count;
+    const unreadWhere = typeFilter ? 'WHERE n.user_id = ? AND n.read = 0 AND n.type = ?' : 'WHERE n.user_id = ? AND n.read = 0';
+    const unreadParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
+    const unread = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + unreadWhere).get(...unreadParams) as any).count;
+    const queryParams: any[] = typeFilter ? [req.user.id, typeFilter, ps, offset] : [req.user.id, ps, offset];
+    const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id ' + whereClause + ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(...queryParams);
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
