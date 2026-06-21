@@ -67,9 +67,9 @@ export default function StorePurchasePage() {
   };
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
+  const onTouchStart = (e: React.TouchEvent) => { if (editing) return; touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; };
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current) return;
+    if (editing || !touchStart.current) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {

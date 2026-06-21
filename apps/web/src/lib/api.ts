@@ -95,14 +95,18 @@ async function parseError(r: Response, silent = false): Promise<Error> {
   }
 }
 
+export function resetRedirectFlag() { isRedirectingToLogin = false; }
+
 export const api = {
   get: async (url: string, opts?: { silent?: boolean }) => {
-    const cached = getCached(url);
+    const tk = token();
+    const ck = tk ? tk.slice(-8) + ':' + url : url;
+    const cached = getCached(ck);
     if (cached) return cached;
     const res = await fetch('/api' + url, { headers: headers(), cache: 'no-cache' });
     if (!res.ok) throw await parseError(res, opts?.silent);
     const data = await res.json();
-    setCache(url, data);
+    setCache(ck, data);
     return data;
   },
   post: async (url: string, body: any) => {

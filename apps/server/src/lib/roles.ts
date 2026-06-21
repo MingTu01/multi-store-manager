@@ -19,5 +19,5 @@ export function isManagerOrAbove(role: string) {
 }
 
 export function isReadonly(role: string) {
-  return ['STAFF', 'SHAREHOLDER'].includes(role?.toUpperCase());
+  return ['SHAREHOLDER'].includes(role?.toUpperCase());
 }

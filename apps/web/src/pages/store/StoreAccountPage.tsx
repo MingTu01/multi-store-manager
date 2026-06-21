@@ -49,6 +49,7 @@ export default function StoreAccountPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
+      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { alert('手机号格式不正确'); return; }
       const d: any = await api.put('/auth/me', profileForm);
       if (d.user) useStore.setState({ user: { ...user!, ...d.user } });
       showMsg(true, d.message || '信息已更新');
@@ -389,7 +390,7 @@ export default function StoreAccountPage() {
 
       <Modal open={showProfile} onClose={() => setShowProfile(false)} title="编辑资料">
         <div className="space-y-4">
-          <div><label className="mb-1.5 block text-xs font-medium text-slate-600">手机号</label><input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} placeholder="请输入手机号" /></div>
+          <div><label className="mb-1.5 block text-xs font-medium text-slate-600">手机号</label><input value={profileForm.phone} onChange={e => { const v = e.target.value.replace(/\D/g,'').slice(0,11); setProfileForm(f => ({ ...f, phone: v })); }} className={inputCls} placeholder="请输入11位手机号" maxLength={11} type="tel" inputMode="numeric" pattern="1[3-9]\d{9}" /></div>
           <div><label className="mb-1.5 block text-xs font-medium text-slate-600">联系地址</label><input value={profileForm.address} onChange={e => setProfileForm(f => ({ ...f, address: e.target.value }))} className={inputCls} placeholder="请输入联系地址" /></div>
           <button onClick={handleSaveProfile} disabled={saving} className="action-btn btn w-full disabled:opacity-50"><Save className="mr-1.5 h-4 w-4 inline" />{saving ? '保存中...' : '保存'}</button>
         </div>

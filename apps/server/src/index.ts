@@ -122,6 +122,8 @@ app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '30d', e
 // SSE - Server-Sent Events for real-time data push
 app.get('/api/sse', authMiddleware, (req, res) => {
   const userId = (req as any).user?.id || 0;
+  // Close existing connections for this user (limit 1 per user)
+  eventBus.closeUserConnections(userId);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');

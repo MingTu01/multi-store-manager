@@ -24,7 +24,7 @@ export default function StoreEntriesPage() {
   const { storeId } = useParams();
   const dataVersion = useDataVersion('store', storeId);
   const myRole = useStore((s) => s.user?.role);
-  const isReadonly = myRole === 'STAFF' || myRole === 'SHAREHOLDER';
+  const isReadonly = myRole === 'SHAREHOLDER';
   const location = useLocation();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
@@ -122,7 +122,8 @@ export default function StoreEntriesPage() {
         {!isReadonly && (        <GlassCard className="p-4 text-center">
           <div className="text-xs text-slate-500">今日利润</div>
           <div className={'mt-1 text-2xl font-bold ' + (stats.profit >= 0 ? 'text-emerald-600' : 'text-rose-500')}>{stats.profit.toLocaleString()}</div>
-        </GlassCard>)}
+        </GlassCard>
+)}
       </div>
 
       {loadError && (
@@ -147,8 +148,10 @@ export default function StoreEntriesPage() {
               <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}{e.amount.toLocaleString()}
               </span>
-              {!isReadonly && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>)}
-              {!isReadonly && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>)}
+              {!isReadonly && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
+)}
+              {!isReadonly && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
+)}
             </div>
           </div>
         ))}

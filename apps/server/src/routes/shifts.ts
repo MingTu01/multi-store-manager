@@ -38,6 +38,15 @@ router.get('/', (req: AuthRequest, res: Response) => {
 });
 
 
+// GET /last-close-handover
+router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
+  try {
+    const storeId = req.params.storeId;
+    const last = db.prepare("SELECT handover_content, created_at FROM store_opens WHERE store_id = ? AND type = 'close' AND handover_content != '' ORDER BY created_at DESC LIMIT 1").get(storeId) as any;
+    res.json({ handover: last?.handover_content || '', date: last?.created_at || '' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 // GET /:shiftId - Get single shift with photos
 router.get('/:shiftId', (req: AuthRequest, res: Response) => {
   try {
@@ -126,12 +135,4 @@ router.post('/close', (req: AuthRequest, res: Response) => {
 });
 
 
-// GET /last-close-handover
-router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
-  try {
-    const storeId = req.params.storeId;
-    const last = db.prepare("SELECT handover_content, created_at FROM store_opens WHERE store_id = ? AND type = 'close' AND handover_content != '' ORDER BY created_at DESC LIMIT 1").get(storeId) as any;
-    res.json({ handover: last?.handover_content || '', date: last?.created_at || '' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
-});
 export default router;

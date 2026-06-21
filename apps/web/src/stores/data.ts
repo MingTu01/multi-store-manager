@@ -1,7 +1,8 @@
 ﻿import { create } from 'zustand';
-import { api, invalidateCache } from '../lib/api';
+import { api, invalidateCache, resetRedirectFlag } from '../lib/api';
 import { useDataSync } from './data-sync';
 import { useNotificationStore } from './notification';
+import { disconnectSSE, reconnectSSE } from '../lib/sse';
 
 export interface User {
   id: number;
@@ -30,6 +31,9 @@ export const useStore = create<AppState>((set) => ({
   loading: true,
   login: async (username: string, password: string) => {
     try {
+      invalidateCache();
+      resetRedirectFlag();
+      reconnectSSE();
       const d = await api.post('/auth/login', { username, password });
       if (d.token) {
         localStorage.setItem('token', d.token);
@@ -42,7 +46,10 @@ export const useStore = create<AppState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     set({ token: null, user: null, loading: false });
-    window.location.href = '/login';
+    useNotificationStore.getState().resetUnread();
+    disconnectSSE();
+    invalidateCache();
+    window.location.replace('/login');
   },
     restore: async () => {
     const tk = localStorage.getItem('token');
@@ -50,12 +57,15 @@ export const useStore = create<AppState>((set) => ({
     // Use raw fetch to avoid api.parseError auto-clearing token on 401
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch('/api/auth/me', {
           headers: { Authorization: 'Bearer ' + tk },
-          cache: 'no-cache'
+          cache: 'no-store',
+          signal: controller.signal
         });
+        clearTimeout(timer);
         if (!res.ok) {
-          // Definite 401 — token is invalid
           localStorage.removeItem('token');
           set({ user: null, token: null, loading: false });
           return;
@@ -66,14 +76,14 @@ export const useStore = create<AppState>((set) => ({
         set({ user: null, token: null, loading: false });
         return;
       } catch (e: any) {
-        // Network error — retry
         if (attempt < 2) {
           await new Promise(r => setTimeout(r, 1000));
           continue;
         }
-        // All retries failed — keep token, just stop loading
         set({ loading: false });
       }
     }
+    // Safety net: always clear loading
+    set({ loading: false });
   },
 }));

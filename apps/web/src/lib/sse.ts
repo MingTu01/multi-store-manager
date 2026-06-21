@@ -1,85 +1,107 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { invalidateCache } from './api';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
+// Global singleton - one SSE connection for the entire app
+let globalES: EventSource | null = null;
+let globalStatus: ConnectionStatus = 'disconnected';
+let globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let globalStopped = false;
+const listeners = new Set<(s: ConnectionStatus) => void>();
+
+function notifyListeners(s: ConnectionStatus) {
+  globalStatus = s;
+  listeners.forEach(fn => fn(s));
+}
+
+function globalConnect() {
+  if (globalStopped) return;
+  if (globalES) { try { globalES.close(); } catch {} globalES = null; }
+  const currentToken = localStorage.getItem('token');
+  if (!currentToken) { notifyListeners('disconnected'); return; }
+  notifyListeners('connecting');
+  try {
+    const es = new EventSource('/api/sse?token=' + encodeURIComponent(currentToken));
+    globalES = es;
+
+    es.onopen = () => {
+      notifyListeners('connected');
+      document.body.dataset.sseStatus = 'connected';
+      (window as any).__sseReconnected = true;
+      window.dispatchEvent(new CustomEvent('server-ready'));
+    };
+
+    es.addEventListener('system', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.action === 'server-ready') {
+          window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));
+        }
+      } catch {}
+    });
+
+    es.addEventListener('data-change', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
+        const { fetchUnread } = useNotificationStore.getState();
+        if (data.storeId) {
+          invalidateCache('/stores/' + data.storeId);
+          invalidateCache('/stores/' + data.storeId + '/entries');
+          invalidateCache('/stores/' + data.storeId + '/entries/stats');
+          invalidateCache('/stores/' + data.storeId + '/inventory');
+          invalidateCache('/stores/' + data.storeId + '/report');
+          bumpStore(data.storeId);
+        }
+        invalidateCache('/notifications');
+        invalidateCache('/unread-count');
+        invalidateCache('/stores');
+        invalidateCache('/dashboard');
+        bumpGlobal();
+        bumpNotifications();
+        fetchUnread();
+      } catch {}
+    });
+
+    es.onerror = () => {
+      notifyListeners('disconnected');
+      try { es.close(); } catch {}
+      if (globalES === es) globalES = null;
+      if (globalReconnectTimer) clearTimeout(globalReconnectTimer);
+      if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+    };
+  } catch {
+    notifyListeners('disconnected');
+    if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+  }
+}
+
+export function disconnectSSE() {
+  globalStopped = true;
+  if (globalES) { try { globalES.close(); } catch {} globalES = null; }
+  if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
+  notifyListeners('disconnected');
+}
+
+export function reconnectSSE() {
+  globalStopped = false;
+  if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
+  globalConnect();
+}
+
 export function useSSE(): ConnectionStatus {
-  const [status, setStatus] = useState<ConnectionStatus>('disconnected');
-  const esRef = useRef<EventSource | null>(null);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>(globalStatus);
 
   useEffect(() => {
-    let stopped = false;
-
-    function connect() {
-      if (stopped) return;
-      const currentToken = localStorage.getItem('token');
-      if (!currentToken) { setStatus('disconnected'); return; }
-      setStatus('connecting');
-      const es = new EventSource('/api/sse?token=' + encodeURIComponent(currentToken));
-      esRef.current = es;
-
-      es.addEventListener('open', () => setStatus('connected'));
-
-      es.addEventListener('system', (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data.action === 'server-ready') {
-            // Server has restarted, dispatch custom event
-            window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));
-          }
-        } catch {}
-      });
-
-      es.addEventListener('data-change', (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
-          const { fetchUnread } = useNotificationStore.getState();
-
-          if (data.storeId) {
-            invalidateCache('/stores/' + data.storeId);
-            invalidateCache('/stores/' + data.storeId + '/entries');
-            invalidateCache('/stores/' + data.storeId + '/entries/stats');
-            invalidateCache('/stores/' + data.storeId + '/inventory');
-            invalidateCache('/stores/' + data.storeId + '/report');
-            bumpStore(data.storeId);
-          }
-          invalidateCache('/notifications');
-          invalidateCache('/unread-count');
-          invalidateCache('/stores');
-          invalidateCache('/dashboard');
-          bumpGlobal();
-          bumpNotifications();
-          fetchUnread();
-        } catch {}
-      });
-
-      es.onopen = () => {
-        setStatus('connected');
-        document.body.dataset.sseStatus = 'connected';
-        // Set global flag for upgrade restart detection
-        (window as any).__sseReconnected = true;
-        // Dispatch server-ready event when SSE reconnects after server restart
-        window.dispatchEvent(new CustomEvent('server-ready'));
-      };
-      es.onerror = () => {
-        setStatus('disconnected');
-        es.close();
-        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-        if (!stopped) reconnectTimer.current = setTimeout(connect, 3000);
-      };
+    listeners.add(setStatus);
+    // Start connection if not already running
+    if (!globalStopped && !globalES && globalStatus === 'disconnected') {
+      globalConnect();
     }
-
-    connect();
-    return () => {
-      stopped = true;
-      setStatus('disconnected');
-      if (esRef.current) esRef.current.close();
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
+    return () => { listeners.delete(setStatus); };
   }, []);
 
   return status;

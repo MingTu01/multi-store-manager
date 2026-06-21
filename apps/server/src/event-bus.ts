@@ -83,6 +83,21 @@ class EventBus {
     }
     dead.forEach(id => this.clients.delete(id));
   }
+
+  /** Close all SSE connections for a specific user */
+  closeUserConnections(userId: number) {
+    const toClose: string[] = [];
+    for (const [id, client] of this.clients) {
+      if (client.userId === userId) {
+        toClose.push(id);
+        try { client.res.end(); } catch {}
+      }
+    }
+    toClose.forEach(id => this.clients.delete(id));
+    if (toClose.length > 0) {
+      console.log('[SSE] Closed ' + toClose.length + ' old connections for user ' + userId);
+    }
+  }
 }
 
 export const eventBus = new EventBus();

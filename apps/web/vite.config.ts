@@ -32,11 +32,15 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2}'],
         runtimeCaching: [
           {
+            urlPattern: /^https?:\/\/.*\/api\/auth/,
+            handler: 'NetworkOnly',
+          },
+          {
             urlPattern: /^https?:\/\/.*\/api\//,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 }
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 }
             }
           }
         ]

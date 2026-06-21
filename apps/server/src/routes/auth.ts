@@ -52,7 +52,16 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
       if (exists) return res.status(400).json({ error: '账号已存在' });
       updates.push('username=?'); vals.push(username);
     }
-    if (phone !== undefined) { updates.push('phone=?'); vals.push(phone); }
+    if (phone !== undefined) {
+      if (user.role !== 'ADMIN') {
+        if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+          return res.status(400).json({ error: '手机号格式不正确，必须是11位有效手机号' });
+        }
+        updates.push('phone=?'); vals.push(phone);
+        // Sync username to phone (login name = phone)
+        updates.push('username=?'); vals.push(phone);
+      }
+    }
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {

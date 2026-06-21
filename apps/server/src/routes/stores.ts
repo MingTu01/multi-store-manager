@@ -199,7 +199,20 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     if (password && password.length < 6) return res.status(400).json({ error: '密码至少6位' });
     const pw = (password && password.length > 0) ? password : '123456';
     const passwordHash = bcrypt.hashSync(pw, 10);
-    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, ((['MANAGER','STORE_ADMIN'].includes(req.user.role?.toUpperCase()) && ['STAFF'].includes((role||'').toUpperCase())) || isStoreAdmin(req.user.role) ? (['STAFF','MANAGER'].includes((role||'').toUpperCase()) ? role.toUpperCase() : 'STAFF') : 'STAFF'), storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
+    // Determine allowed role based on creator's role
+    const creatorRole = req.user.role?.toUpperCase();
+    let finalRole = 'STAFF';
+    if (role) {
+      const r = role.toUpperCase();
+      if (creatorRole === 'ADMIN') {
+        finalRole = ['ADMIN','STORE_ADMIN','MANAGER','STAFF','SHAREHOLDER'].includes(r) ? r : 'STAFF';
+      } else if (creatorRole === 'STORE_ADMIN') {
+        finalRole = ['STORE_ADMIN','MANAGER','STAFF','SHAREHOLDER'].includes(r) ? r : 'STAFF';
+      } else if (creatorRole === 'MANAGER') {
+        finalRole = ['STAFF'].includes(r) ? r : 'STAFF';
+      }
+    }
+    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, finalRole, storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
     opLog(req.user.id, storeId, '添加员工', '添加员工: ' + name);
 
     triggerNotification({
@@ -226,7 +239,11 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     const fields = [];
     const vals = [];
     if (name !== undefined) { fields.push('name=?'); vals.push(name); }
-    if (phone !== undefined) { fields.push('phone=?'); vals.push(phone); }
+    if (phone !== undefined) {
+      fields.push('phone=?'); vals.push(phone);
+      // Sync username to phone (except ADMIN role)
+      if (targetUser.role !== 'ADMIN') { fields.push('username=?'); vals.push(phone); }
+    }
     if (position !== undefined) { fields.push('job_title=?'); vals.push(position); }
     if (address !== undefined) { fields.push('address=?'); vals.push(address); }
     if (monthly_salary !== undefined) { fields.push('salary=?'); vals.push(monthly_salary); }

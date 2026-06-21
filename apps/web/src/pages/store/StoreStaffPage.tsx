@@ -86,7 +86,7 @@ export default function StoreStaffPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.phone) { alert('请填写姓名和手机号'); return; }
+    if (!form.name || !form.phone) { alert('请填写姓名和手机号'); return; } if (!/^1[3-9]\d{9}$/.test(form.phone)) { alert('手机号格式不正确，必须是11位有效手机号'); return; }
     setSaving(true);
     try {
       const body: any = {
@@ -201,7 +201,7 @@ export default function StoreStaffPage() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div><label className="mb-1 block text-xs text-slate-500">姓名 *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="员工姓名" /></div>
-            <div><label className="mb-1 block text-xs text-slate-500">手机号 *（登录账号）</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="手机号码" /></div>
+            <div><label className="mb-1 block text-xs text-slate-500">手机号 *（登录账号）</label><input value={form.phone} onChange={(e) => { const v = e.target.value.replace(/\D/g,'').slice(0,11); setForm({ ...form, phone: v }); }} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="手机号码" maxLength={11} type="tel" inputMode="numeric" /></div>
             <div><label className="mb-1 block text-xs text-slate-500">岗位名称</label><input value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="如: 店长, 收银" /></div>
             <div><label className="mb-1 block text-xs text-slate-500">月薪</label><input type="number" value={form.monthly_salary} onChange={(e) => setForm({ ...form, monthly_salary: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder="0" /></div>
           </div>
@@ -219,7 +219,7 @@ export default function StoreStaffPage() {
             </div>
           </div>
 
-          <div><label className="mb-1 block text-xs text-slate-500">{editId ? '新密码（留空不修改）' : '密码'}</label><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder={editId ? '留空不修改' : '设置密码'} /></div>
+          <div><label className="mb-1 block text-xs text-slate-500">{editId ? '新密码（留空不修改）' : '密码'}</label><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" placeholder={editId ? '留空不修改' : '留空默认123456'} /></div>
 
           <button onClick={handleSave} disabled={saving} className="action-btn btn w-full disabled:opacity-50">{saving ? '保存中..' : '保存'}</button>
         </div>
