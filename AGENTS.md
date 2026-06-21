@@ -1,4 +1,4 @@
-# AGENTS.md instructions for C:\Users\Administrator\Documents\6666
+﻿# AGENTS.md instructions for C:\Users\Administrator\Documents\6666
 
 <INSTRUCTIONS>
 九月工作规则 (AGENTS.md)
@@ -50,3 +50,36 @@ SQLite数据库(apps/server/data/store.db)
 - 打包后：用 AdmZip 验证 ZIP 结构完整
 - 部署前：在 Docker 测试环境验证升级成功
 
+
+### 部署链路规则（2026-06-21 教训）
+
+1. **双仓库同步意识** — 源码仓库 push 后，CI 自动构建并推送到部署仓库。如果部署仓库版本落后，生产环境的在线升级和 git pull 都会拉到旧代码。
+2. **部署仓库验证** — 每次源码推送后，必须确认 CI 成功推送到部署仓库。用 `git fetch` 检查 `origin/main` 是否是最新 commit。
+3. **生产环境 git 代理** — 生产服务器可能有 GitHub 代理缓存（如 ghfast.top），导致 fetch 返回旧数据。解决方案：使用直连 URL `git fetch https://github.com/MingTu01/multi-shop-link-deploy.git main --force`。
+4. **Docker 镜像重建** — `src/` 目录烘焙在 Docker 镜像中（COPY），在线升级写入的文件在容器重启后可能丢失。重大代码变更必须 `docker-compose up -d --build` 重建镜像。
+5. **CORS 配置** — 未设置 `CORS_ORIGIN` 环境变量时默认允许所有来源（自托管兼容）。如需限制，设置 `CORS_ORIGIN=https://your-domain.com`。
+6. **在线升级进度** — 前端在 SSE 断开后延迟 5 秒再轮询服务器，避免在旧进程还未退出时误判升级完成。
+
+### 生产环境升级流程
+
+```bash
+# 1. 拉取最新部署代码（用直连 URL 避免代理缓存）
+cd /opt/multi-shop-link-deploy
+git fetch https://github.com/MingTu01/multi-shop-link-deploy.git main --force
+git reset --hard FETCH_HEAD
+
+# 2. 重建容器（src/ 在镜像中，必须 rebuild）
+docker-compose up -d --build
+
+# 3. 验证
+docker logs multi-shop-link --tail 20
+docker exec multi-shop-link cat /app/data/version.json
+```
+
+### 在线升级 vs 手动升级
+
+| 方式 | 适用场景 | 注意事项 |
+|------|---------|---------|
+| 在线升级 (Web UI) | 小版本更新 | 依赖部署仓库代码正确，CORS 必须配置 |
+| ZIP 升级 (Web UI) | 离线环境 / 定制包 | 包结构必须正确（src/ + public/ + package.json） |
+| git pull + rebuild | 重大更新 / 修复 | 最可靠，绕过所有中间层 |

@@ -1,8 +1,8 @@
-# Multi Shop Link
+﻿# Multi Shop Link
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.1.73**
+**当前版本：v1.1.80**
 
 ## 技术栈
 
@@ -96,6 +96,21 @@ docker-compose up -d
 `
 
 ## 更新日志
+
+### v1.1.80
+- 验证在线升级流程完整性
+
+### v1.1.79
+- CORS 修复：未配置 CORS_ORIGIN 时默认允许所有来源（自托管兼容）
+- 修复在线升级进度弹窗提前显示"升级完成"的问题
+- 前端延迟 5 秒再轮询服务器重启状态
+
+### v1.1.78
+- 修复时间显示 UTC 偏移 8 小时的问题
+- 修复在线升级不生效的致命 bug
+- 修复升级链路三个致命 bug（workDir TDZ 错误、clearDir 破坏 volume mount、post-upgrade BOM）
+- 修复 CI 覆盖 Dockerfile/entrypoint.sh 的问题
+- 升级包打包添加 BOM 自动检测
 
 ### v1.1.73
 - 新增版本兼容性检查功能
