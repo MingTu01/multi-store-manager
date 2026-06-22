@@ -2,8 +2,23 @@
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.2.5**
+**当前版本：v1.2.6**
 ## 更新日志
+
+
+### v1.2.6 (2026-06-22)
+- **安全加固：httpOnly Cookie 认证** — 移除 localStorage JWT 存储，改用 httpOnly + Secure + SameSite=Lax Cookie
+- **后端 Cookie 工具** — 新增 getCookie/setAuthCookie/clearAuthCookie，不引入 cookie-parser 依赖
+- **向后兼容** — authMiddleware 优先读 Cookie → Authorization header → query token
+- **登出端点** — POST /api/auth/logout 清除 cookie
+- **CSP nonce** — 每请求生成随机 nonce（保留 unsafe-inline fallback）
+- **Token 过期缩短** — 24h → 4h
+- **CORS 收紧** — 默认只允许生产域名 msl.908521.xyz
+- **SW 敏感 API** — payroll/dividends/staff 路由不缓存
+- **execSync → execFileSync** — 防止命令注入
+- **ZIP SHA256 校验** — 升级包完整性验证
+- **SQL 参数化** — notifications 路由消除字符串拼接
+- **文件删除权限** — upload 路由增加角色+门店归属校验
 
 ### v1.2.5 (2026-06-22)
 - **在线升级修复** — broadcastProgress 正确更新 upgradeState，轮询带认证信息，重启检测修复
