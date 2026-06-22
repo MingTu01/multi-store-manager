@@ -169,7 +169,7 @@ export default function SettingsPage() {
         for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 1000));
           try {
-            const r = await fetch('/api/system/info');
+            const r = await fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
             if (r.ok) {
               setRestoreSteps(prev => {
                 const newSteps = [...prev];
@@ -303,7 +303,7 @@ export default function SettingsPage() {
             try {
               const ctrl = new AbortController();
               const tmo = setTimeout(() => ctrl.abort(), 3000);
-              const res = await fetch('/api/system/info', { signal: ctrl.signal });
+              const res = await fetch('/api/system/info', { signal: ctrl.signal, headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
               clearTimeout(tmo);
               if (res.ok) {
                 clearInterval(rp);
@@ -327,7 +327,7 @@ export default function SettingsPage() {
           try {
             const ctrl = new AbortController();
             const tmo = setTimeout(() => ctrl.abort(), 3000);
-            await fetch('/api/system/info', { signal: ctrl.signal });
+            await fetch('/api/system/info', { signal: ctrl.signal, headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
             clearTimeout(tmo); clearInterval(rp);
             setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
             setUpgradeComplete(true);
@@ -434,7 +434,7 @@ export default function SettingsPage() {
             let attempts = 0;
             const rp = setInterval(async () => {
               attempts++;
-              try { await fetch('/api/system/info'); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
+              try { await fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } }); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
               catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
             }, 2000);
           }
