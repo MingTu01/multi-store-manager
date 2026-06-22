@@ -34,6 +34,12 @@ const sseClients: Set<Response> = new Set();
 let upgradeState = { step: 0, message: '', complete: false };
 
 function broadcastProgress(event: string, data: any) {
+  // Update upgradeState for polling fallback
+  if (event === 'progress') {
+    upgradeState = { step: data.step || 0, message: data.message || '', complete: data.done || false };
+  } else if (event === 'complete') {
+    upgradeState = { step: upgradeState.step, message: data.message || '更新完成', complete: true };
+  }
   const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const client of sseClients) {
     try { client.write(msg); } catch { sseClients.delete(client); }

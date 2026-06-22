@@ -376,6 +376,9 @@ export default function SettingsPage() {
       es.onerror = () => { 
           es.close(); 
           console.log('[Upgrade] SSE failed, falling back to polling');
+          if (!restartDetected) {
+            pollUpgradeStatus();
+          }
         };
         await new Promise(r => setTimeout(r, 1000));
         await api.post('/system/do-update', {});
