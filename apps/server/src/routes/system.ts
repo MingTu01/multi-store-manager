@@ -657,6 +657,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
       try {
         console.log('[Update] Async function started');
         console.log('[Update] BASE_DIR:', BASE_DIR);
+        upgradeState = { step: 0, message: '', complete: false };
         
         // Step 1: Backup
         broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
