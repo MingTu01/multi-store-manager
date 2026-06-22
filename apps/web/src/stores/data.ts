@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { api, invalidateCache, resetRedirectFlag } from '../lib/api';
 import { useDataSync } from './data-sync';
 import { useNotificationStore } from './notification';
@@ -27,7 +27,7 @@ interface AppState {
 
 export const useStore = create<AppState>((set) => ({
   user: null,
-  token: localStorage.getItem('token'),
+  token: null,
   loading: true,
   login: async (username: string, password: string) => {
     try {
@@ -35,44 +35,42 @@ export const useStore = create<AppState>((set) => ({
       resetRedirectFlag();
       reconnectSSE();
       const d = await api.post('/auth/login', { username, password });
-      if (d.token) {
-        localStorage.setItem('token', d.token);
-        set({ token: d.token, user: d.user, loading: false });
+      if (d.user) {
+        set({ token: 'cookie', user: d.user, loading: false });
       }
     } catch (e: any) {
       throw new Error(e.message || '用户名或密码错误');
     }
   },
   logout: () => {
-    localStorage.removeItem('token');
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     set({ token: null, user: null, loading: false });
     useNotificationStore.getState().resetUnread();
     disconnectSSE();
     invalidateCache();
     window.location.replace('/login');
   },
-    restore: async () => {
-    const tk = localStorage.getItem('token');
-    if (!tk) { set({ loading: false }); return; }
-    // Use raw fetch to avoid api.parseError auto-clearing token on 401
+  restore: async () => {
+    // 尝试通过 API 调用验证会话（cookie 自动携带）
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch('/api/auth/me', {
-          headers: { Authorization: 'Bearer ' + tk },
+          credentials: 'include',
           cache: 'no-store',
           signal: controller.signal
         });
         clearTimeout(timer);
         if (!res.ok) {
-          localStorage.removeItem('token');
           set({ user: null, token: null, loading: false });
           return;
         }
         const d = await res.json();
-        if (d.user) { set({ user: d.user, token: tk, loading: false }); return; }
-        localStorage.removeItem('token');
+        if (d.user) {
+          set({ user: d.user, token: 'cookie', loading: false });
+          return;
+        }
         set({ user: null, token: null, loading: false });
         return;
       } catch (e: any) {

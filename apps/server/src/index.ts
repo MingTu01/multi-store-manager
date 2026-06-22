@@ -1,5 +1,6 @@
 process.env.TZ = 'Asia/Shanghai';
 import express from 'express';
+import crypto from 'crypto';
 import cors from 'cors';
 import compression from 'compression';
 import { join } from 'path';
@@ -62,10 +63,14 @@ app.use((req, res, next) => {
   // 防止信息泄露
   res.removeHeader('X-Powered-By');
   // CSP - 允许内联样式（Tailwind需要），禁止外部脚本
+  // 生成请求级别的 CSP nonce
+  const nonce = crypto.randomBytes(16).toString('base64');
+  res.locals.cspNonce = nonce;
+
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
+    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,  // unsafe-inline 作为 fallback
+    "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
     "img-src 'self' data: blob: http: https:",
     "font-src 'self' data:",
     "connect-src 'self' http: https: ws: wss:",

@@ -128,7 +128,7 @@ export default function SettingsPage() {
       fd.append('file', file);
       const r = await fetch('/api/system/backups/upload', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+        credentials: 'include',
         body: fd
       });
       const d = await r.json();
@@ -169,7 +169,7 @@ export default function SettingsPage() {
         for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 1000));
           try {
-            const r = await fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
+            const r = await fetch('/api/system/info', { credentials: 'include' });
             if (r.ok) {
               setRestoreSteps(prev => {
                 const newSteps = [...prev];
@@ -203,7 +203,7 @@ export default function SettingsPage() {
     try { await api.del('/system/backups/' + filename); showMsg(true, '备份已删除'); setBackups(b => b.filter(x => x.filename !== filename)); }
     catch (e: any) { showMsg(false, e.message || '删除失败'); }
   };
-  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { alert('下载失败'); } };
+  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { credentials: 'include' }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { alert('下载失败'); } };
   
   // Get backup type label
   const getBackupType = (filename: string) => {
@@ -252,7 +252,7 @@ export default function SettingsPage() {
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const r: any = await fetch('/api/system/upgrade/validate', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') }, body: fd }).then(r => {
+      const r: any = await fetch('/api/system/upgrade/validate', { method: 'POST', credentials: 'include', body: fd }).then(r => {
         if (!r.ok) throw new Error('验证失败');
         return r.json();
       });
@@ -273,10 +273,9 @@ export default function SettingsPage() {
     const onlineStepNames = ['备份数据', '下载更新包', '解压并更新', '重启服务'];
     setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
     try {
-      const token = localStorage.getItem('token');
       let maxStep = 0;
       let restartDetected = false;
-      const es = new EventSource('/api/system/upgrade-progress?token=' + encodeURIComponent(token || ''));
+      const es = new EventSource('/api/system/upgrade-progress', { withCredentials: true });
       es.addEventListener('progress', (e) => {
         try {
           const d = JSON.parse(e.data);
@@ -303,7 +302,7 @@ export default function SettingsPage() {
             try {
               const ctrl = new AbortController();
               const tmo = setTimeout(() => ctrl.abort(), 3000);
-              const res = await fetch('/api/system/info', { signal: ctrl.signal, headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
+              const res = await fetch('/api/system/info', { signal: ctrl.signal, credentials: 'include' });
               clearTimeout(tmo);
               if (res.ok) {
                 clearInterval(rp);
@@ -327,7 +326,7 @@ export default function SettingsPage() {
           try {
             const ctrl = new AbortController();
             const tmo = setTimeout(() => ctrl.abort(), 3000);
-            await fetch('/api/system/info', { signal: ctrl.signal, headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } });
+            await fetch('/api/system/info', { signal: ctrl.signal, credentials: 'include' });
             clearTimeout(tmo); clearInterval(rp);
             setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
             setUpgradeComplete(true);
@@ -348,9 +347,7 @@ export default function SettingsPage() {
           try {
             const ctrl = new AbortController();
             const tmo = setTimeout(() => ctrl.abort(), 5000);
-            const res = await fetch('/api/system/upgrade/status?token=' + encodeURIComponent(token || ''), { 
-              headers: { Authorization: 'Bearer ' + token }, signal: ctrl.signal 
-            });
+            const res = await fetch('/api/system/upgrade/status', { credentials: 'include', signal: ctrl.signal });
             clearTimeout(tmo);
             if (res.ok) {
               const state = await res.json();
@@ -409,7 +406,7 @@ export default function SettingsPage() {
     try {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/system/upgrade');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('token'));
+      xhr.withCredentials = true;
       xhr.upload.onprogress = (e) => { if (e.lengthComputable) setUploadProgress(Math.round(e.loaded / e.total * 100)); };
       await new Promise((resolve, reject) => { xhr.onload = resolve; xhr.onerror = reject; xhr.send(fd); });
       setUploadProgress(100);
@@ -434,7 +431,7 @@ export default function SettingsPage() {
             let attempts = 0;
             const rp = setInterval(async () => {
               attempts++;
-              try { await fetch('/api/system/info', { headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') } }); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
+              try { await fetch('/api/system/info', { credentials: 'include' }); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
               catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
             }, 2000);
           }
@@ -892,7 +889,7 @@ export default function SettingsPage() {
 
 
       {/* === Upgrade Progress Modal === */}
-      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
+      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
         <div className="space-y-6">
           {uploadProgress > 0 && uploadProgress < 100 && (
             <div className="space-y-2">
@@ -945,7 +942,7 @@ export default function SettingsPage() {
                 <div className="text-xl font-bold text-emerald-700 mb-1">升级完成</div>
                 <div className="text-sm text-emerald-500">系统已更新到最新版本</div>
               </div>
-              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
+              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
                 <RefreshCw className="h-5 w-5" />确认并刷新页面
               </button>
             </div>

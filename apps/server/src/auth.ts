@@ -44,14 +44,44 @@ export interface AuthRequest extends Request {
   user?: any;
 }
 
+// 从 Cookie 头手动解析指定 cookie 值（不引入 cookie-parser 依赖）
+export function getCookie(req: Request, name: string): string | undefined {
+  const cookies = req.headers.cookie;
+  if (!cookies) return undefined;
+  const match = cookies.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+export function setAuthCookie(res: Response, token: string) {
+  res.cookie('auth_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 4 * 60 * 60 * 1000, // 4h, matches TOKEN_EXPIRY
+    path: '/',
+  });
+}
+
+export function clearAuthCookie(res: Response) {
+  res.clearCookie('auth_token', { path: '/' });
+}
+
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     let token: string | undefined;
+    // 1. 优先读取 httpOnly cookie
+    if (!token) {
+      const cookieToken = getCookie(req, 'auth_token');
+      if (cookieToken) {
+        token = cookieToken;
+      }
+    }
+    // 2. Authorization header（向后兼容）
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
-    // SSE 等无法设置 Header 的场景支持 query token
+    // 3. SSE query token（降级为最后选择，向后兼容）
     if (!token && req.query.token) {
       token = req.query.token as string;
     }
@@ -83,4 +113,3 @@ export function requireFreshUser(req: AuthRequest, res: Response, next: NextFunc
   req.user.store_id = freshUser.store_id;
   next();
 }
-

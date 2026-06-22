@@ -1,7 +1,6 @@
-﻿let isRedirectingToLogin = false;
+let isRedirectingToLogin = false;
 
-const headers = () => ({ Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' });
-const token = () => localStorage.getItem('token');
+const headers = () => ({ 'Content-Type': 'application/json' });
 
 interface CacheEntry { data: any; ts: number; lastAccess: number }
 const cache = new Map<string, CacheEntry>();
@@ -80,13 +79,13 @@ async function parseError(r: Response, silent = false): Promise<Error> {
       if ((r.url && r.url.includes('/auth/login')) || (typeof window !== 'undefined' && window.location.pathname === '/login')) {
         return new Error(data.error || data.message || '用户名或密码错误');
       }
-        if (!isRedirectingToLogin) {
-            isRedirectingToLogin = true;
-            localStorage.removeItem('token');
-            if (!silent && location.pathname !== '/login') {
-        location.href = '/login';
-            }
+      if (!isRedirectingToLogin) {
+        isRedirectingToLogin = true;
+        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+        if (!silent && location.pathname !== '/login') {
+          location.href = '/login';
         }
+      }
       return new Error(data.error || data.message || '登录已过期，请重新登录');
     }
     return new Error(data.error || data.message || '请求失败');
@@ -99,30 +98,29 @@ export function resetRedirectFlag() { isRedirectingToLogin = false; }
 
 export const api = {
   get: async (url: string, opts?: { silent?: boolean }) => {
-    const tk = token();
-    const ck = tk ? tk.slice(-8) + ':' + url : url;
+    const ck = url;
     const cached = getCached(ck);
     if (cached) return cached;
-    const res = await fetch('/api' + url, { headers: headers(), cache: 'no-cache' });
+    const res = await fetch('/api' + url, { headers: headers(), cache: 'no-cache', credentials: 'include' });
     if (!res.ok) throw await parseError(res, opts?.silent);
     const data = await res.json();
     setCache(ck, data);
     return data;
   },
   post: async (url: string, body: any) => {
-    const res = await fetch('/api' + url, { method: 'POST', headers: headers(), cache: 'no-cache', body: JSON.stringify(body) });
+    const res = await fetch('/api' + url, { method: 'POST', headers: headers(), cache: 'no-cache', body: JSON.stringify(body), credentials: 'include' });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
   },
   put: async (url: string, body: any) => {
-    const res = await fetch('/api' + url, { method: 'PUT', headers: headers(), cache: 'no-cache', body: JSON.stringify(body) });
+    const res = await fetch('/api' + url, { method: 'PUT', headers: headers(), cache: 'no-cache', body: JSON.stringify(body), credentials: 'include' });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
   },
   del: async (url: string, body?: any) => {
-    const res = await fetch('/api' + url, { method: 'DELETE', headers: headers(), cache: 'no-cache', ...(body ? { body: JSON.stringify(body) } : {}) });
+    const res = await fetch('/api' + url, { method: 'DELETE', headers: headers(), cache: 'no-cache', credentials: 'include', ...(body ? { body: JSON.stringify(body) } : {}) });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
@@ -130,7 +128,7 @@ export const api = {
   upload: async (url: string, formData: FormData) => {
     const res = await fetch('/api' + url, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + token()! },
+      credentials: 'include',
       body: formData,
     });
     if (!res.ok) throw await parseError(res);

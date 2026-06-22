@@ -20,11 +20,9 @@ function notifyListeners(s: ConnectionStatus) {
 function globalConnect() {
   if (globalStopped) return;
   if (globalES) { try { globalES.close(); } catch {} globalES = null; }
-  const currentToken = localStorage.getItem('token');
-  if (!currentToken) { notifyListeners('disconnected'); return; }
   notifyListeners('connecting');
   try {
-    const es = new EventSource('/api/sse?token=' + encodeURIComponent(currentToken));
+    const es = new EventSource('/api/sse', { withCredentials: true });
     globalES = es;
 
     es.onopen = () => {

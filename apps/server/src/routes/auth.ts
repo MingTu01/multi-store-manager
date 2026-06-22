@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
-import { signToken, authMiddleware, AuthRequest } from '../auth.js';
+import { signToken, authMiddleware, AuthRequest, setAuthCookie, clearAuthCookie } from '../auth.js';
 import { opLog } from '../oplog.js';
 
 const router = Router();
@@ -27,10 +27,17 @@ router.post('/login', loginLimiter, (req, res) => {
     if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
     const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
     const { password_hash, ...userData } = user;
+    setAuthCookie(res, token);
     res.json({ token, user: userData });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+
+// 登出：清除 httpOnly cookie
+router.post('/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ message: '已登出' });
+});
 router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   try {
     const user = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at, updated_at FROM users WHERE id = ?').get(req.user.id) as any;
