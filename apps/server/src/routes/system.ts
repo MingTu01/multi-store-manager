@@ -708,6 +708,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
             console.log('[Update] Processing cleanup.json:', cleanup.description || '');
           broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件' });
+          await new Promise(r => setTimeout(r, 300));
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
                 const target = join(BASE_DIR, f);
@@ -736,6 +737,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           cpSync(publicDir, destPublic, { recursive: true, force: true });
           console.log('[Update] web-dist updated');
           broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
+          await new Promise(r => setTimeout(r, 300));
         }
         // === 更新服务端代码 ===
         const srcDir = join(realExtractedFolder, 'src');
@@ -746,6 +748,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         cpSync(srcDir, destSrc, { recursive: true, force: true });
         console.log('[Update] server-src updated');
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
+        await new Promise(r => setTimeout(r, 300));
         const pkgFile = join(realExtractedFolder, 'package.json');
         if (existsSync(pkgFile)) {
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
@@ -760,6 +763,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         if (existsSync(postUpgradeScript)) {
           try {
             broadcastProgress('progress', { step: 3, total: 4, message: '执行后置脚本' });
+        await new Promise(r => setTimeout(r, 300));
         console.log('[Update] Running post-upgrade script...');
             const { execSync } = require('child_process');
             execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
