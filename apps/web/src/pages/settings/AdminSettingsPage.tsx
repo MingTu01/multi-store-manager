@@ -3,6 +3,7 @@ import { useState, useRef } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
+import { ImagePreview } from '../../components/ImagePreview';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save, LogOut } from 'lucide-react';
@@ -74,7 +75,7 @@ export default function AdminSettingsPage() {
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600 overflow-hidden">
-              {user?.avatar ? <img src={user.avatar} className="h-full w-full object-cover"  loading="lazy" /> : (user?.name?.[0] || '?')}
+              {user?.avatar ? <ImagePreview src={user.avatar} className="h-full w-full"><img src={user.avatar} className="h-full w-full object-cover" loading="lazy" /></ImagePreview> : (user?.name?.[0] || '?')}
             </div>
             <div className="absolute -bottom-1 left-1/2 flex -translate-x-1/2 gap-1">
               <button onClick={() => fileRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600" title="上传">

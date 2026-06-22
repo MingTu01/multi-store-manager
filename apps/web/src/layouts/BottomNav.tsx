@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { useStore } from '../stores/data';
 import { canAccess } from '../lib/permissions';
@@ -13,12 +13,12 @@ const ALL_STORE_TABS = [
   { to: (id: string) => '/store/' + id + '/entries', icon: BookOpen, label: '记账', key: 'storeEntries' },
   { to: (id: string) => '/store/' + id + '/purchase', icon: Truck, label: '进货', key: 'storePurchase' },
   { to: (id: string) => '/store/' + id + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
+  { to: (id: string) => '/store/' + id + '/notifications', icon: Bell, label: '通知', key: 'storeNotifications', badge: true },
   { to: (id: string) => '/store/' + id + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
   { to: (id: string) => '/store/' + id + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
   { to: (id: string) => '/store/' + id + '/staff', icon: Users, label: '员工', key: 'storeStaff' },
   { to: (id: string) => '/store/' + id + '/payroll', icon: DollarSign, label: '工资', key: 'storePayroll' },
   { to: (id: string) => '/store/' + id + '/dividends', icon: Divide, label: '分红', key: 'storeDividends' },
-  { to: (id: string) => '/store/' + id + '/notifications', icon: Bell, label: '通知', key: 'storeNotifications', badge: true },
   { to: (id: string) => '/store/' + id + '/notification-settings', icon: Settings, label: '消息推送', key: 'storeNotificationSettings' },
   { to: (id: string) => '/store/' + id + '/logs', icon: FileText, label: '日志', key: 'storeLogs' },
   { to: (id: string) => '/store/' + id + '/settings', icon: Settings, label: '设置', key: 'storeSettings' },
@@ -33,7 +33,7 @@ const ADMIN_TABS = [
   { to: '/admin-settings', icon: User, label: '我的', key: 'adminSettings' },
 ];
 
-const MAX_DIRECT = 5;
+const MAX_DIRECT = 6;
 
 export function BottomNav() {
   const user = useStore((s) => s.user);

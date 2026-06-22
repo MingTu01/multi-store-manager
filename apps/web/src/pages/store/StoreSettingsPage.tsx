@@ -2,6 +2,7 @@
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
+import { ImagePreview } from '../../components/ImagePreview';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { useStore } from '../../stores/data';
@@ -460,7 +461,7 @@ export default function StoreSettingsPage() {
           <div className="grid grid-cols-3 gap-2">
             {store.photos.map((photo: string, idx: number) => (
               <div key={idx} className="group relative aspect-square overflow-hidden rounded-xl bg-slate-100">
-                <img src={photo} alt={'照片 ' + (idx + 1)} className="h-full w-full object-cover"  loading="lazy" />
+                <ImagePreview src={photo} className="h-full w-full"><img src={photo} alt={'照片 ' + (idx + 1)} className="h-full w-full object-cover" loading="lazy" /></ImagePreview>
                 {canEdit && (
                   <button
                     onClick={() => handleDeletePhoto(idx)}

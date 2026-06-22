@@ -165,7 +165,7 @@ export default function StoreAccountPage() {
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-3xl font-bold text-indigo-600 overflow-hidden">
-              {(user as any)?.avatar ? <img src={(user as any).avatar} className="h-full w-full object-cover"  loading="lazy" /> : (user?.name?.[0] || '?')}
+              {(user as any)?.avatar ? <ImagePreview src={(user as any).avatar} className="h-full w-full"><img src={(user as any).avatar} className="h-full w-full object-cover" loading="lazy" /></ImagePreview> : (user?.name?.[0] || '?')}
             </div>
             <button onClick={() => fileRef.current?.click()} className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg hover:bg-indigo-600">
               <Camera className="h-3.5 w-3.5" />
@@ -325,7 +325,7 @@ export default function StoreAccountPage() {
         <div className="space-y-4">
           {uploadedUrl && (
             <div className="overflow-hidden rounded-xl">
-              <img src={uploadedUrl} alt="健康证预览" className="w-full max-h-48 object-contain rounded-xl bg-slate-50"  loading="lazy" />
+              <ImagePreview src={uploadedUrl} className="w-full"><img src={uploadedUrl} alt="健康证预览" className="w-full max-h-48 object-contain rounded-xl bg-slate-50" loading="lazy" /></ImagePreview>
             </div>
           )}
           {/* 识别结果或手动输入 */}

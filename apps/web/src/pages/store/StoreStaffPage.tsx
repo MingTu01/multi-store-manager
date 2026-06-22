@@ -152,7 +152,7 @@ export default function StoreStaffPage() {
               <GlassCard key={s.id} className="p-4 cursor-pointer hover:ring-2 hover:ring-indigo-200 transition-all" onClick={() => setShowDetail(s)}>
                 <div className="flex items-start gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                    {s.avatar ? <img src={s.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-xl font-bold text-indigo-400">{s.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
+                    {s.avatar ? <ImagePreview src={s.avatar} className="h-full w-full"><img src={s.avatar} className="h-full w-full object-cover"  loading="lazy" /></ImagePreview> : <span className="text-xl font-bold text-indigo-400">{s.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -191,7 +191,7 @@ export default function StoreStaffPage() {
           <div className="flex items-center justify-center">
             <div className="relative">
               <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                {form.avatar ? <img src={form.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{form.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
+                {form.avatar ? <ImagePreview src={form.avatar} className="h-full w-full"><img src={form.avatar} className="h-full w-full object-cover"  loading="lazy" /></ImagePreview> : <span className="text-2xl font-bold text-indigo-400">{form.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
               </div>
               <div className="absolute -bottom-1 -right-1 flex gap-1"><button onClick={() => cameraRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-500 text-white shadow-lg"><Camera className="h-3.5 w-3.5" /></button><button onClick={() => fileRef.current?.click()} className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"><Upload className="h-3.5 w-3.5" /></button></div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
@@ -233,7 +233,7 @@ export default function StoreStaffPage() {
             {/* Avatar and basic info */}
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
-                {showDetail.avatar ? <img src={showDetail.avatar} className="h-full w-full object-cover"  loading="lazy" /> : <span className="text-2xl font-bold text-indigo-400">{showDetail.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
+                {showDetail.avatar ? <ImagePreview src={showDetail.avatar} className="h-full w-full"><img src={showDetail.avatar} className="h-full w-full object-cover"  loading="lazy" /></ImagePreview> : <span className="text-2xl font-bold text-indigo-400">{showDetail.name?.[0] || <User className="h-5 w-5 text-indigo-400" />}</span>}
               </div>
               <div>
                 <div className="text-xl font-bold text-slate-900">{showDetail.name}</div>
@@ -279,7 +279,7 @@ export default function StoreStaffPage() {
               {showDetail.health_cert_url ? (
                 <div className="space-y-3">
                   <div className="overflow-hidden rounded-xl">
-                    <img src={showDetail.health_cert_url} alt="健康证" className="w-full max-h-48 object-cover rounded-xl bg-slate-50"  loading="lazy" />
+                    <ImagePreview src={showDetail.health_cert_url} className="w-full"><img src={showDetail.health_cert_url} alt="健康证" className="w-full max-h-48 object-cover rounded-xl bg-slate-50"  loading="lazy" /></ImagePreview>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg bg-slate-50 px-3 py-2">

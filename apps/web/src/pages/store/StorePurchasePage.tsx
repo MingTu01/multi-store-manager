@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { useStore } from '../../stores/data';
 import { GlassCard } from '../../components/GlassCard';
+import { ChartModal } from '../../components/ChartModal';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { showToast } from '../../components/Toast';
@@ -304,11 +305,11 @@ export default function StorePurchasePage() {
           {trend.trendData && trend.trendData.length > 0 && (
             <GlassCard className="p-4">
               <div className="flex items-center justify-between mb-3"><div className="text-xs font-semibold text-slate-600">进货趋势</div><div className="flex gap-1">{[7,14,30,60].map(d=>(<button key={d} onClick={()=>setTrendDays(d)} className={'rounded-md px-2 py-0.5 text-[10px] font-medium '+(trendDays===d?'bg-indigo-100 text-indigo-700':'text-slate-400 hover:bg-slate-100')}>{d}天</button>))}</div></div>
-              <ResponsiveContainer width="100%" height={220}>
+              <ChartModal title="进货趋势" extra={<div className="flex gap-1">{[7,14,30,60].map(d=>(<button key={d} onClick={()=>setTrendDays(d)} className={"rounded-md px-2 py-0.5 text-[10px] font-medium "+(trendDays===d?"bg-indigo-100 text-indigo-700":"text-slate-400 hover:bg-slate-100")}>{d}天</button>))}</div>}><ResponsiveContainer width="100%" height={220}>
                 <LineChart data={trend.trendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} width={40} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend content={<CustomLegend onClick={(name: string) => toggleItem(name)} activeItems={activeItems} />} />
                   {getVisibleItems(weekdayData?.itemNames || trend?.itemNames || []).map((name: string) => (
@@ -316,18 +317,19 @@ export default function StorePurchasePage() {
                   ))}
                 </LineChart>
               </ResponsiveContainer>
-            </GlassCard>
+            </ChartModal>
+</GlassCard>
           )}
 
           {/* Weekday Average */}
           {weekdayData && weekdayData.weekdayAvg && weekdayData.weekdayAvg.length > 0 && (
             <GlassCard className="p-4">
               <div className="text-xs font-semibold text-slate-600 mb-3">星期均值参考</div>
-              <ResponsiveContainer width="100%" height={200}>
+              <ChartModal title="星期均值参考"><ResponsiveContainer width="100%" height={200}>
                 <BarChart data={weekdayData.weekdayAvg}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} width={40} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend content={<CustomLegend onClick={(name: string) => toggleItem(name)} activeItems={activeItems} />} />
                   {getVisibleItems(weekdayData?.itemNames || []).map((name: string, i: number) => (
@@ -335,7 +337,8 @@ export default function StorePurchasePage() {
                   ))}
                 </BarChart>
               </ResponsiveContainer>
-            </GlassCard>
+            </ChartModal>
+</GlassCard>
           )}
         </div>
       )}
@@ -471,7 +474,7 @@ function WeekCompareChart({ data }: { data: any[] }) {
       <BarChart data={chartData}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-        <YAxis tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} width={40} tickLine={false} axisLine={false} />
         <Tooltip content={<CustomTooltip />} />
         <Legend content={<CustomLegend />} />
         <Bar dataKey="last_week" fill="#cbd5e1" name="上周" radius={[4, 4, 0, 0]} />

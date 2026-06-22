@@ -4,6 +4,7 @@ import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
+import { ImagePreview } from '../../components/ImagePreview';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
@@ -358,7 +359,7 @@ export default function StoreInventoryPage() {
         <GlassCard className="p-5">
           <div className="mb-4 flex items-center gap-4">
             {currentItem.photo ? (
-              <img src={currentItem.photo} alt={currentItem.name} className="h-20 w-20 rounded-xl object-cover"  loading="lazy" />
+              <ImagePreview src={currentItem.photo} className="h-20 w-20"><img src={currentItem.photo} alt={currentItem.name} className="h-20 w-20 rounded-xl object-cover"  loading="lazy" /></ImagePreview>
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-indigo-50 text-2xl font-bold text-indigo-400">
                 {currentItem.name[0]}
@@ -518,7 +519,7 @@ export default function StoreInventoryPage() {
                   <GlassCard className="p-4">
                     <div className="flex items-center gap-3">
                       {item.photo ? (
-                        <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" loading="lazy" />
+                        <ImagePreview src={item.photo} className="h-14 w-14"><img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover" loading="lazy" /></ImagePreview>
                       ) : (
                         <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
                       )}
@@ -556,7 +557,7 @@ export default function StoreInventoryPage() {
                 <GlassCard className="p-4">
                   <div className="flex items-center gap-3">
                     {item.photo ? (
-                      <img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover"  loading="lazy" />
+                      <ImagePreview src={item.photo} className="h-14 w-14"><img src={item.photo} alt={item.name} className="h-14 w-14 rounded-xl object-cover"  loading="lazy" /></ImagePreview>
                     ) : (
                       <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-400">{item.name[0]}</div>
                     )}
@@ -638,7 +639,7 @@ export default function StoreInventoryPage() {
             </div>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleAddPhoto} className="hidden" />
             {addForm.photo && (
-              <img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
+              <ImagePreview src={addForm.photo} className="mt-2 h-20 w-20"><img src={addForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" /></ImagePreview>
             )}
           </div>
           <button onClick={handleAddItem} className="action-btn btn w-full">添加</button>
@@ -697,7 +698,7 @@ export default function StoreInventoryPage() {
               </div>
               <input ref={editFileRef} type="file" accept="image/*" onChange={handleEditPhoto} className="hidden" />
               {editForm.photo && (
-                <img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" />
+                <ImagePreview src={editForm.photo} className="mt-2 h-20 w-20"><img src={editForm.photo} alt="preview" className="mt-2 h-20 w-20 rounded-lg object-cover"  loading="lazy" /></ImagePreview>
               )}
             </div>
             <button onClick={handleSaveEdit} className="action-btn btn w-full">保存</button>
@@ -710,7 +711,7 @@ export default function StoreInventoryPage() {
         {showTakeout && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-              {showTakeout.photo ? <img src={showTakeout.photo} className="h-12 w-12 rounded-lg object-cover"  loading="lazy" /> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-400">{showTakeout.name[0]}</div>}
+              {showTakeout.photo ? <ImagePreview src={showTakeout.photo} className="h-12 w-12"><img src={showTakeout.photo} className="h-12 w-12 rounded-lg object-cover"  loading="lazy" /></ImagePreview> : <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-400">{showTakeout.name[0]}</div>}
               <div>
                 <div className="text-sm font-medium text-slate-800">{showTakeout.name}</div>
                 <div className="text-xs text-slate-400">当前库存: {showTakeout.quantity}</div>

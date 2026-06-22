@@ -98,14 +98,41 @@ export function ImagePreview({ src, alt = '', children, className = '' }: ImageP
     setIsDragging(false);
   }, []);
 
-  // Double click/tap to toggle zoom
-  const handleDoubleClick = useCallback(() => {
-    if (scale > 1.5) {
-      resetTransform();
-    } else {
-      setScale(3);
+  // Double click/tap to always reset
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  }, []);
+
+  // Touch events with passive: false for preventDefault
+  useEffect(() => {
+    if (!open) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const onTouchStart = (e: TouchEvent) => handleTouchStart(e as any);
+    const onTouchMove = (e: TouchEvent) => { e.preventDefault(); handleTouchMove(e as any); };
+    const onTouchEnd = (e: TouchEvent) => handleTouchEnd();
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [open, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // Lock body scroll when preview open
+  useEffect(() => {
+    if (!open) {
+      document.body.style.overflow = '';
+      return;
     }
-  }, [scale, resetTransform]);
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
 
   // Keyboard shortcuts
   useEffect(() => {

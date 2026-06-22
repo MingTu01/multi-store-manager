@@ -134,12 +134,13 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
-    const { period = 'day', storeId } = req.query;
+    const { period = 'day', storeId, days } = req.query;
     const now = new Date();
     const points: any[] = [];
     
     if (period === 'day') {
-      for (let i = 29; i >= 0; i--) {
+      const dayCount = parseInt(days as string) || 30;
+      for (let i = dayCount - 1; i >= 0; i--) {
         const d = new Date(now); d.setDate(d.getDate() - i);
         const ds = localDate(d);
         const cond = storeId ? 'AND store_id = ?' : '';

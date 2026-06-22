@@ -8,7 +8,8 @@ import { MoneyDisplay, formatMoney } from '../../lib/format';
 import { PeriodTabs, usePageSwipe, type Period } from '../../components/PeriodTabs';
 import { useStore } from '../../stores/data';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Store, ArrowRight } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, LineChart, Line } from 'recharts';
+import { ChartModal } from '../../components/ChartModal';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
 
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [stores, setStores] = useState<any[]>([]);
   const [trend, setTrend] = useState<any[]>([]);
+  const [trendDays, setTrendDays] = useState(7);
   const [loadError, setLoadError] = useState<string | null>(null);
   const nav = useNavigate();
   const dataVersion = useDataVersion('global');
@@ -33,8 +35,8 @@ export default function DashboardPage() {
   useEffect(() => {
     api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
-    api.get('/dashboard/trend?period=' + period).then((d: any) => setTrend(d.trend || [])).catch(() => {});
-  }, [period, dateStr, dataVersion]);
+    api.get('/dashboard/trend?period=' + period + '&days=' + trendDays).then((d: any) => setTrend(d.trend || [])).catch(() => {});
+  }, [period, dateStr, dataVersion, trendDays]);
 
   const income = stats?.income ?? 0;
   const expense = stats?.expense ?? 0;
@@ -115,6 +117,7 @@ export default function DashboardPage() {
           { title: '支出构成', data: expenseByCategory },
         ].map((section) => (
           <GlassCard key={section.title} className="p-4">
+            <ChartModal title={section.title}>
             <h3 className="mb-3 text-sm font-semibold text-slate-700">{section.title}</h3>
             {section.data.length > 0 ? (
               <div className="flex items-center gap-4">
@@ -141,20 +144,21 @@ export default function DashboardPage() {
             ) : (
               <div className="flex h-[200px] items-center justify-center text-sm text-slate-400">暂无数据</div>
           )}
-          </GlassCard>
+          </ChartModal>
+</GlassCard>
         ))}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <GlassCard className="p-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">环比对比</h3>
+          <ChartModal title="环比对比"><h3 className="mb-3 text-sm font-semibold text-slate-700">环比对比</h3>
           <div className="min-h-[200px]">
           {compData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={compData} barGap={4}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} width={40} tickLine={false} axisLine={false} />
                 <Tooltip formatter={fmtMoney} />
                 <Legend iconSize={8} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="income" fill="#22c55e" name="收入" radius={[4, 4, 0, 0]} />
@@ -163,16 +167,16 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           ) : <div className="flex h-[220px] items-center justify-center text-sm text-slate-400">暂无数据</div>
           }
-          </div>
+          </div></ChartModal>
         </GlassCard>
         <GlassCard className="p-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">同比对比</h3>
+          <ChartModal title="同比对比"><h3 className="mb-3 text-sm font-semibold text-slate-700">同比对比</h3>
           <div className="min-h-[200px]">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={yoyData} barGap={4}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} width={40} tickLine={false} axisLine={false} />
               <Tooltip formatter={fmtMoney} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="income" fill="#6366f1" name="收入" radius={[4, 4, 0, 0]} />
@@ -180,26 +184,27 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+</ChartModal>
 </GlassCard>
       </div>
 
       <div>
       {trend.length > 0 && (
         <GlassCard className="p-4">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">趋势对比</h3>
-          <div className="min-h-[200px]">
+          <div className="flex items-center justify-between mb-3"><h3 className="text-sm font-semibold text-slate-700">趋势对比</h3><div className="flex gap-1">{[7,14,30].map(d=>(<button key={d} onClick={()=>setTrendDays(d)} className={"rounded-md px-2 py-0.5 text-[10px] font-medium "+(trendDays===d?"bg-indigo-100 text-indigo-700":"text-slate-400 hover:bg-slate-100")}>{d}天</button>))}</div></div>
+          <ChartModal title="趋势对比" extra={<div className="flex gap-1">{[7,14,30].map(d=>(<button key={d} onClick={()=>setTrendDays(d)} className={"rounded-md px-2 py-0.5 text-[10px] font-medium "+(trendDays===d?"bg-indigo-100 text-indigo-700":"text-slate-400 hover:bg-slate-100")}>{d}天</button>))}</div>}><div className="min-h-[200px]">
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={trend}>
+            <LineChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={Math.max(0, Math.floor(trend.length / 10))} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} width={40} tickLine={false} axisLine={false} />
               <Tooltip formatter={fmtMoney} />
               <Legend />
-              <Bar dataKey="income" fill="#6366f1" name="收入" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="expense" fill="#f43f5e" name="支出" radius={[2, 2, 0, 0]} />
-            </BarChart>
+              <Line type="monotone" dataKey="income" stroke="#6366f1" name="收入" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="expense" stroke="#f43f5e" name="支出" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
           </ResponsiveContainer>
-        </div>
+        </div></ChartModal>
 </GlassCard>
       )}
         <h3 className="mb-3 text-sm font-semibold text-slate-700">门店概览</h3>

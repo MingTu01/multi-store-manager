@@ -87,7 +87,7 @@ export default function StoreShiftsPage() {
         <button onClick={() => { if (fileRef.current) { fileRef.current.accept = 'image/*'; fileRef.current.removeAttribute('capture'); fileRef.current.multiple = true; fileRef.current.click(); } }} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-xs text-slate-600 hover:bg-slate-50"><Upload className="h-4 w-4" />上传</button>
       </div>
       <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
-      {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <img key={i} src={p} className="h-16 w-16 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>}
+      {photos.length > 0 && <div className="mt-2 flex gap-2 overflow-x-auto">{photos.map((p, i) => <ImagePreview key={i} src={p} className="h-16 w-16 shrink-0"><img src={p} className="h-16 w-16 rounded-lg object-cover shrink-0" loading="lazy" /></ImagePreview>)}</div>}
     </div>
   );
 
@@ -99,8 +99,8 @@ export default function StoreShiftsPage() {
       ) : (
         <GlassCard className="divide-y divide-slate-100">
           {shifts.map((s: any) => (
-            <div key={s.id} className="px-4 py-3 cursor-pointer" onClick={() => { const newId = expandedId === s.id ? null : s.id; setExpandedId(newId); if (newId && !loadedPhotos[s.id]) loadShiftPhotos(s.id); }}>
-              <div className="flex items-center justify-between">
+            <div key={s.id} className="px-4 py-3">
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => { const newId = expandedId === s.id ? null : s.id; setExpandedId(newId); if (newId && !loadedPhotos[s.id]) loadShiftPhotos(s.id); }}>
                 <div className="flex items-center gap-2">
                   <span className={'rounded-full px-2 py-0.5 text-xs ' + (s.type === 'open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600')}>
                     {s.type === 'open' ? '开店' : '闭店'}
@@ -116,7 +116,7 @@ export default function StoreShiftsPage() {
                 <div className="mt-3 space-y-2">
                   {s.handover_content && <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{s.handover_content}</div>}
                   {loadedPhotos[s.id] && loadedPhotos[s.id].length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto">{loadedPhotos[s.id]?.map((p: string, i: number) => <img key={i} src={p} className="h-20 w-20 rounded-lg object-cover shrink-0"  loading="lazy" />)}</div>
+                    <div className="flex gap-2 overflow-x-auto" onClick={(e) => e.stopPropagation()}>{loadedPhotos[s.id]?.map((p: string, i: number) => <ImagePreview key={i} src={p} className="h-20 w-20 shrink-0"><img src={p} className="h-20 w-20 rounded-lg object-cover shrink-0" loading="lazy" /></ImagePreview>)}</div>
                   )}
                   {!s.handover_content && (!loadedPhotos[s.id] || loadedPhotos[s.id].length === 0) && (
                     <div className="text-xs text-slate-400">无交接内容</div>
