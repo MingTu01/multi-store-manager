@@ -83,3 +83,9 @@ docker exec multi-shop-link cat /app/data/version.json
 | 在线升级 (Web UI) | 小版本更新 | 依赖部署仓库代码正确，CORS 必须配置 |
 | ZIP 升级 (Web UI) | 离线环境 / 定制包 | 包结构必须正确（src/ + public/ + package.json） |
 | git pull + rebuild | 重大更新 / 修复 | 最可靠，绕过所有中间层 |
+
+
+## 重要规则：部署仓库禁止直接推送
+**绝对禁止**直接推送到部署仓库 `multi-shop-link-deploy`。
+部署仓库由 CI 自动构建推送，只能通过推送源码仓库 `multi-store-manager` 来触发。
+违反此规则会导致严重问题！
