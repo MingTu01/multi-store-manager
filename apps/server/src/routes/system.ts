@@ -5,9 +5,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { join } from 'path';
 const BASE_DIR = join(__dirname, '..', '..');
-import { exec } from 'child_process';
+import { exec, execFileSync } from 'child_process';
 import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, cpSync } from 'fs';
 import os from 'os';
+import crypto from 'crypto';
 import multer from 'multer';
 import AdmZip from 'adm-zip';
 import db from '../db.js';
@@ -214,8 +215,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
     setTimeout(() => {
       try {
         if (process.platform === 'win32') {
-          const { execSync } = require('child_process');
-          execSync('taskkill /F /PID ' + process.pid, { windowsHide: true });
+          execFileSync('taskkill', ['/F', '/PID', String(process.pid)], { windowsHide: true });
         } else {
           process.kill(process.pid, 'SIGTERM');
         }
@@ -400,8 +400,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         try {
           console.log('[Upgrade] Running npm install...');
           broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
-          const { execSync } = require('child_process');
-          execSync('npm install --omit=dev', { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
+          execFileSync('npm', ['install', '--omit=dev'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
           console.log('[Upgrade] npm install completed');
         } catch (e) {
           console.error('[Upgrade] npm install FAILED:', e.message);
@@ -412,10 +411,14 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const postUpgradeScript = join(workDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
+            // 安全校验：路径中不得包含 shell 元字符
+            const shellMeta = /[;&|`$(){}!]/;
+            if (shellMeta.test(postUpgradeScript)) {
+              throw new Error('post-upgrade 脚本路径包含不安全字符');
+            }
             console.log('[Upgrade] Running post-upgrade script...');
             broadcastProgress('progress', { step: 3, total: 4, message: '正在执行后置脚本' });
-            const { execSync } = require('child_process');
-            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            execFileSync('node', [postUpgradeScript], { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
             console.log('[Upgrade] Post-upgrade script completed');
           } catch (e) {
             console.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
@@ -682,7 +685,12 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         if (!zipRes) throw new Error('无法下载更新包');
         const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
         broadcastProgress('progress', { step: 2, total: 4, message: '下载完成', done: true });
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
+        // Step 2.5: SHA256 integrity check
+        const zipHash = crypto.createHash('sha256').update(zipBuffer).digest('hex');
+        console.log('[Update] ZIP SHA256:', zipHash);
+        broadcastProgress('progress', { step: 2, total: 4, message: '校验更新包完整性' });
+        await new Promise(r => setTimeout(r, 500));
         
         // Step 3: Extract & Update
         broadcastProgress('progress', { step: 3, total: 4, message: '正在解压更新包' });
@@ -701,7 +709,23 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           }
         }
         const realExtractedFolder = extractedFolder;
-        
+        // Check checksum.json if present in update package
+        const checksumFile = join(realExtractedFolder, 'checksum.json');
+        if (existsSync(checksumFile)) {
+          try {
+            const ckData = JSON.parse(readFileSync(checksumFile, 'utf8'));
+            if (ckData.sha256 && ckData.sha256 !== zipHash) {
+              throw new Error('SHA256 mismatch');
+            }
+            console.log('[Update] Checksum verified OK');
+          } catch (ckErr) {
+            if (ckErr.message.includes('mismatch')) throw ckErr;
+            console.warn('[Update] checksum.json parse failed:', ckErr.message);
+          }
+        } else {
+          console.warn('[Update] No checksum.json, skip hash check');
+        }
+
         // --- cleanup.json 清理清单 ---
         const cleanupJsonPath = join(realExtractedFolder, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
@@ -763,11 +787,15 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const postUpgradeScript = join(realExtractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
+            // 安全校验：路径中不得包含 shell 元字符
+            const shellMeta = /[;&|`$(){}!]/;
+            if (shellMeta.test(postUpgradeScript)) {
+              throw new Error('post-upgrade 脚本路径包含不安全字符');
+            }
             broadcastProgress('progress', { step: 3, total: 4, message: '执行后置脚本' });
         await new Promise(r => setTimeout(r, 300));
         console.log('[Update] Running post-upgrade script...');
-            const { execSync } = require('child_process');
-            execSync('node "' + postUpgradeScript + '"', { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
+            execFileSync('node', [postUpgradeScript], { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
             console.log('[Update] Post-upgrade completed');
           } catch (e) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
         }

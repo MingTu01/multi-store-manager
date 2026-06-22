@@ -67,7 +67,7 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
 }
 
 export function signToken(payload: any) {
-  const tokenExpiry = process.env.TOKEN_EXPIRY || '24h';
+  const tokenExpiry = process.env.TOKEN_EXPIRY || '4h';
   return jwt.sign(payload, SECRET, { expiresIn: tokenExpiry } as jwt.SignOptions);
 }
 

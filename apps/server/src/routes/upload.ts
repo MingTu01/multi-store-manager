@@ -43,11 +43,37 @@ router.post('/:type', upload.single('file'), (req: AuthRequest, res: Response) =
 
 router.delete('/', (req: AuthRequest, res: Response) => {
   try {
+    // 权限检查：确保认证中间件已应用
+    if (!req.user || !req.user.role) return res.status(401).json({ error: '未认证' });
+    // 角色检查：只有 ADMIN 和 STORE_ADMIN 可以删除文件
+    if (!['ADMIN', 'STORE_ADMIN'].includes(req.user.role?.toUpperCase())) {
+      return res.status(403).json({ error: '无权限删除文件' });
+    }
     const { url } = req.body;
     if (!url || !url.startsWith('/uploads/')) return res.status(400).json({ error: '无效的文件路径' });
     const filePath = path.resolve(join(BASE_DIR, url));
     const uploadsDir = path.resolve(join(BASE_DIR, 'uploads'));
     if (!filePath.startsWith(uploadsDir + path.sep) && filePath !== uploadsDir) return res.status(400).json({ error: '路径不合法' });
+
+    // 验证文件属于该用户的店铺（非 ADMIN 需校验）
+    if (req.user.role?.toUpperCase() !== 'ADMIN') {
+      const urlParts = url.split('/').filter(Boolean); // e.g. ['uploads', 'stores', 'filename.ext']
+      const uploadType = urlParts.length >= 2 ? urlParts[1] : '';
+      const storeTypes = ['stores', 'shifts', 'inventory'];
+      if (storeTypes.includes(uploadType)) {
+        const userStoreId = req.user.store_id;
+        if (!userStoreId) return res.status(403).json({ error: '无关联店铺，无法删除' });
+        // 校验文件是否存在于数据库中并属于该店铺
+        const fileUrl = url; // e.g. /uploads/stores/uuid.webp
+        const linked = db.prepare(
+          "SELECT id FROM stores WHERE store_id = ? AND (photos LIKE ?) UNION ALL SELECT id FROM entries WHERE store_id = ? AND (photo_url LIKE ? OR attachments LIKE ?)"
+        ).get(userStoreId, '%' + fileUrl + '%', userStoreId, '%' + fileUrl + '%', '%' + fileUrl + '%');
+        if (!linked) {
+          return res.status(403).json({ error: '文件不属于您的店铺' });
+        }
+      }
+    }
+
     if (existsSync(filePath)) unlinkSync(filePath);
     res.json({ message: '文件已删除' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

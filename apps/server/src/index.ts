@@ -42,8 +42,8 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // S7: CORS 配置
-// 未设置 CORS_ORIGIN 时默认允许所有来源
-const corsOrigin = process.env.CORS_ORIGIN || '';
+// 未设置 CORS_ORIGIN 时默认使用生产域名
+const corsOrigin = process.env.CORS_ORIGIN || 'https://msl.908521.xyz';
 const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
