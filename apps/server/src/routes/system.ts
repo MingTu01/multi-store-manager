@@ -319,8 +319,8 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         await new Promise(r => setTimeout(r, 500));
         console.log('[Upgrade] Step 3: Starting file copy...');
         // Step 3: Update files
-        upgradeState = { step: 3, message: '正在更新', complete: false };
-        broadcastProgress('progress', { step: 3, total: 4, message: '正在更新' });
+        upgradeState = { step: 3, message: '解压并更新', complete: false };
+        broadcastProgress('progress', { step: 3, total: 4, message: '解压并更新' });
         const copyDir = (src, dest) => {
           mkdirSync(dest, { recursive: true });
           for (const entry of readdirSync(src, { withFileTypes: true })) {
@@ -373,6 +373,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           const webDest = join(BASE_DIR, 'public', 'web-dist');
           copyDir(webDistSrc, webDest);
           console.log('[Upgrade] web-dist updated');
+          broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
@@ -388,6 +389,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const srcDest = join(BASE_DIR, 'src');
         copyDir(sSrc, srcDest);
         console.log('[Upgrade] server code updated');
+        broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         // === 更新 package.json ===
         const pkgFile = join(workDir, 'package.json');
         if (existsSync(pkgFile)) {
