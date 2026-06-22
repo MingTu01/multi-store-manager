@@ -244,7 +244,7 @@ export default function SettingsPage() {
   const handleUpgradeSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
+    const onlineStepNames = ['备份数据', '下载更新包', '解压并更新', '重启服务'];
     if (!file.name.endsWith('.zip')) { showMsg(false, '请上传ZIP格式的升级包'); return; }
     setUpgradeFile(file);
     setUpgradeInfo(null);
@@ -270,7 +270,7 @@ export default function SettingsPage() {
     setShowProgressModal(true);
     setUpdating(true);
     setUpgradeComplete(false);
-    const onlineStepNames = ['正在备份数据', '正在下载更新', '正在更新', '重启'];
+    const onlineStepNames = ['备份数据', '下载更新包', '解压并更新', '重启服务'];
     setUpdateSteps(onlineStepNames.map(n => ({ msg: n, done: false })));
     try {
       const token = localStorage.getItem('token');
