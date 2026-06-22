@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +17,21 @@ import { AuthRequest } from '../auth.js';
 import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
 
+
+// 安全校验：cleanup.json 路径白名单（CRITICAL安全加固）
+function validateCleanupPath(p: string): boolean {
+  // 禁止路径遍历
+  if (p.includes('..')) return false;
+  // 规范化路径分隔符
+  const normalized = p.replace(/\\/g, '/').toLowerCase();
+  // 禁止指向 data/、backups/、uploads/ 目录
+  if (normalized.startsWith('data/') || normalized === 'data') return false;
+  if (normalized.startsWith('backups/') || normalized === 'backups') return false;
+  if (normalized.startsWith('uploads/') || normalized === 'uploads') return false;
+  // 只允许 src/ 和 public/ 下的文件
+  if (!normalized.startsWith('src/') && !normalized.startsWith('public/')) return false;
+  return true;
+}
 const router = Router();
 const upload = multer({
   dest: join(BASE_DIR, 'uploads'),
@@ -346,6 +361,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             console.log('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
+                if (!validateCleanupPath(f)) { console.warn('[Upgrade] BLOCKED unsafe deleteFiles path:', f); continue; }
                 const target = join(BASE_DIR, f);
                 if (existsSync(target)) {
                   try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e) { console.warn('[Upgrade] Failed to delete', f, e.message); }
@@ -354,6 +370,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             }
             if (Array.isArray(cleanup.deleteDirs)) {
               for (const d of cleanup.deleteDirs) {
+                if (!validateCleanupPath(d)) { console.warn('[Upgrade] BLOCKED unsafe deleteDirs path:', d); continue; }
                 const target = join(BASE_DIR, d);
                 if (existsSync(target)) {
                   try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
@@ -411,9 +428,9 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const postUpgradeScript = join(workDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
-            // 安全校验：路径中不得包含 shell 元字符
-            const shellMeta = /[;&|`$(){}!]/;
-            if (shellMeta.test(postUpgradeScript)) {
+            // 安全校验：路径白名单（仅允许安全字符）
+            const safePathRegex = /^[a-zA-Z0-9._\-\/\\:]+$/;
+            if (!safePathRegex.test(postUpgradeScript)) {
               throw new Error('post-upgrade 脚本路径包含不安全字符');
             }
             console.log('[Upgrade] Running post-upgrade script...');
@@ -736,6 +753,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           await new Promise(r => setTimeout(r, 300));
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
+                if (!validateCleanupPath(f)) { console.warn('[Update] BLOCKED unsafe deleteFiles path:', f); continue; }
                 const target = join(BASE_DIR, f);
                 if (existsSync(target)) {
                   try { unlinkSync(target); console.log('[Update] Deleted:', f); } catch (e: any) { console.warn('[Update] Failed to delete', f, e.message); }
@@ -744,6 +762,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             }
             if (Array.isArray(cleanup.deleteDirs)) {
               for (const d of cleanup.deleteDirs) {
+                if (!validateCleanupPath(d)) { console.warn('[Update] BLOCKED unsafe deleteDirs path:', d); continue; }
                 const target = join(BASE_DIR, d);
                 if (existsSync(target)) {
                   try { rmSync(target, { recursive: true, force: true }); console.log('[Update] Deleted dir:', d); } catch (e: any) { console.warn('[Update] Failed to delete dir', d, e.message); }
@@ -787,9 +806,9 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const postUpgradeScript = join(realExtractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
-            // 安全校验：路径中不得包含 shell 元字符
-            const shellMeta = /[;&|`$(){}!]/;
-            if (shellMeta.test(postUpgradeScript)) {
+            // 安全校验：路径白名单（仅允许安全字符）
+            const safePathRegex = /^[a-zA-Z0-9._\-\/\\:]+$/;
+            if (!safePathRegex.test(postUpgradeScript)) {
               throw new Error('post-upgrade 脚本路径包含不安全字符');
             }
             broadcastProgress('progress', { step: 3, total: 4, message: '执行后置脚本' });

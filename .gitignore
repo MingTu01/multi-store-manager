@@ -69,3 +69,5 @@ _staging*/
 # Aliyun OCR credentials
 aliyun-credentials.json
 .env
+backups/
+apps/server/data/*.db

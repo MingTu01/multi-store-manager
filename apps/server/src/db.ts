@@ -1,4 +1,4 @@
-﻿import Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import { mkdirSync } from 'fs';
@@ -313,7 +313,9 @@ const migrations = [
 ];
 
 for (const sql of migrations) {
-  try { db.exec(sql); } catch (e) { /* column already exists */ }
+  try { db.exec(sql); } catch (e) {
+    if (!String(e).includes('already exists')) console.error('Migration error:', e);
+  }
 }
 
 

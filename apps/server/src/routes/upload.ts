@@ -20,9 +20,16 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('不支持的文件类型，仅允许 JPEG/PNG/GIF/WebP'));
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+    if (!allowedMimes.includes(file.mimetype)) {
+      return cb(new Error('不支持的文件类型，仅允许 JPEG/PNG/WebP'));
+    }
+    const ext = (file.originalname || '').split('.').pop()?.toLowerCase() || '';
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error('文件扩展名不允许，仅支持 jpg/jpeg/png/webp'));
+    }
+    cb(null, true);
   },
 });
 

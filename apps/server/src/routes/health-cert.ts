@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -19,9 +19,16 @@ const upload = multer({
   dest: join(BASE_DIR, 'uploads'),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req: any, file: any, cb: any) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('只允许上传图片文件'));
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+    if (!allowedMimes.includes(file.mimetype)) {
+      return cb(new Error('只允许上传图片文件'));
+    }
+    const ext = (file.originalname || '').split('.').pop()?.toLowerCase() || '';
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error('文件扩展名不允许，仅支持 jpg/jpeg/png/webp'));
+    }
+    cb(null, true);
   }
 });
 
@@ -127,8 +134,6 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // 原始文本用于前端展示
-    const rawText = Object.entries(kvData).map(([k, v]) => k + ': ' + v).join('\n');
 
     // 姓名匹配
     const user = db.prepare('SELECT name FROM users WHERE id = ?').get(req.user.id) as any;
@@ -162,7 +167,6 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
       accountName: user?.name || '',
       match,
       daysLeft: realDaysLeft,
-      rawText: typeof rawText === 'string' ? rawText.slice(0, 500) : '',
       provider: 'aliyun',
     });
   } catch (err: any) {

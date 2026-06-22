@@ -1,3 +1,4 @@
+if (process.env.NODE_ENV === 'production') { console.log('Seed skipped in production'); process.exit(0); }
 import db from './db.js';
 import bcrypt from 'bcryptjs';
 

@@ -1,4 +1,5 @@
 process.env.TZ = 'Asia/Shanghai';
+if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production';
 import express from 'express';
 import crypto from 'crypto';
 import cors from 'cors';
@@ -44,7 +45,7 @@ const PORT = process.env.PORT || 3001;
 
 // S7: CORS 配置
 // 未设置 CORS_ORIGIN 时默认使用生产域名
-const corsOrigin = process.env.CORS_ORIGIN || 'https://msl.908521.xyz';
+const corsOrigin = process.env.CORS_ORIGIN || '';
 const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
@@ -58,8 +59,6 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   // 防止MIME类型嗅探
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  // XSS保护
-  res.setHeader('X-XSS-Protection', '1; mode=block');
   // 防止信息泄露
   res.removeHeader('X-Powered-By');
   // CSP - 允许内联样式（Tailwind需要），禁止外部脚本
@@ -69,7 +68,7 @@ app.use((req, res, next) => {
 
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,  // unsafe-inline 作为 fallback
+    `script-src 'self' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
     "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
     "img-src 'self' data: blob: http: https:",
     "font-src 'self' data:",
@@ -120,7 +119,7 @@ app.use(express.static(WEB_DIST_PATH, {
   }));
 app.use(express.static(join(BASE_DIR, 'public')));
 // File serving - UUID filenames provide security (no auth needed for display)
-app.use('/uploads', express.static(join(BASE_DIR, 'uploads'), { maxAge: '30d', etag: true }));
+app.use('/uploads', authMiddleware, express.static(join(BASE_DIR, 'uploads'), { maxAge: '30d', etag: true }));
 
 // Public auth routes
 
@@ -248,7 +247,8 @@ app.get('{*splat}', (req, res) => {
 // Prevent server crash on unhandled errors
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message);
-  // Don't exit, keep server running
+  console.error('[FATAL] Stack:', err.stack);
+  process.exit(1); // 让 Docker restart:always 自动重启
 });
 process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled Rejection:', reason);
