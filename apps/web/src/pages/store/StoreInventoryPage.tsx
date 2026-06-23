@@ -47,6 +47,17 @@ const STATUS_OPTIONS: { v: StatusType; l: string }[] = [
   { v: 'restocking', l: '补货中' },
 ];
 
+
+const STATUS_CN_MAP: Record<string, StatusType> = {
+  '正常': 'normal', '差异': 'diff', '丢失': 'lost', '报废': 'scrap',
+  '空': 'empty', '补货中': 'restocking', '待补货': 'pending',
+};
+function resolveStatus(s: string | undefined): StatusType {
+  if (!s) return 'normal';
+  if (STATUS_MAP[s as StatusType]) return s as StatusType;
+  return STATUS_CN_MAP[s] || 'normal';
+}
+
 const VIRTUAL_THRESHOLD = 30;
 
 function SortableItem({ id, children }: { id: number; children: React.ReactNode }) {
@@ -448,7 +459,7 @@ export default function StoreInventoryPage() {
             <div className="space-y-2">
               {items.map((item) => {
                 const r = checkResults[item.id];
-                const s = r ? STATUS_MAP[r.status] : STATUS_MAP.normal;
+                const s = r ? STATUS_MAP[resolveStatus(r.status)] : STATUS_MAP.normal;
                 return (
                   <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                     <span className="text-sm text-slate-700">{item.name}</span>
@@ -512,7 +523,7 @@ export default function StoreInventoryPage() {
             }
             renderItem={(item, index) => {
               const result = checkResults[item.id];
-              const st = result ? STATUS_MAP[result.status] : null;
+              const st = result ? STATUS_MAP[resolveStatus(result.status)] : null;
               const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
               return (
                 <div key={item.id} className="mb-2">
@@ -530,7 +541,7 @@ export default function StoreInventoryPage() {
                           {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                           {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                         </div>
-                        <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
+                        <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[resolveStatus(item.status)].color)}>{st ? st.label : STATUS_MAP[resolveStatus(item.status)].label}</span>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {!isReadonly && <button onClick={() => { setShowTakeout(item); setTakeoutQty(''); }} className="action-btn rounded-lg px-2 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 font-medium">领出</button>}
@@ -550,7 +561,7 @@ export default function StoreInventoryPage() {
             {items.map((item, index) => {
               const hasResult = !!checkResults[item.id];
               const result = checkResults[item.id];
-              const st = result ? STATUS_MAP[result.status] : null;
+              const st = result ? STATUS_MAP[resolveStatus(result.status)] : null;
               const diff = result ? ((result.actual || 0) + (result.consumption || 0) - item.quantity) : 0;
               return (
                 <SortableItem key={item.id} id={item.id}>
@@ -568,7 +579,7 @@ export default function StoreInventoryPage() {
                         {lastCheckResults[item.id] && (() => { const c = lastCheckResults[item.id]; const v = (c.consumption + c.actual) - c.expected; return v !== 0 ? <span className={'font-medium ' + (v > 0 ? 'text-emerald-600' : 'text-rose-500')}>{v > 0 ? '+' : ''}{v}</span> : null; })()}
                         {diff !== 0 && <span className={'font-medium ' + (diff > 0 ? 'text-emerald-600' : 'text-rose-500')}>{diff > 0 ? '+' : ''}{diff}</span>}
                       </div>
-                      <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[(item.status || 'normal') as StatusType].color)}>{st ? st.label : STATUS_MAP[(item.status || 'normal') as StatusType].label}</span>
+                      <span className={'mt-1 inline-block rounded-full px-2 py-0.5 text-xs ' + (st ? st.color : STATUS_MAP[resolveStatus(item.status)].color)}>{st ? st.label : STATUS_MAP[resolveStatus(item.status)].label}</span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       {!isReadonly && <SortableDragHandle id={item.id} />}

@@ -291,8 +291,9 @@ export default function StorePurchasePage() {
                     <span className="text-sm text-slate-600 truncate">{r.name}</span>
                     <div className="flex items-center gap-1.5">
                       <span className="text-lg font-bold text-indigo-600">{r.recommended}</span>
-                      {r.trend === 'up' && <span className="text-emerald-500">⬆</span>}
-                      {r.trend === 'down' && <span className="text-rose-500">⬇</span>}
+                      {r.trend === 'up' && <TrendingUp className="w-4 h-4 text-emerald-500" />}
+                      {r.trend === 'down' && <TrendingDown className="w-4 h-4 text-rose-500" />}
+                      {r.trend === 'flat' && <span className="w-4 h-4 text-slate-400">—</span>}
                     </div>
                   </div>
                 ))}

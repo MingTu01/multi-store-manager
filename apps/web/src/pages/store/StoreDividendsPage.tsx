@@ -12,7 +12,7 @@ import { Plus, Edit3, Trash2, Archive, Wallet, Loader2, FileText } from 'lucide-
 export default function StoreDividendsPage() {
   const { storeId } = useParams();
   const myRole = useStore((s) => s.user?.role);
-  const canManage = myRole === 'ADMIN';
+  const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
   const [balance, setBalance] = useState(0);
   const [dividends, setDividends] = useState<any[]>([]);
   const [shareholders, setShareholders] = useState<any[]>([]);
