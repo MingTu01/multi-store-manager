@@ -34,7 +34,7 @@ router.post('/login', loginLimiter, (req, res) => {
 
 
 // 登出：清除 httpOnly cookie
-router.post('/logout', (req, res) => {
+router.post('/logout', authMiddleware, (req, res) => {
   clearAuthCookie(res);
   res.json({ message: '已登出' });
 });

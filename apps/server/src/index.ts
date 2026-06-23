@@ -51,7 +51,7 @@ const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
     : true,
-  credentials: true
+  credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
 app.use(compression({ level: 6, threshold: 1024 }));
 // 安全HTTP头
@@ -80,6 +80,9 @@ app.use((req, res, next) => {
   ].join('; '));
   // Referrer策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 });
 
