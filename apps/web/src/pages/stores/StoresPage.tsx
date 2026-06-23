@@ -121,7 +121,7 @@ export default function StoresPage() {
                 const sp: any[] = (() => { try { return typeof s.photos === 'string' ? JSON.parse(s.photos) : (s.photos || []); } catch { return []; } })();
                 return sp.length > 0 ? (
                   <div className="h-32 w-full overflow-hidden bg-slate-100 flex gap-0.5">
-                    {sp.slice(0, 3).map((p: string, i: number) => <ImagePreview key={i} src={p} className="h-full flex-1"><img src={p} alt={s.name} className="h-full flex-1 object-cover"  loading="lazy" /></ImagePreview>)}
+                    {sp.slice(0, 1).map((p: string, i: number) => <ImagePreview key={i} src={p} className="h-full w-full"><img src={p} alt={s.name} className="h-full w-full object-cover"  loading="lazy" /></ImagePreview>)}
                   </div>
                 ) : (
                   <div className="flex h-32 w-full items-center justify-center bg-gradient-to-br from-indigo-50 to-violet-50">

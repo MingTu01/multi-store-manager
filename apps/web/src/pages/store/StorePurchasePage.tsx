@@ -8,7 +8,7 @@ import { ChartModal } from '../../components/ChartModal';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { showToast } from '../../components/Toast';
-import { ChevronLeft, ChevronRight, Download, TrendingUp, Package, Pencil, Plus, Trash2, Edit3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, TrendingUp, TrendingDown, Package, Pencil, Plus, Trash2, Edit3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];

@@ -91,9 +91,13 @@ export default function StoreNotificationSettingsPage() {
     const updated = { ...settings, ...channelForm, method: editingChannel };
     try {
       await api.put('/stores/' + storeId + '/notification-settings', updated);
-      await api.post('/stores/' + storeId + '/notification-settings/test?type=daily', {});
-      setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
-      setTestResult({ ok: true, text: '测试成功，推送已发送' });
+      const testRes = await api.post('/stores/' + storeId + '/notification-settings/test?channel=' + editingChannel, {});
+      if (testRes.results && testRes.results.length > 0) {
+        setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
+        setTestResult({ ok: true, text: '测试成功，' + testRes.results.join('+') + ' 推送已发送' });
+      } else {
+        setTestResult({ ok: false, text: '推送失败: ' + (testRes.errors ? testRes.errors.join('; ') : '未知错误') });
+      }
     } catch (e: any) {
       setTestResult({ ok: false, text: e.message || '测试失败，请检查配置' });
     } finally {

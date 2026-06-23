@@ -100,14 +100,14 @@ export async function sendNotification(title: string, content: string, type?: st
 }
 
 
-export async function sendStoreNotification(storeId: string, title: string, content: string, settings?: any): Promise<void> {
+export async function sendStoreNotification(storeId: string, title: string, content: string, settings?: any, testChannel?: string): Promise<{results: string[], errors: string[]}> {
   const s = settings || {};
   const results: string[] = [];
   const errors: string[] = [];
   const sendOne = async (key: string, fn: () => Promise<void>) => {
     try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
   };
-  if (s.pushplus_token) await sendOne('PushPlus', async () => {
+  if (s.pushplus_token && (!testChannel || testChannel==='pushplus')) await sendOne('PushPlus', async () => {
     const r = await fetch('https://www.pushplus.plus/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: s.pushplus_token, title, content, template: 'txt' })
@@ -115,7 +115,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
     const d = await r.json() as any;
     if (d.code !== 200) throw new Error(d.msg || 'fail');
   });
-  if (s.serverchan_key) await sendOne('ServerChan', async () => {
+  if (s.serverchan_key && (!testChannel || testChannel==='serverchan')) await sendOne('ServerChan', async () => {
     const r = await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, desp: content })
@@ -123,7 +123,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
     const d = await r.json() as any;
     if (d.code !== 0) throw new Error(d.message || 'fail');
   });
-  if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('WeCom', async () => {
+  if ((!testChannel || testChannel==='wecom') && s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('WeCom', async () => {
     const pUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
     const tRes = await fetch(pUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
     const tData = await tRes.json() as any;
@@ -136,7 +136,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
     if (sData.errcode !== 0) throw new Error('send failed: ' + (sData.errmsg || sData.errcode));
   });
   if (results.length === 0 && errors.length === 0) throw new Error('未配置任何推送渠道');
-  if (errors.length > 0 && results.length === 0) throw new Error('推送失败: ' + errors.join('; '));
+  return { results, errors };
 }
 
 
