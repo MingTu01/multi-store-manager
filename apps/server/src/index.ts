@@ -4,6 +4,7 @@ import express from 'express';
 import crypto from 'crypto';
 import cors from 'cors';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import { join } from 'path';
 import { copyFileSync, mkdirSync, existsSync, readdirSync, statSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import db from './db.js';
@@ -87,6 +88,22 @@ app.use(cors(corsOptions));
 // P5: JSON body 大小限制可配置，默认从 50MB 降到 5MB
 const jsonLimit = process.env.JSON_LIMIT || '5mb';
 app.use(express.json({ limit: jsonLimit }));
+
+// Security: Global rate limit - 100 requests per minute per IP for API routes
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for non-API routes (static files, SPA)
+    if (!req.path.startsWith('/api/')) return true;
+    // Skip SSE connections (long-lived, only heartbeat traffic)
+    if (req.path === '/api/sse') return true;
+    return false;
+  }
+});
+app.use(globalLimiter);
 
 // Smart path detection for web dist
 const POSSIBLE_WEB_DIST = [

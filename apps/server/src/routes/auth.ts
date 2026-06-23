@@ -25,7 +25,7 @@ router.post('/login', loginLimiter, (req, res) => {
     if (!user) return res.status(401).json({ error: '用户名或密码错误' });
     if (user.status !== 'active') return res.status(403).json({ error: '账号已被禁用' });
     if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
-    const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
+    const token = signToken({ id: user.id, role: user.role, store_id: user.store_id });
     const { password_hash, ...userData } = user;
     setAuthCookie(res, token);
     res.json({ user: userData });

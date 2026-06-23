@@ -91,10 +91,17 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     req.user = decoded;
 
     // 校验密码修改时间：JWT的iat必须晚于用户的updated_at
-    const freshUser = db.prepare('SELECT updated_at FROM users WHERE id = ?').get(decoded.id) as any;
-    if (freshUser && freshUser.updated_at && decoded.iat < Math.floor(new Date(freshUser.updated_at).getTime() / 1000)) {
+    const freshUser = db.prepare('SELECT updated_at, username, name FROM users WHERE id = ?').get(decoded.id) as any;
+    if (!freshUser) {
+      return res.status(401).json({ error: '用户不存在' });
+    }
+    if (freshUser.updated_at && decoded.iat < Math.floor(new Date(freshUser.updated_at).getTime() / 1000)) {
       return res.status(401).json({ error: '密码已修改，请重新登录' });
     }
+
+    // Enrich req.user with username/name from DB (not stored in JWT for security)
+    req.user.username = freshUser.username;
+    req.user.name = freshUser.name;
 
     next();
   } catch (err) {
