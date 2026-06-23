@@ -80,7 +80,9 @@ app.use((req, res, next) => {
   ].join('; '));
   // Referrer策略
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Permissions-Policy - 限制浏览器API
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  // Cross-Origin 安全头
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
