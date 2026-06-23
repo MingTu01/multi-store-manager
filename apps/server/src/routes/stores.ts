@@ -70,12 +70,15 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (!name) return res.status(400).json({ error: '请输入门店名称' });
     const storeId = id || 'store_' + Date.now();
     const photos = JSON.stringify(req.body.photos || []);
-    db.prepare('INSERT INTO stores (id, name, address, initial_capital, photos) VALUES (?,?,?,?,?)').run(storeId, name, address || '', initial_capital || 0, photos);
-    const shBody = req.body.shareholders;
-    if (Array.isArray(shBody) && shBody.length > 0) {
-      const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
-      for (const sh of shBody) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
-    }
+    const tx = db.transaction(() => {
+      db.prepare('INSERT INTO stores (id, name, address, initial_capital, photos) VALUES (?,?,?,?,?)').run(storeId, name, address || '', initial_capital || 0, photos);
+      const shBody = req.body.shareholders;
+      if (Array.isArray(shBody) && shBody.length > 0) {
+        const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
+        for (const sh of shBody) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+      }
+    });
+    tx();
     opLog(req.user.id, 0, '创建门店', '创建门店: ' + name);
 
     triggerNotification({
@@ -96,17 +99,20 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { name, address, initial_capital } = req.body;
     const now = localDateTime();
-    db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
-    const photos = req.body.photos;
-    if (Array.isArray(photos)) {
-      db.prepare('UPDATE stores SET photos = ? WHERE id = ?').run(JSON.stringify(photos), req.params.storeId);
-    }
-    const shBody = req.body.shareholders;
-    if (Array.isArray(shBody)) {
-      db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(req.params.storeId);
-      const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
-      for (const sh of shBody) { stmt.run(req.params.storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
-    }
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
+      const photos = req.body.photos;
+      if (Array.isArray(photos)) {
+        db.prepare('UPDATE stores SET photos = ? WHERE id = ?').run(JSON.stringify(photos), req.params.storeId);
+      }
+      const shBody = req.body.shareholders;
+      if (Array.isArray(shBody)) {
+        db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(req.params.storeId);
+        const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
+        for (const sh of shBody) { stmt.run(req.params.storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+      }
+    });
+    tx();
     opLog(req.user.id, 0, '修改门店', '修改门店信息');
 
     triggerNotification({
@@ -250,7 +256,11 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     if (position !== undefined) { fields.push('job_title=?'); vals.push(position); }
     if (address !== undefined) { fields.push('address=?'); vals.push(address); }
     if (monthly_salary !== undefined) { fields.push('salary=?'); vals.push(monthly_salary); }
-    if (role !== undefined) { fields.push('role=?'); vals.push(role); }
+    if (role !== undefined) {
+      const allowedRoles = ['STAFF', 'MANAGER', 'SHAREHOLDER', 'STORE_ADMIN'];
+      if (!allowedRoles.includes(role)) return res.status(400).json({ error: '无效的角色' });
+      fields.push('role=?'); vals.push(role);
+    }
     if (avatar !== undefined) { fields.push('avatar=?'); vals.push(avatar); }
     if (status !== undefined) { fields.push('status=?'); vals.push(status); }
     if (password) { fields.push('password_hash=?'); vals.push(bcrypt.hashSync(password, 10)); }
@@ -298,9 +308,12 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { shareholders } = req.body;
     if (!Array.isArray(shareholders)) return res.status(400).json({ error: '参数错误' });
-    db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
-    const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
-    for (const sh of shareholders) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
+      const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
+      for (const sh of shareholders) { stmt.run(storeId, sh.name || '', sh.phone || '', sh.ratio || 0); }
+    });
+    tx();
     opLog(req.user.id, 0, '更新股东', '更新股东配置');
     res.json({ message: '股东信息更新成功' });
   } catch (err: any) {

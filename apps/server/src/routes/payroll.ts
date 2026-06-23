@@ -37,15 +37,19 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (Array.isArray(items)) {
       for (const item of items) { totalAmount += (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0); }
     }
-    const result = db.prepare('INSERT INTO payroll (store_id, period, total_amount, created_by) VALUES (?,?,?,?)').run(storeId, period, totalAmount, req.user.id);
-    const payrollId = result.lastInsertRowid;
-    if (Array.isArray(items)) {
-      const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
-      for (const item of items) {
-        const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
-        stmt.run(payrollId, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+    let payrollId: any;
+    const tx = db.transaction(() => {
+      const result = db.prepare('INSERT INTO payroll (store_id, period, total_amount, created_by) VALUES (?,?,?,?)').run(storeId, period, totalAmount, req.user.id);
+      payrollId = result.lastInsertRowid;
+      if (Array.isArray(items)) {
+        const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
+        for (const item of items) {
+          const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
+          stmt.run(payrollId, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+        }
       }
-    }
+    });
+    tx();
     res.json({ id: payrollId, message: '工资单创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -63,15 +67,18 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     if (Array.isArray(items)) {
       for (const item of items) { totalAmount += (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0); }
     }
-    db.prepare('UPDATE payroll SET period = COALESCE(?, period), total_amount = ? WHERE id = ?').run(period, totalAmount, req.params.id);
-    if (Array.isArray(items)) {
-      db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
-      const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
-      for (const item of items) {
-        const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
-        stmt.run(req.params.id, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+    const tx = db.transaction(() => {
+      db.prepare('UPDATE payroll SET period = COALESCE(?, period), total_amount = ? WHERE id = ?').run(period, totalAmount, req.params.id);
+      if (Array.isArray(items)) {
+        db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
+        const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
+        for (const item of items) {
+          const actual = (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0);
+          stmt.run(req.params.id, item.user_id, item.user_name || '', item.base_amount || item.base_salary || 0, item.bonus || 0, item.deduction || 0, actual, item.job_title || '');
+        }
       }
-    }
+    });
+    tx();
     res.json({ message: '工资单更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -107,12 +114,16 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     }
     let totalAmount = 0;
     for (const item of items) totalAmount += item.total_amount;
-    const result = db.prepare('INSERT INTO payroll (store_id, period, total_amount, created_by) VALUES (?,?,?,?)').run(storeId, payrollPeriod, totalAmount, req.user.id);
-    const payrollId = result.lastInsertRowid;
-    const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
-    for (const item of items) {
-      stmt.run(payrollId, item.user_id, item.user_name, item.base_amount, item.bonus, item.deduction, item.total_amount, item.job_title);
-    }
+    let payrollId: any;
+    const tx = db.transaction(() => {
+      const result = db.prepare('INSERT INTO payroll (store_id, period, total_amount, created_by) VALUES (?,?,?,?)').run(storeId, payrollPeriod, totalAmount, req.user.id);
+      payrollId = result.lastInsertRowid;
+      const stmt = db.prepare('INSERT INTO payroll_items (payroll_id, user_id, user_name, base_amount, bonus, deduction, total_amount, job_title) VALUES (?,?,?,?,?,?,?,?)');
+      for (const item of items) {
+        stmt.run(payrollId, item.user_id, item.user_name, item.base_amount, item.bonus, item.deduction, item.total_amount, item.job_title);
+      }
+    });
+    tx();
 
     triggerNotification({
       type: 'payroll',
@@ -174,8 +185,11 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
     if (payroll.status === 'confirmed') return res.status(400).json({ error: '已确认的工资单不能删除' });
-    db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
-    db.prepare('DELETE FROM payroll WHERE id = ?').run(req.params.id);
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
+      db.prepare('DELETE FROM payroll WHERE id = ?').run(req.params.id);
+    });
+    tx();
     res.json({ message: '工资单已删除' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

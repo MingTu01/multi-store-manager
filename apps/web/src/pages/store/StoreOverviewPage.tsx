@@ -22,8 +22,8 @@ export default function StoreOverviewPage() {
     api.get('/stores/' + storeId).then(setStore).catch(() => {});
     api.get('/stores/' + storeId + '/entries?period=day').then((d: any) => {
       const entries = d.entries || d.data || [];
-      const inc = entries.filter((e: any) => e.type === '收入' || e.type === 'income').reduce((s: number, e: any) => s + e.amount, 0);
-      const exp = entries.filter((e: any) => e.type === '支出' || e.type === 'expense').reduce((s: number, e: any) => s + e.amount, 0);
+      const inc = entries.filter((e: any) => e.type === '收入' || e.type === 'income').reduce((s: number, e: any) => s + (e.amount || 0), 0);
+      const exp = entries.filter((e: any) => e.type === '支出' || e.type === 'expense').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       setToday({ income: inc, expense: exp, profit: inc - exp });
     }).catch(() => {});
     api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.entries || d.data || (Array.isArray(d) ? d : []).slice(0, 5))).catch(() => {});
@@ -99,11 +99,11 @@ export default function StoreOverviewPage() {
             {recent.map((e: any) => (
               <div key={e.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
                 <div>
-                  <div className="text-xs font-medium text-slate-700">{e.category}</div>
+                  <div className="text-xs font-medium text-slate-700">{e.category || '未分类'}</div>
                   <div className="text-[10px] text-slate-400">{e.date} {e.created_at ? new Date(e.created_at).toLocaleTimeString("zh-CN", {hour:"2-digit",minute:"2-digit",second:"2-digit"}) : ""}</div>
                 </div>
                 <span className={`text-xs font-bold ${(e.type === "收入" || e.type === "income") ? "text-emerald-600" : "text-rose-500"}`}>
-                  {(e.type === '收入' || e.type === 'income') ? '+' : '-'}{formatMoney(e.amount)}
+                  {(e.type === '收入' || e.type === 'income') ? '+' : '-'}{formatMoney(e.amount || 0)}
                 </span>
               </div>
             ))}

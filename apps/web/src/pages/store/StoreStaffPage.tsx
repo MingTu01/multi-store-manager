@@ -1,4 +1,5 @@
 ﻿import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
+import { formatMoney } from '../../lib/format';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -252,7 +253,7 @@ export default function StoreStaffPage() {
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5">
                 <div className="text-[10px] text-slate-400 mb-0.5">月薪资</div>
-                <div className="text-sm font-medium text-slate-800">¥{Number(showDetail.salary || showDetail.monthly_salary || 0).toLocaleString()}</div>
+                <div className="text-sm font-medium text-slate-800">¥{formatMoney(showDetail.salary || showDetail.monthly_salary || 0)}</div>
               </div>
               <div className="rounded-xl bg-slate-50 px-3 py-2.5">
                 <div className="text-[10px] text-slate-400 mb-0.5">角色</div>

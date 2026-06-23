@@ -59,8 +59,11 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
   try {
     if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const itemId = req.params.id;
-    db.prepare('DELETE FROM purchase_records WHERE item_id = ?').run(itemId);
-    db.prepare('DELETE FROM purchase_items WHERE id = ?').run(itemId);
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM purchase_records WHERE item_id = ?').run(itemId);
+      db.prepare('DELETE FROM purchase_items WHERE id = ?').run(itemId);
+    });
+    tx();
     res.json({ message: '删除成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

@@ -131,7 +131,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // GET /dashboard/trend - get trend data for charts
 router.get('/trend', (req: AuthRequest, res: Response) => {
   try {
-    if (!req.user.role) {
+    if (!isStoreAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
     }
     const { period = 'day', storeId, days } = req.query;

@@ -140,7 +140,7 @@ export default function StoreInventoryPage() {
                   expected: item.expected_qty,
                   consumption: item.consumption || 0,
                   actual: item.actual_qty || 0,
-                  status: item.status || 'normal'
+                  status: resolveStatus(item.status)
                 };
               });
               setLastCheckResults(results);
