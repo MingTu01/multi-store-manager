@@ -11,7 +11,7 @@ const p: Record<string, Role[]> = {
   storeEntries: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeInventory: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeShifts: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
-  storePayroll: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'],
+  storePayroll: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
   storeDividends: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER'],
   storeStaff: ['ADMIN', 'STORE_ADMIN', 'MANAGER'],
   storeReport: ['ADMIN', 'STORE_ADMIN', 'SHAREHOLDER', 'MANAGER'],
@@ -22,7 +22,7 @@ const p: Record<string, Role[]> = {
   storeAdmin: ['ADMIN', 'STORE_ADMIN'],
   storeAdminSettings: ['ADMIN', 'STORE_ADMIN'],
   storeNotificationSettings: ['ADMIN', 'STORE_ADMIN'],
-  storePurchase: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'],
+  storePurchase: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
 };
 
 export type PermissionKey = string;
