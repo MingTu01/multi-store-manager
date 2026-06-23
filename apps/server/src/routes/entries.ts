@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isReadonly } from '../lib/roles.js';
+import { isAdmin, isReadonly, entryFilterClause } from '../lib/roles.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
@@ -19,9 +19,10 @@ const router = Router({ mergeParams: true });
 router.get('/stats', (req: AuthRequest, res: Response) => {
   try {
     const { storeId } = req.params;
+    const userRole = req.user.role;
     const today = localDate();
-    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
-    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?" + entryFilterClause(userRole)).get(storeId, today) as any)?.total || 0;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(userRole)).get(storeId, today) as any)?.total || 0;
     res.json({ income, expense, profit: income - expense });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -49,6 +50,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if (month) { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(month); }
     if (year) { whereClause += " AND strftime('%Y',e.date)=?"; params.push(year); }
     if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
+    whereClause += entryFilterClause(user.role, 'e');
     const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
     const qp = [...params];
     let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name, u.name AS creator_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN users u ON e.created_by = u.id' + whereClause + ' ORDER BY e.created_at DESC';

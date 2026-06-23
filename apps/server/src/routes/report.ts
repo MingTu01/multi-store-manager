@@ -2,6 +2,7 @@ import { localDate } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { entryFilterClause } from '../lib/roles.js';
 
 const router = Router({ mergeParams: true });
 
@@ -37,22 +38,23 @@ function getDateRange(period: string, dateStr: string) {
   return { start, end, prevStart, prevEnd };
 }
 
-function queryStats(storeId: string, start: string, end: string) {
-  const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('收入','income') AND date>=? AND date<=?").get(storeId, start, end) as any).t || 0;
-  const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date>=? AND date<=?").get(storeId, start, end) as any).t || 0;
-  const cats = db.prepare("SELECT category, type, SUM(amount) as amount FROM entries WHERE store_id=? AND date>=? AND date<=? GROUP BY category, type ORDER BY amount DESC").all(storeId, start, end) as any[];
+function queryStats(storeId: string, start: string, end: string, userRole?: string) {
+  const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('收入','income') AND date>=? AND date<=?" + entryFilterClause(userRole)).get(storeId, start, end) as any).t || 0;
+  const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date>=? AND date<=?" + entryFilterClause(userRole)).get(storeId, start, end) as any).t || 0;
+  const cats = db.prepare("SELECT category, type, SUM(amount) as amount FROM entries WHERE store_id=? AND date>=? AND date<=?" + entryFilterClause(userRole) + " GROUP BY category, type ORDER BY amount DESC").all(storeId, start, end) as any[];
   return { income, expense, profit: income - expense, margin: income > 0 ? (income - expense) / income : 0, categories: cats };
 }
 
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
+    const userRole = req.user.role;
     const { period = 'day', date } = req.query;
     const dateStr = (date as string) || localDate();
     const { start, end, prevStart, prevEnd } = getDateRange(period as string, dateStr);
 
-    const current = queryStats(storeId, start, end);
-    const previous = queryStats(storeId, prevStart, prevEnd);
+    const current = queryStats(storeId, start, end, userRole);
+    const previous = queryStats(storeId, prevStart, prevEnd, userRole);
 
     const pctChange = (cur: number, prev: number) => prev === 0 ? (cur > 0 ? 1 : 0) : (cur - prev) / prev;
 
@@ -74,7 +76,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const wEnd = new Date(wStart); wEnd.setDate(wEnd.getDate() + 6);
       yoyEnd = localDate(wEnd);
     }
-    const yoyData = queryStats(storeId, yoyStart, yoyEnd);
+    const yoyData = queryStats(storeId, yoyStart, yoyEnd, userRole);
 
     const incomeByCategory = current.categories.filter((c: any) => c.type === '收入' || c.type === 'income').map((c: any) => ({ category: c.category || '未分类', amount: c.amount }));
     const expenseByCategory = current.categories.filter((c: any) => c.type === '支出' || c.type === 'expense').map((c: any) => ({ category: c.category || '未分类', amount: c.amount }));
@@ -83,8 +85,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
     // Fund balance for this store
     const storeInfo = db.prepare('SELECT initial_capital FROM stores WHERE id = ?').get(storeId) as any;
     const initCap = storeInfo?.initial_capital || 0;
-    const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(storeId) as any).t || 0;
-    const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(storeId) as any).t || 0;
+    const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')" + entryFilterClause(userRole)).get(storeId) as any).t || 0;
+    const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')" + entryFilterClause(userRole)).get(storeId) as any).t || 0;
     // payroll/dividends already recorded as entries
     const fundBalance = initCap + allInc - allExp;
 

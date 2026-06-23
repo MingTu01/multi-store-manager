@@ -3,7 +3,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isStoreAdmin, isManagerOrAbove } from '../lib/roles.js';
+import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification } from '../notify.js';
@@ -181,8 +181,8 @@ router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
     if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const today = localDate();
-    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
-    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(storeId) as any).count || 0;
     res.json({ income, expense, profit: income - expense, staffCount });
   } catch (err: any) { res.status(500).json({ error: err.message }); }

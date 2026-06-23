@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { localDate } from '../lib/utils.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isStoreAdmin } from '../lib/roles.js';
+import { isAdmin, isStoreAdmin, entryFilterClause } from '../lib/roles.js';
 
 
 
@@ -50,7 +50,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }
 
     const conds = getDateConditions(d, (period as string) || 'day');
-    const base = 'FROM entries WHERE 1=1 ' + storeCondition;
+    const base = 'FROM entries WHERE 1=1 ' + storeCondition + entryFilterClause(req.user.role);
 
     const q = (type: string, cond: string, params: any[]) => {
       const isIncome = type === '收入' || type === 'income';
@@ -95,10 +95,10 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const incomeTypeFilter = "AND type IN ('收入','income')";
       const expenseTypeFilter = "AND type IN ('支出','expense')";
       const batchIncRows = db.prepare(
-        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + incomeTypeFilter + ' ' + batchDateCond + ' GROUP BY store_id'
+        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + incomeTypeFilter + ' ' + batchDateCond + entryFilterClause(req.user.role) + ' GROUP BY store_id'
       ).all(...storeParams, ...conds.curP) as any[];
       const batchExpRows = db.prepare(
-        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + expenseTypeFilter + ' ' + batchDateCond + ' GROUP BY store_id'
+        'SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries WHERE 1=1 ' + storeCondition + ' ' + expenseTypeFilter + ' ' + batchDateCond + entryFilterClause(req.user.role) + ' GROUP BY store_id'
       ).all(...storeParams, ...conds.curP) as any[];
       const batchStaffRows = db.prepare(
         'SELECT store_id, COUNT(*) as count FROM users WHERE store_id IS NOT NULL GROUP BY store_id'
@@ -145,8 +145,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const ds = localDate(d);
         const cond = storeId ? 'AND store_id = ?' : '';
         const params = storeId ? [ds, storeId] : [ds];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('收入','income') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('支出','expense') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
         points.push({ label: ds.slice(5), income: inc, expense: exp });
       }
     } else if (period === 'week') {
@@ -157,8 +157,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const endStr = localDate(we);
         const cond = storeId ? 'AND store_id = ?' : '';
         const params = storeId ? [startStr, endStr, storeId] : [startStr, endStr];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('收入','income') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('支出','expense') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
         points.push({ label: 'W' + Math.ceil((ws.getDate()) / 7) + '/' + (ws.getMonth() + 1), income: inc, expense: exp });
       }
     } else if (period === 'month') {
@@ -167,8 +167,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const ms = localDate(m).slice(0, 7);
         const cond = storeId ? 'AND store_id = ?' : '';
         const params = storeId ? [ms + '%', storeId] : [ms + '%'];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
         points.push({ label: (m.getMonth() + 1) + '月', income: inc, expense: exp });
       }
     } else if (period === 'year') {
@@ -176,8 +176,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const y = String(now.getFullYear() - i);
         const cond = storeId ? 'AND store_id = ?' : '';
         const params = storeId ? [y + '%', storeId] : [y + '%'];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond + entryFilterClause(req.user.role)).get(...params) as any).t;
         points.push({ label: y, income: inc, expense: exp });
       }
     }
