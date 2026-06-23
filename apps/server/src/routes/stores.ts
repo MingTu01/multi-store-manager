@@ -145,7 +145,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       db.prepare('DELETE FROM inventory_master WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM handovers WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM store_opens WHERE store_id = ?').run(storeId);
-      // notifications table has no store_id - skip
+      db.prepare('DELETE FROM notifications WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM op_logs WHERE target = ?').run(storeId);
       db.prepare('DELETE FROM purchase_records WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM purchase_items WHERE store_id = ?').run(storeId);
