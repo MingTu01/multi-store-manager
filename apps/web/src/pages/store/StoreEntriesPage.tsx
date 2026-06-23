@@ -20,6 +20,18 @@ function getLocalDate(): string {
 }
 
 
+function getLocalMonthRange(): { firstDay: string; lastDay: string } {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  return {
+    firstDay: `${year}-${String(month + 1).padStart(2, '0')}-01`,
+    lastDay: `${year}-${String(month + 1).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`,
+  };
+}
+
 export default function StoreEntriesPage() {
   const { storeId } = useParams();
   const dataVersion = useDataVersion('store', storeId);
@@ -39,17 +51,20 @@ export default function StoreEntriesPage() {
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const monthRange = getLocalMonthRange();
+  const [dateFrom, setDateFrom] = useState(monthRange.firstDay);
+  const [dateTo, setDateTo] = useState(monthRange.lastDay);
 
   const load = () => {
     if (!storeId) return;
-    api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + (isReadonly ? '&period=day' : '')).then((d) => {
+    api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + '&dateFrom=' + dateFrom + '&dateTo=' + dateTo).then((d) => {
       setEntries(d.entries || d.data || []);
       setTotal(d.total || 0);
     }).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});
     api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d)).catch(() => {});
   };
-  useEffect(() => { load(); }, [storeId, page, dataVersion]);
+  useEffect(() => { load(); }, [storeId, page, pageSize, dateFrom, dateTo, dataVersion]);
 
   // Auto-open modal when navigated with openModal state (from overview quick action)
   useEffect(() => {
@@ -124,6 +139,15 @@ export default function StoreEntriesPage() {
           <div className={'mt-1 text-2xl font-bold ' + (stats.profit >= 0 ? 'text-emerald-600' : 'text-rose-500')}>{stats.profit.toLocaleString()}</div>
         </GlassCard>
 )}
+      </div>
+
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-slate-500">日期筛选</span>
+        <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white/80 px-2 py-1.5 text-xs outline-none focus:border-indigo-300" />
+        <span className="text-xs text-slate-400">至</span>
+        <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-white/80 px-2 py-1.5 text-xs outline-none focus:border-indigo-300" />
+        <button onClick={() => { const r = getLocalMonthRange(); setDateFrom(r.firstDay); setDateTo(r.lastDay); setPage(1); }} className="action-btn rounded-xl bg-slate-100 px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-200">本月</button>
       </div>
 
       {loadError && (
