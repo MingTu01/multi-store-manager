@@ -30,7 +30,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     const typeFilter = type && type !== 'all' ? String(type) : '';
 

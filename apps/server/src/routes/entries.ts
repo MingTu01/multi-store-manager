@@ -31,7 +31,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const { storeId } = req.params;
     const { date, dateFrom, dateTo, month, year, week, period, limit, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     let whereClause = ' WHERE e.store_id=?';
     const params: any[] = [storeId];

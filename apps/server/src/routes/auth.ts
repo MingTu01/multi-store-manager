@@ -54,6 +54,11 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const updates: string[] = [];
     const vals: any[] = [];
+    // 只有管理员才能修改用户名（防止普通用户冒充股东）
+    if (username !== undefined && username !== user.username && user.role !== 'ADMIN') {
+      return res.status(403).json({ error: '无权修改用户名' });
+    }
+
     if (username !== undefined && username !== user.username) {
       const exists = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
       if (exists) return res.status(400).json({ error: '账号已存在' });

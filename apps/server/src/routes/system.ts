@@ -483,7 +483,22 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
   if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-  try { res.json(getSettings()); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try {
+    const settings = getSettings();
+    // 脱敏：只有 ADMIN 才能看到完整密钥
+    if (!isAdmin(req.user.role)) {
+      const masked = { ...settings };
+      const sensitiveFields = ['pushplus_token', 'serverchan_key', 'wecom_secret'];
+      for (const field of sensitiveFields) {
+        if (masked[field]) {
+          const val = String(masked[field]);
+          masked[field] = val.substring(0, 4) + '****' + val.substring(val.length - 4);
+        }
+      }
+      return res.json(masked);
+    }
+    res.json(settings);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {

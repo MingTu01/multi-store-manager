@@ -311,13 +311,24 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
   try {
     if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
-    const settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
+    let settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
     if (!settings) {
       db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
-      res.json(db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId));
-    } else {
-      res.json(settings);
+      settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
     }
+    // 脱敏：只有 ADMIN 才能看到完整密钥
+    if (!isAdmin(req.user.role)) {
+      const masked = { ...settings };
+      const sensitiveFields = ['pushplus_token', 'serverchan_key', 'wecom_secret'];
+      for (const field of sensitiveFields) {
+        if (masked[field]) {
+          const val = String(masked[field]);
+          masked[field] = val.substring(0, 4) + '****' + val.substring(val.length - 4);
+        }
+      }
+      return res.json(masked);
+    }
+    res.json(settings);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

@@ -32,6 +32,7 @@ router.get('/:filename', (req, res) => {
     if (ext === 'html') {
       const content = readFileSync(filepath, 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; object-src 'none'");
       res.send(content);
     } else if (ext === 'png') {
       res.setHeader('Content-Type', 'image/png');

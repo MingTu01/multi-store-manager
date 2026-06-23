@@ -4,6 +4,8 @@ import { Response } from 'express';
 interface SSEClient {
   id: string;
   userId: number;
+  role: string;
+  storeId: string | null;  // null = admin sees all
   res: Response;
 }
 
@@ -12,10 +14,20 @@ class EventBus {
   private counter = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
-  addClient(userId: number, res: Response): string {
+  addClient(userId: number, role: string, storeId: string | null, res: Response): string {
+    // 限制每用户最多 3 个连接
+    let userConnCount = 0;
+    for (const [, c] of this.clients) {
+      if (c.userId === userId) userConnCount++;
+    }
+    if (userConnCount >= 3) {
+      console.log('[SSE] Connection limit reached for user ' + userId);
+      return ''; // 返回空字符串表示拒绝
+    }
+
     const id = 'client_' + (++this.counter);
-    this.clients.set(id, { id, userId, res });
-    console.log('[SSE] Client connected: ' + id + ' (user ' + userId + '), total: ' + this.clients.size);
+    this.clients.set(id, { id, userId, role, storeId, res });
+    console.log('[SSE] Client connected: ' + id + ' (user ' + userId + ', role ' + role + ', store ' + storeId + '), total: ' + this.clients.size);
     // 第一个客户端连接时启动心跳
     if (this.clients.size === 1) {
       this.startHeartbeat();
@@ -62,6 +74,8 @@ class EventBus {
     const dead: string[] = [];
     for (const [id, client] of this.clients) {
       if (event.excludeUserId && client.userId === event.excludeUserId) continue;
+      // 门店数据隔离：只发送用户有权访问的门店事件
+      if (event.storeId && client.storeId && event.storeId !== client.storeId) continue;
       try {
         client.res.write('event: data-change\ndata: ' + message + '\n\n');
       } catch {
@@ -70,6 +84,7 @@ class EventBus {
     }
     dead.forEach(id => this.clients.delete(id));
   }
+
   /** Broadcast a system event to all connected clients */
   broadcastSystem(action: string, data?: any) {
     const message = JSON.stringify({ type: 'system', action, data });

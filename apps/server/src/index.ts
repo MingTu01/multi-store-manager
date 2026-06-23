@@ -134,7 +134,14 @@ app.get('/api/sse', authMiddleware, (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
-  const clientId = eventBus.addClient(userId, res);
+  const role = (req as any).user?.role || 'STAFF';
+  const storeId = (req as any).user?.store_id || null;
+  const clientId = eventBus.addClient(userId, role, storeId, res);
+  // 连接数超限（每用户最多3个）
+  if (!clientId) {
+    res.status(429).json({ error: 'SSE 连接数超限，请稍后重试' });
+    return;
+  }
 
   const heartbeat = setInterval(() => {
     try { res.write('data: {"type":"heartbeat","ts":' + Date.now() + '}\n\n'); } catch {}
