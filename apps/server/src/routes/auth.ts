@@ -20,6 +20,9 @@ const loginLimiter = rateLimit({
 router.post('/login', loginLimiter, (req, res) => {
   try {
     const { username, password } = req.body;
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: '请输入用户名和密码' });
+    }
     if (!username || !password) return res.status(400).json({ error: '请输入用户名和密码' });
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
     if (!user) return res.status(401).json({ error: '用户名或密码错误' });
