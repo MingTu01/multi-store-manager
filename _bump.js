@@ -1,5 +1,5 @@
 ﻿const fs = require('fs');
-const ver = '1.2.17';
+const ver = '1.2.18';
 let p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 p.version = ver;
 fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n', 'utf8');
@@ -13,7 +13,7 @@ let vj = JSON.parse(fs.readFileSync('apps/server/data/version.json', 'utf8'));
 vj.version = 'v' + ver;
 fs.writeFileSync('apps/server/data/version.json', JSON.stringify(vj, null, 2) + '\n', 'utf8');
 let readme = fs.readFileSync('README.md', 'utf8');
-const entry = '### v' + ver + ' (2026-06-23)\n- **推送测试修复** \u2014 修复 sendStoreNotification 未配置渠道时 throw 导致前端无法收到详细错误\n- **推送测试端点** \u2014 支持 ?channel= 参数指定测试渠道，返回 {results, errors}\n- **前端推送测试** \u2014 根据实际返回显示成功渠道名或失败原因\n\n';
+const entry = '### v' + ver + ' (2026-06-24)\n- **推送测试重构** \u2014 测试和保存完全分离：测试只验证凭证，不保存；保存才写入数据库\n- **测试接口支持 body config** \u2014 后端测试端点支持从请求体传入配置，不再依赖 DB 已有数据\n\n';
 readme = readme.replace('## \u66f4\u65b0\u65e5\u5fd7\n\n', '## \u66f4\u65b0\u65e5\u5fd7\n\n' + entry);
 fs.writeFileSync('README.md', readme, 'utf8');
-console.log('version bumped to ' + ver);
+console.log('done ' + ver);

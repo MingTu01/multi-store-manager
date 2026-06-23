@@ -381,9 +381,9 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
-    const settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
-    if (!settings) return res.status(400).json({ error: '请先配置通知渠道' });
-    // imported at top
+    const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
+    const bodyConfig = req.body && req.body.config ? req.body.config : {};
+    const settings = Object.assign({}, dbSettings || {}, bodyConfig);
     const channel = (req.query.channel as string) || '';
     sendStoreNotification(storeId, '测试通知', '这是一条测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN'), settings, channel)
       .then((result) => {
