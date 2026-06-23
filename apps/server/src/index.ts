@@ -71,7 +71,7 @@ app.use((req, res, next) => {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
     "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
-    "img-src 'self' data: blob: http: https:",
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self'",
     "frame-ancestors 'self'",
