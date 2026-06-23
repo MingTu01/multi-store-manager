@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
@@ -34,11 +34,11 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { period, items } = req.body;
-    if (items && Array.isArray(items)) { for (const item of items) { if (item.base_amount < 0 || item.bonus < 0 || item.deduction < 0) return res.status(400).json({ error: '宸ヨ祫閲戦涓嶈兘涓鸿礋鏁? }); } }
-    if (!period) return res.status(400).json({ error: '璇疯緭鍏ュ伐璧勫懆鏈? });
+    if (items && Array.isArray(items)) { for (const item of items) { if (item.base_amount < 0 || item.bonus < 0 || item.deduction < 0) return res.status(400).json({ error: '工资金额不能为负数' }); } }
+    if (!period) return res.status(400).json({ error: '请输入工资周期' });
     let totalAmount = 0;
     if (Array.isArray(items)) {
       for (const item of items) { totalAmount += (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0); }
@@ -56,7 +56,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       }
     });
     tx();
-    res.json({ id: payrollId, message: '宸ヨ祫鍗曞垱寤烘垚鍔? });
+    res.json({ id: payrollId, message: '工资单创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -64,11 +64,11 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { period, items } = req.body;
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
-    if (!payroll) return res.status(404).json({ error: '宸ヨ祫鍗曚笉瀛樺湪' });
-    if (payroll.status === 'confirmed') return res.status(400).json({ error: '宸茬‘璁ょ殑宸ヨ祫鍗曚笉鑳戒慨鏀? });
+    if (!payroll) return res.status(404).json({ error: '工资单不存在' });
+    if (payroll.status === 'confirmed') return res.status(400).json({ error: '已确认的工资单不能修改' });
     let totalAmount = 0;
     if (Array.isArray(items)) {
       for (const item of items) { totalAmount += (item.base_amount || item.base_salary || 0) + (item.bonus || 0) - (item.deduction || 0); }
@@ -85,7 +85,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       }
     });
     tx();
-    res.json({ message: '宸ヨ祫鍗曟洿鏂版垚鍔? });
+    res.json({ message: '工资单更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -94,11 +94,11 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 // POST /generate
 router.post('/generate', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { period, month, staff } = req.body;
     const payrollPeriod = period || month;
-    if (!payrollPeriod) return res.status(400).json({ error: '璇疯緭鍏ュ伐璧勫懆鏈? });
+    if (!payrollPeriod) return res.status(400).json({ error: '请输入工资周期' });
     let items: any[] = [];
     if (Array.isArray(staff) && staff.length > 0) {
       items = staff.map((s: any) => {
@@ -115,7 +115,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
       });
     } else {
       const dbStaff = db.prepare("SELECT id, name, salary, job_title FROM users WHERE store_id = ? AND role IN ('STAFF','MANAGER') AND status = 'active'").all(storeId) as any[];
-      if (dbStaff.length === 0) return res.status(400).json({ error: '璇ラ棬搴楁病鏈夊湪鑱屽憳宸? });
+      if (dbStaff.length === 0) return res.status(400).json({ error: '该门店没有在职员工' });
       items = dbStaff.map((s: any) => ({ user_id: s.id, user_name: s.name, base_amount: s.salary || 0, bonus: 0, deduction: 0, total_amount: s.salary || 0, job_title: s.job_title || '' }));
     }
     let totalAmount = 0;
@@ -133,52 +133,52 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
 
     triggerNotification({
       type: 'payroll',
-      action: '鐢熸垚宸ヨ祫鍗?,
+      action: '生成工资单',
       storeId,
-      detail: '宸ヨ祫鍗曞凡鐢熸垚: ' + payrollPeriod + ', 鎬婚噾棰?楼' + totalAmount.toFixed(2)
+      detail: '工资单已生成: ' + payrollPeriod + ', 总金额 ¥' + totalAmount.toFixed(2)
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: payrollId, message: '宸ヨ祫鍗曠敓鎴愭垚鍔? });
+    res.json({ id: payrollId, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // PUT /:id/confirm
 router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
-    if (!payroll) return res.status(404).json({ error: '宸ヨ祫鍗曚笉瀛樺湪' });
-    if (payroll.status === 'confirmed') return res.status(400).json({ error: '宸ヨ祫鍗曞凡纭' });
+    if (!payroll) return res.status(404).json({ error: '工资单不存在' });
+    if (payroll.status === 'confirmed') return res.status(400).json({ error: '工资单已确认' });
     const confirmPayroll = db.transaction((payrollId: number, storeId: string, userId: number) => {
       db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(payrollId);
       const dateStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })();
-      db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(storeId, '鏀嚭', '宸ヨ祫', payroll.total_amount, '宸ヨ祫鏀嚭 ' + payroll.period + ' #' + payrollId, dateStr, userId);
+      db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + payrollId, dateStr, userId);
     });
     confirmPayroll(Number(req.params.id), req.params.storeId, req.user.id);
-    opLog(req.user.id, req.params.storeId, '纭宸ヨ祫鍗?, '纭宸ヨ祫鍗?#' + req.params.id);
+    opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
 
     triggerNotification({
       type: 'payroll',
-      action: '纭宸ヨ祫鍗?,
+      action: '确认工资单',
       storeId: req.params.storeId,
-      detail: '宸ヨ祫鍗?#' + req.params.id + ' 宸茬‘璁? 鍛ㄦ湡: ' + payroll.period + ', 鎬婚噾棰?楼' + payroll.total_amount.toFixed(2)
+      detail: '工资单 #' + req.params.id + ' 已确认, 周期: ' + payroll.period + ', 总金额 ¥' + payroll.total_amount.toFixed(2)
     , operatorName: req.user.name || req.user.username});
 
-    // 閫氱煡鐩稿叧鍛樺伐
+    // 通知相关员工
     const payrollItems = db.prepare('SELECT user_id FROM payroll_items WHERE payroll_id = ?').all(req.params.id) as any[];
     for (const item of payrollItems) {
       if (item.user_id) {
         triggerNotification({
           type: 'payroll',
-          action: '宸ヨ祫宸茬‘璁?,
+          action: '工资已确认',
           storeId: req.params.storeId,
-          detail: '鎮ㄧ殑宸ヨ祫鍗?#' + req.params.id + ' (' + payroll.period + ') 宸茬‘璁?,
+          detail: '您的工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认',
           targetUserId: item.user_id
         , operatorName: req.user.name || req.user.username});
       }
     }
 
-    res.json({ message: '宸ヨ祫鍗曞凡纭' });
+    res.json({ message: '工资单已确认' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -187,20 +187,19 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
 // DELETE /:id
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '鏃犳潈闄? });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const payroll = db.prepare('SELECT * FROM payroll WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
-    if (!payroll) return res.status(404).json({ error: '宸ヨ祫鍗曚笉瀛樺湪' });
-    if (payroll.status === 'confirmed') return res.status(400).json({ error: '宸茬‘璁ょ殑宸ヨ祫鍗曚笉鑳藉垹闄? });
+    if (!payroll) return res.status(404).json({ error: '工资单不存在' });
+    if (payroll.status === 'confirmed') return res.status(400).json({ error: '已确认的工资单不能删除' });
     const tx = db.transaction(() => {
       db.prepare('DELETE FROM payroll_items WHERE payroll_id = ?').run(req.params.id);
       db.prepare('DELETE FROM payroll WHERE id = ?').run(req.params.id);
     });
     tx();
-    res.json({ message: '宸ヨ祫鍗曞凡鍒犻櫎' });
+    res.json({ message: '工资单已删除' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
 export default router;
-
