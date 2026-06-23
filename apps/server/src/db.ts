@@ -310,6 +310,7 @@ const migrations = [
   "ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN store_id TEXT DEFAULT ''",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
+  "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', updated_at TEXT DEFAULT '')",
 ];
 
 for (const sql of migrations) {

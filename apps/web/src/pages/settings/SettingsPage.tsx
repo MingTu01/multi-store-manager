@@ -507,21 +507,19 @@ export default function SettingsPage() {
     if (!hasConfig) { setTestResult({ ok: false, text: '请先填写所有必填配置项' }); return; }
     setTesting(true);
     setTestResult(null);
-    const updated = { ...notifSettings, ...channelForm, method: editingChannel };
     try {
-      await api.put('/system/notification-settings', updated);
-      await api.post('/system/notification-settings/test?type=daily', {});
-      setChannelStatus(s => ({ ...s, [editingChannel!]: true }));
-      setTestResult({ ok: true, text: '测试成功，推送已发送' });
+      const testRes = await api.post('/system/notification-settings/test?type=daily', { config: channelForm });
+      if (testRes.message) {
+        setTestResult({ ok: true, text: '测试成功，推送已发送。请点击“保存”保存配置' });
+      } else {
+        setTestResult({ ok: false, text: '测试失败' });
+      }
     } catch (e: any) {
       setTestResult({ ok: false, text: e.message || '测试失败，请检查配置' });
     } finally {
-      const restored = { ...updated, method: 'none' };
-      await api.put('/system/notification-settings', restored).catch(() => {});
-      setNotifSettings(restored);
       setTesting(false);
     }
-  };
+  };;
   const handleToggleNotif = async (key: string) => {
     const updated = { ...notifSettings, [key]: !notifSettings[key] };
     setNotifSettings(updated);

@@ -531,6 +531,8 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+
+    const bodyConfig = req.body && req.body.config ? req.body.config : null;
     const type = req.query.type as string || 'daily';
     (() => {
       let title = '测试通知'; let content = '这是一条测试通知消息\n发送时间: ' + new Date().toLocaleString('zh-CN');
@@ -539,7 +541,7 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
       else if (type === 'monthly') { title = '月度报告'; content = buildMonthlyReport(); }
       else if (type === 'review') { title = '待审核提醒'; content = buildReviewReminder(); }
       else if (type === 'alert') { title = '系统告警'; content = buildAlert('测试告警信息'); }
-      return sendNotification(title, content, type);
+      return sendNotification(title, content, type, bodyConfig);
     })()
       .then(() => res.json({ message: '测试通知已发送' }))
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
@@ -852,6 +854,85 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
       }
     })();
   } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+
+// 用户个人推送设置
+router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
+  try {
+    const row = db.prepare('SELECT * FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
+    res.json(row || {});
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
+  try {
+    const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, method } = req.body;
+    const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
+    if (existing) {
+      db.prepare(`UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, method=?, updated_at=? WHERE user_id=?`)
+        .run(pushplus_token||'', serverchan_key||'', wecom_corpid||'', wecom_agentid||'', wecom_secret||'', wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString(), req.user.id);
+    } else {
+      db.prepare(`INSERT INTO user_notification_settings (user_id, pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, method, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+        .run(req.user.id, pushplus_token||'', serverchan_key||'', wecom_corpid||'', wecom_agentid||'', wecom_secret||'', wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString());
+    }
+    res.json({ message: '个人推送设置已更新' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/user-notification-settings/test', async (req: AuthRequest, res: Response) => {
+  try {
+    const config = req.body && req.body.config ? req.body.config : {};
+    const channel = (req.query.channel as string) || '';
+    const results = [];
+    const errors = [];
+    const sendOne = async (key, fn) => {
+      try { await fn(); results.push(key); } catch (e) { errors.push(key + ': ' + e.message); }
+    };
+    const title = '测试通知';
+    const content = '这是一条个人推送测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN');
+    if (channel === 'pushplus' || (!channel && config.pushplus_token)) {
+      await sendOne('PushPlus', async () => {
+        const r = await fetch('https://www.pushplus.plus/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: config.pushplus_token, title, content, template: 'txt' })
+        });
+        const d = await r.json();
+        if (d.code !== 200) throw new Error(d.msg || 'PushPlus发送失败');
+      });
+    }
+    if (channel === 'serverchan' || (!channel && config.serverchan_key)) {
+      await sendOne('Server酱', async () => {
+        const r = await fetch('https://sctapi.ftqq.com/' + config.serverchan_key + '.send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, desp: content })
+        });
+        const d = await r.json();
+        if (d.code !== 0) throw new Error(d.message || 'Server酱发送失败');
+      });
+    }
+    if (channel === 'wecom' || (!channel && config.wecom_corpid)) {
+      await sendOne('企业微信', async () => {
+        const pUrl = (config.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
+        const tRes = await fetch(pUrl + 'cgi-bin/gettoken?corpid=' + config.wecom_corpid + '&corpsecret=' + config.wecom_secret);
+        const tData = await tRes.json();
+        if (!tData.access_token) throw new Error(tData.errmsg || 'token获取失败');
+        const sRes = await fetch(pUrl + 'cgi-bin/message/send?access_token=' + tData.access_token, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ touser: config.wecom_userid || '@all', msgtype: 'text', agentid: parseInt(config.wecom_agentid), text: { content: title + '\n\n' + content } })
+        });
+        const sData = await sRes.json();
+        if (sData.errcode !== 0) throw new Error(sData.errmsg || '发送失败');
+      });
+    }
+    if (results.length === 0 && errors.length === 0) {
+      res.status(500).json({ error: '未配置任何推送渠道，请先填写配置' });
+    } else if (errors.length > 0 && results.length === 0) {
+      res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
+    } else {
+      res.json({ message: '推送成功', results, errors });
+    }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;

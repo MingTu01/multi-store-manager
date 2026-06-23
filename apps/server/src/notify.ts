@@ -27,8 +27,8 @@ export function getStoreData(storeId: string) {
   return { store, todayIncome, todayExpense, monthIncome, monthExpense };
 }
 
-export async function sendPushPlus(title: string, content: string): Promise<void> {
-  const s = getSettings();
+export async function sendPushPlus(title: string, content: string, settings?: any): Promise<void> {
+  const s = settings || getSettings();
   if (!s.pushplus_token) throw new Error('PushPlus Token 未配置');
   const res = await fetch('https://www.pushplus.plus/send', {
     method: 'POST',
@@ -39,8 +39,8 @@ export async function sendPushPlus(title: string, content: string): Promise<void
   if (data.code !== 200) throw new Error('PushPlus: ' + (data.msg || '发送失败'));
 }
 
-export async function sendServerChan(title: string, content: string): Promise<void> {
-  const s = getSettings();
+export async function sendServerChan(title: string, content: string, settings?: any): Promise<void> {
+  const s = settings || getSettings();
   if (!s.serverchan_key) throw new Error('Server酱 Key 未配置');
   const res = await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
     method: 'POST',
@@ -51,8 +51,8 @@ export async function sendServerChan(title: string, content: string): Promise<vo
   if (data.code !== 0) throw new Error('Server酱: ' + (data.message || '发送失败'));
 }
 
-export async function sendWeCom(title: string, content: string): Promise<void> {
-  const s = getSettings();
+export async function sendWeCom(title: string, content: string, settings?: any): Promise<void> {
+  const s = settings || getSettings();
   if (!s.wecom_corpid || !s.wecom_agentid || !s.wecom_secret) throw new Error('企业微信配置不完整');
   const proxyUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
   const tokenRes = await fetch(proxyUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
@@ -74,8 +74,8 @@ export async function sendWeCom(title: string, content: string): Promise<void> {
   if (sendData.errcode !== 0) throw new Error('企业微信发送失败: ' + (sendData.errmsg || '错误码' + sendData.errcode));
 }
 
-export async function sendNotification(title: string, content: string, type?: string): Promise<void> {
-  const s = getSettings();
+export async function sendNotification(title: string, content: string, type?: string, settingsOverride?: any): Promise<void> {
+  const s = settingsOverride || getSettings();
   const method = s.method;
   const results: string[] = [];
   const errors: string[] = [];
@@ -83,13 +83,13 @@ export async function sendNotification(title: string, content: string, type?: st
     try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
   };
   if (method && method !== 'none') {
-    if (method === 'pushplus') await sendOne('PushPlus', () => sendPushPlus(title, content));
-    else if (method === 'serverchan') await sendOne('Server酱', () => sendServerChan(title, content));
-    else if (method === 'wecom') await sendOne('企业微信', () => sendWeCom(title, content));
+    if (method === 'pushplus') await sendOne('PushPlus', () => sendPushPlus(title, content, s));
+    else if (method === 'serverchan') await sendOne('Server酱', () => sendServerChan(title, content, s));
+    else if (method === 'wecom') await sendOne('企业微信', () => sendWeCom(title, content, s));
   } else {
-    if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content));
-    if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content));
-    if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content));
+    if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content, s));
+    if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content, s));
+    if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content, s));
   }
   if (results.length === 0 && errors.length === 0) {
     throw new Error('未配置任何推送渠道，请先配置至少一个渠道');
