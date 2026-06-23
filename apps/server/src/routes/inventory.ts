@@ -34,7 +34,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // POST /items - add master item
 router.post('/items', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { name, quantity, photo, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '请输入物品名称' });
@@ -78,7 +78,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 // 领出物品
 router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (req.user.role === 'SHAREHOLDER') return res.status(403).json({ error: '股东无领出权限' });
     const { storeId } = req.params;
     const { quantity } = req.body;
     if (!quantity || quantity <= 0) return res.status(400).json({ error: '请输入领出数量' });
