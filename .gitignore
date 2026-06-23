@@ -71,3 +71,7 @@ aliyun-credentials.json
 .env
 backups/
 apps/server/data/*.db
+
+apps/server/public/web-dist/
+cookie.txt
+*.tmp
