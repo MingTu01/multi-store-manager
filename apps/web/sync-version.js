@@ -1,7 +1,11 @@
-// Auto-sync VERSION from package.json
+// sync-version.js - Ensures build hash placeholder is ready for build-hash.cjs
 const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 let html = fs.readFileSync('./index.html', 'utf8');
-html = html.replace(/var VERSION = '[^']+';/, "var VERSION = 'v" + pkg.version + "';");
-fs.writeFileSync('./index.html', html);
-console.log('VERSION synced to v' + pkg.version);
+// Ensure the placeholder exists (vite build copies src index.html to dist)
+if (!html.includes('__BUILD_HASH__')) {
+  html = html.replace(/var VERSION = '[^']+';/, "var VERSION = '__BUILD_HASH__';");
+  fs.writeFileSync('./index.html', html);
+  console.log('[sync-version] Restored __BUILD_HASH__ placeholder');
+} else {
+  console.log('[sync-version] Placeholder already present');
+}

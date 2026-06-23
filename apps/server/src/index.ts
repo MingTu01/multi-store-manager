@@ -98,8 +98,9 @@ app.use(express.json({ limit: jsonLimit }));
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
+  message: '请求过于频繁，请稍后重试',
   skip: (req) => {
     // Skip rate limiting for non-API routes (static files, SPA)
     if (!req.path.startsWith('/api/')) return true;

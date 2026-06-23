@@ -12,7 +12,7 @@ const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   message: { error: '登录尝试过于频繁，请1分钟后再试' },
-  standardHeaders: true,
+  standardHeaders: false,
   legacyHeaders: false,
 });
 

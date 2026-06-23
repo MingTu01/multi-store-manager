@@ -2,9 +2,18 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'child_process';
 
 export default defineConfig({
   plugins: [
+    {
+      name: 'inject-build-hash',
+      closeBundle() {
+        try {
+          execSync('node build-hash.cjs', { cwd: __dirname, stdio: 'inherit' });
+        } catch (e) { console.warn('[build-hash] Failed:', e.message); }
+      },
+    },
     react(),
     tailwindcss(),
     VitePWA({
