@@ -73,7 +73,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
     "img-src 'self' data: blob: http: https:",
     "font-src 'self' data:",
-    "connect-src 'self' http: https: ws: wss:",
+    "connect-src 'self'",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'"
