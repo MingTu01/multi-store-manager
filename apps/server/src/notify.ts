@@ -135,7 +135,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
     const sData = await sRes.json() as any;
     if (sData.errcode !== 0) throw new Error('send failed: ' + (sData.errmsg || sData.errcode));
   });
-  if (results.length === 0 && errors.length === 0) throw new Error('未配置任何推送渠道');
+  if (results.length === 0 && errors.length === 0) { results.push('none'); errors.push('未配置任何推送渠道'); }
   return { results, errors };
 }
 
