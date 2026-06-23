@@ -14,12 +14,18 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const p = parseInt(page as string) || 1;
     const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
+    const canSeeAll = isManagerOrAbove(req.user.role);
     const total = (db.prepare('SELECT COUNT(*) as count FROM payroll WHERE store_id = ?').get(storeId) as any).count;
     const payrolls = db.prepare('SELECT * FROM payroll WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
     const enriched = payrolls.map((pr: any) => {
-      const items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ?').all(pr.id);
+      let items;
+      if (canSeeAll) {
+        items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ?').all(pr.id);
+      } else {
+        items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ? AND pi.user_id = ?').all(pr.id, req.user.id);
+      }
       return { ...pr, items };
-    });
+    }).filter((pr: any) => canSeeAll || pr.items.length > 0);
     res.json({ payrolls: enriched, total, page: p, pageSize: ps });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
