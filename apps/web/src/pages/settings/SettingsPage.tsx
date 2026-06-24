@@ -15,7 +15,25 @@ const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'ocr', label: 'OCR 配置', icon: ScanLine },
 ];
 
-export default function SettingsPage() { 
+export default function SettingsPage() {
+  // 清除 SW 缓存后刷新（升级后必须清除旧缓存）
+  const reloadWithCacheClear = async () => {
+    try {
+      // 1. 清除所有 SW 缓存
+      if ('caches' in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map(n => caches.delete(n)));
+      }
+      // 2. 注销所有 SW
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch (e) { console.warn('[Upgrade] Cache clear failed:', e); }
+    // 3. 强制刷新（不走缓存）
+    window.location.replace(window.location.href);
+  };
+ 
   const [tab, setTab] = useState<Tab>('info');
   const [info, setInfo] = useState<any>(null);
   const [backups, setBackups] = useState<any[]>([]);
@@ -195,7 +213,7 @@ export default function SettingsPage() {
   
   const handleRefreshAfterRestore = () => {
     setShowRestoreModal(false);
-    window.location.reload();
+    reloadWithCacheClear();
   };
   
   const handleDeleteBackup = async (filename: string) => {
@@ -431,8 +449,8 @@ export default function SettingsPage() {
             let attempts = 0;
             const rp = setInterval(async () => {
               attempts++;
-              try { await fetch('/api/system/info', { credentials: 'include' }); clearInterval(rp); setTimeout(() => window.location.reload(), 1500); }
-              catch { if (attempts > 30) { clearInterval(rp); window.location.reload(); } }
+              try { await fetch('/api/system/info', { credentials: 'include' }); clearInterval(rp); setTimeout(() => reloadWithCacheClear(), 1500); }
+              catch { if (attempts > 30) { clearInterval(rp); reloadWithCacheClear(); } }
             }, 2000);
           }
         } else if (maxStep >= 3 && !restartDetected) {
@@ -483,7 +501,7 @@ export default function SettingsPage() {
     }, 1500);
   };
   const handleRefreshPage = () => {
-    location.reload();
+    reloadWithCacheClear();
   };
 
   // === Notifications ===
@@ -940,7 +958,7 @@ export default function SettingsPage() {
                 <div className="text-xl font-bold text-emerald-700 mb-1">升级完成</div>
                 <div className="text-sm text-emerald-500">系统已更新到最新版本</div>
               </div>
-              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); window.location.reload(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
+              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); reloadWithCacheClear(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
                 <RefreshCw className="h-5 w-5" />确认并刷新页面
               </button>
             </div>

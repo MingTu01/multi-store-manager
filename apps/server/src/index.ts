@@ -146,6 +146,9 @@ app.use('/uploads', authMiddleware, express.static(join(BASE_DIR, 'uploads'), { 
 
 // Public auth routes
 
+// Health check (no auth)
+app.get('/api/health', (_req, res) => { res.json({ status: 'ok', ts: Date.now() }); });
+
 // SSE - Server-Sent Events for real-time data push
 app.get('/api/sse', authMiddleware, (req, res) => {
   const userId = (req as any).user?.id || 0;

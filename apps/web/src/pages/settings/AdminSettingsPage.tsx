@@ -1,5 +1,5 @@
 import { uploadImage } from '../../lib/image';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';

@@ -52,22 +52,7 @@ export function BottomNav() {
     }).catch(() => setStoreOpen(true));
   }, [storeId]);
 
-  // Store closed: only admin roles see return button
-  if (storeId && storeOpen === false) {
-    if (user?.role === 'ADMIN' || user?.role === 'STORE_ADMIN') {
-      return (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-          <div className="flex items-end justify-around">
-            <NavLink to="/" className="flex flex-shrink-0 flex-col items-center gap-0.5 py-2 pt-2.5 text-xs text-indigo-600 font-semibold min-w-[56px] px-1">
-              <span className="flex h-5 w-5 items-center justify-center"><ArrowLeft className="h-5 w-5" /></span>
-              <span className="truncate max-w-[52px]">返回管理</span>
-            </NavLink>
-          </div>
-        </nav>
-      );
-    }
-    return null;
-  }
+  // StoreGuard handles closed state - BottomNav always shows store nav
   if (storeId && storeOpen === null) return null;
 
   // Admin page nav

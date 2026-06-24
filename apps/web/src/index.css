@@ -141,3 +141,12 @@
   display: none !important;
 }
 /* ===== 股东只读模式结束 ===== */
+
+
+/* Swipe entry helper classes */
+.hidden-desktop { display: none; }
+.show-mobile { display: flex; }
+@media (min-width: 1024px) {
+  .hidden-desktop { display: flex !important; }
+  .show-mobile { display: none !important; }
+}

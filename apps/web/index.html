@@ -15,27 +15,7 @@
     <link rel="apple-touch-icon" href="/logo.png" />
     <title>Multi Shop Link</title>
   
-    <script>
-      // Force clear all caches and update service worker
-      (function() {
-        var VERSION = '__BUILD_HASH__';
-        var stored = localStorage.getItem('_app_version');
-        if (stored !== VERSION) {
-          localStorage.setItem('_app_version', VERSION);
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              regs.forEach(function(reg) { reg.unregister(); });
-            }).then(function() {
-              return caches.keys();
-            }).then(function(names) {
-              return Promise.all(names.map(function(n) { return caches.delete(n); }));
-            }).then(function() {
-              if (stored !== null) window.location.reload(true);
-            });
-          }
-        }
-      })();
-    </script>
+
   
     
   
