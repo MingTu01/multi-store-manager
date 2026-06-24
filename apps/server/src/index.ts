@@ -69,7 +69,7 @@ app.use((req, res, next) => {
 
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
     "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { formatMoney, MoneyDisplay } from '../../lib/format';
@@ -44,50 +44,8 @@ export default function StoreEntriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [swipedId, setSwipedId] = useState<number | null>(null);
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1023px)');
-    const handler = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
-    handler(mq);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
   const longPressTimer = useRef<any>(null);
   const [longPressId, setLongPressId] = useState<number | null>(null);
-
-  const handleTouchStart = (ev: React.TouchEvent, id: number) => {
-    touchStartX.current = ev.touches[0].clientX;
-    touchStartY.current = ev.touches[0].clientY;
-    longPressTimer.current = setTimeout(() => {
-      setLongPressId(id);
-      if (navigator.vibrate) navigator.vibrate(50);
-    }, 500);
-  };
-
-  const handleTouchMove = (ev: React.TouchEvent, id: number) => {
-    if (longPressTimer.current) {
-      const dx = Math.abs(ev.touches[0].clientX - touchStartX.current);
-      const dy = Math.abs(ev.touches[0].clientY - touchStartY.current);
-      if (dx > 10 || dy > 10) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-      }
-    }
-    const deltaX = touchStartX.current - ev.touches[0].clientX;
-    if (deltaX > 30) setSwipedId(id);
-    else if (deltaX < -10) setSwipedId(null);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
   
 
   const [form, setForm] = useState({ type: 'income', amount: '', category_id: '', note: '', date: '' });
@@ -207,8 +165,7 @@ export default function StoreEntriesPage() {
         {entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
-          <div key={e.id} className="relative overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 transition-transform duration-200 lg:translate-x-0" style={{ transform: swipedId === e.id ? 'translateX(-140px)' : 'translateX(0)' }} onTouchStart={(ev) => !isReadonly && handleTouchStart(ev, e.id)} onTouchMove={(ev) => !isReadonly && handleTouchMove(ev, e.id)} onTouchEnd={handleTouchEnd}>
+          <div key={e.id} className="flex items-center justify-between px-4 py-3" onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) setLongPressId(e.id); }} onPointerDown={() => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
             <div className="flex items-center gap-3">
               {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500" /> : <ArrowDownCircle className="h-5 w-5 text-rose-500" />}
               <div>
@@ -220,26 +177,11 @@ export default function StoreEntriesPage() {
               <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
               </span>
-              {!isReadonly && !isMobile && (<button onClick={() => openEdit(e)} className="action-btn h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
+              {!isReadonly && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
 )}
-              {!isReadonly && !isMobile && (<button onClick={() => handleDelete(e.id)} className="action-btn h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
+              {!isReadonly && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
 )}
             </div>
-            </div>
-            {!isReadonly && (
-              <div className="absolute right-0 top-0 bottom-0 flex items-center gap-1 px-2 bg-slate-100 show-mobile" style={{ width: '140px' }}>
-                <button onClick={() => { openEdit(e); setSwipedId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500 text-white"><Edit3 className="h-4 w-4" /></button>
-                <button onClick={() => { handleDelete(e.id); setSwipedId(null); }} className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500 text-white"><Trash2 className="h-4 w-4" /></button>
-              </div>
-            )}
-            {longPressId === e.id && !isReadonly && (
-              <div className="fixed inset-0 z-[200]" onClick={() => setLongPressId(null)}>
-                <div className="fixed z-[201] bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[120px]" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                  <button onClick={(ev) => { ev.stopPropagation(); openEdit(e); setLongPressId(null); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><Edit3 className="h-4 w-4 text-blue-500" />编辑</button>
-                  <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); setLongPressId(null); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4 text-rose-500" />删除</button>
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </GlassCard>
