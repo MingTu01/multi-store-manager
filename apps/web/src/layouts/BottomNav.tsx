@@ -19,7 +19,6 @@ const ALL_STORE_TABS = [
   { to: (id: string) => '/store/' + id + '/staff', icon: Users, label: '员工', key: 'storeStaff' },
   { to: (id: string) => '/store/' + id + '/payroll', icon: DollarSign, label: '工资', key: 'storePayroll' },
   { to: (id: string) => '/store/' + id + '/dividends', icon: Divide, label: '分红', key: 'storeDividends' },
-  { to: (id: string) => '/store/' + id + '/notification-settings', icon: Settings, label: '消息推送', key: 'storeNotificationSettings' },
   { to: (id: string) => '/store/' + id + '/logs', icon: FileText, label: '日志', key: 'storeLogs' },
   { to: (id: string) => '/store/' + id + '/settings', icon: Settings, label: '设置', key: 'storeSettings' },
   { to: (id: string) => '/store/' + id + '/account', icon: User, label: '我的', key: 'storeAccount' },

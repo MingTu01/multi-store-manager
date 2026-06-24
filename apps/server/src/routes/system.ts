@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -857,82 +857,77 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 });
 
 
-// 用户个人推送设置
+// ── 用户个人推送设置（改造版） ──
+import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom } from '../notify.js';
+
+// GET: 读取自己的设置（解密返回）
 router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    const row = db.prepare('SELECT * FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
-    res.json(row || {});
+    const row = db.prepare('SELECT * FROM user_notification_settings WHERE user_id = ?').get(req.user.id) as any;
+    if (!row) return res.json({});
+    const result = { ...row };
+    if (result.pushplus_token) result.pushplus_token = decryptToken(result.pushplus_token);
+    if (result.serverchan_key) result.serverchan_key = decryptToken(result.serverchan_key);
+    if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
+    res.json(result);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// PUT: 保存自己的设置（加密存储，角色校验）
 router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
+    const role = req.user.role;
     const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, method } = req.body;
+    if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {
+      return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
+    }
+    const pushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
+    const pushValues: Record<string, number> = {};
+    for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
+    const encToken = pushplus_token ? encryptToken(pushplus_token) : '';
+    const encKey = serverchan_key ? encryptToken(serverchan_key) : '';
+    const encSecret = wecom_secret ? encryptToken(wecom_secret) : '';
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      db.prepare(`UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, method=?, updated_at=? WHERE user_id=?`)
-        .run(pushplus_token||'', serverchan_key||'', wecom_corpid||'', wecom_agentid||'', wecom_secret||'', wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString(), req.user.id);
+      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, method=?, updated_at=?';
+      const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
+      for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
+      sql += ' WHERE user_id=?'; params.push(req.user.id);
+      db.prepare(sql).run(...params);
     } else {
-      db.prepare(`INSERT INTO user_notification_settings (user_id, pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, method, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-        .run(req.user.id, pushplus_token||'', serverchan_key||'', wecom_corpid||'', wecom_agentid||'', wecom_secret||'', wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString());
+      const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','method','updated_at'];
+      const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
+      for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
+      db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
-    res.json({ message: '个人推送设置已更新' });
+    res.json({ message: '推送设置已保存' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// POST test: 测试推送（频率限制 + 角色校验）
 router.post('/user-notification-settings/test', async (req: AuthRequest, res: Response) => {
   try {
-    const config = req.body && req.body.config ? req.body.config : {};
+    const limitErr = checkTestRateLimit(req.user.id);
+    if (limitErr) return res.status(429).json({ error: limitErr });
+    const config = req.body?.config || {};
     const channel = (req.query.channel as string) || '';
-    const results = [];
-    const errors = [];
-    const sendOne = async (key, fn) => {
-      try { await fn(); results.push(key); } catch (e) { errors.push(key + ': ' + e.message); }
-    };
+    if (!isAdmin(req.user.role) && channel === 'wecom') {
+      return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
+    }
     const title = '测试通知';
-    const content = '这是一条个人推送测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN');
-    if (channel === 'pushplus' || (!channel && config.pushplus_token)) {
-      await sendOne('PushPlus', async () => {
-        const r = await fetch('https://www.pushplus.plus/send', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: config.pushplus_token, title, content, template: 'txt' })
-        });
-        const d = await r.json();
-        if (d.code !== 200) throw new Error(d.msg || 'PushPlus发送失败');
-      });
-    }
-    if (channel === 'serverchan' || (!channel && config.serverchan_key)) {
-      await sendOne('Server酱', async () => {
-        const r = await fetch('https://sctapi.ftqq.com/' + config.serverchan_key + '.send', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, desp: content })
-        });
-        const d = await r.json();
-        if (d.code !== 0) throw new Error(d.message || 'Server酱发送失败');
-      });
-    }
-    if (channel === 'wecom' || (!channel && config.wecom_corpid)) {
-      await sendOne('企业微信', async () => {
-        const pUrl = (config.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
-        const tRes = await fetch(pUrl + 'cgi-bin/gettoken?corpid=' + config.wecom_corpid + '&corpsecret=' + config.wecom_secret);
-        const tData = await tRes.json();
-        if (!tData.access_token) throw new Error(tData.errmsg || 'token获取失败');
-        const sRes = await fetch(pUrl + 'cgi-bin/message/send?access_token=' + tData.access_token, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ touser: config.wecom_userid || '@all', msgtype: 'text', agentid: parseInt(config.wecom_agentid), text: { content: title + '\n\n' + content } })
-        });
-        const sData = await sRes.json();
-        if (sData.errcode !== 0) throw new Error(sData.errmsg || '发送失败');
-      });
-    }
-    if (results.length === 0 && errors.length === 0) {
-      res.status(500).json({ error: '未配置任何推送渠道，请先填写配置' });
-    } else if (errors.length > 0 && results.length === 0) {
-      res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
-    } else {
-      res.json({ message: '推送成功', results, errors });
-    }
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const content = '这是一条个人推送测试\n发送时间: ' + new Date().toLocaleString('zh-CN');
+    const results: string[] = [];
+    const errors: string[] = [];
+    const sendOne = async (key: string, fn: () => Promise<void>) => {
+      try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
+    };
+    if (channel === 'pushplus' || (!channel && config.pushplus_token)) await sendOne('PushPlus', () => sendPushPlus(title, content, '', config));
+    if (channel === 'serverchan' || (!channel && config.serverchan_key)) await sendOne('Server酱', () => sendServerChan(title, content, config));
+    if (channel === 'wecom' || (!channel && config.wecom_corpid)) await sendOne('企业微信', () => sendWeCom(title, content, config));
+    if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
+    else if (errors.length > 0 && results.length === 0) res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
+    else res.json({ results, errors });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;

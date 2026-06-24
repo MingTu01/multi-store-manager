@@ -1,8 +1,8 @@
-import db from './db.js';
+﻿import db from './db.js';
 import { ROLES } from './lib/roles.js';
-import { sendNotification } from './notify.js';
+import { sendToUser, isContentTypeAllowed } from './notify.js';
 
-type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store';
+type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'report';
 
 interface NotifyParams {
   type: NotifyType;
@@ -10,36 +10,28 @@ interface NotifyParams {
   storeId?: string;
   detail?: string;
   targetUserId?: number;
+  operatorName?: string;
 }
 
-function getNotifyTitle(type: NotifyType): string {
-  const titles: Record<string, string> = {
-    entry: '\u8bb0\u8d26\u901a\u77e5',
-    payroll: '\u5de5\u8d44\u901a\u77e5',
-    dividend: '\u5206\u7ea2\u901a\u77e5',
-    inventory: '\u76d8\u70b9\u901a\u77e5',
-    shift: '\u5f00\u95ed\u5e97\u901a\u77e5',
-    health_cert: '\u5065\u5eb7\u8bc1\u901a\u77e5',
-    staff: '\u5458\u5de5\u901a\u77e5',
-    store: '\u95e8\u5e97\u901a\u77e5',
-  };
-  return titles[type] || '\u7cfb\u7edf\u901a\u77e5';
-}
+const TYPE_TITLES: Record<string, string> = {
+  entry: '记账通知', payroll: '工资通知', dividend: '分红通知',
+  inventory: '盘点通知', shift: '开闭店通知', health_cert: '健康证通知',
+  staff: '员工通知', store: '门店通知', purchase: '进货通知', report: '报表通知',
+};
 
 function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: number): number[] {
   if (targetUserId) return [targetUserId];
-
   const userIds: number[] = [];
+  // 管理员总是收到
   const admins = db.prepare('SELECT id FROM users WHERE role = ?').all(ROLES.ADMIN) as any[];
   admins.forEach((u: any) => userIds.push(u.id));
-
   if (storeId) {
-    if (type === 'entry' || type === 'inventory' || type === 'shift') {
+    if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase') {
       const managers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.MANAGER) as any[];
       managers.forEach((u: any) => userIds.push(u.id));
     }
     if (type === 'payroll') {
-      const staff = db.prepare("SELECT id FROM users WHERE store_id = ?").all(storeId) as any[];
+      const staff = db.prepare('SELECT id FROM users WHERE store_id = ?').all(storeId) as any[];
       staff.forEach((u: any) => userIds.push(u.id));
     }
     if (type === 'dividend') {
@@ -47,26 +39,48 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
       shareholders.forEach((u: any) => userIds.push(u.id));
     }
   }
-
   return [...new Set(userIds)];
 }
 
 export function triggerNotification(params: NotifyParams): void {
   try {
     const { type, action, storeId, detail, targetUserId, operatorName } = params;
-    const title = getNotifyTitle(type);
+    const title = TYPE_TITLES[type] || '系统通知';
     const operator = operatorName ? '[' + operatorName + '] ' : '';
     const content = operator + action + (detail ? ': ' + detail : '');
     const targets = getTargetUsers(type, storeId, targetUserId);
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+    // 写入站内通知
     const stmt = db.prepare('INSERT INTO notifications (user_id, title, content, type, store_id, link, read, created_at) VALUES (?,?,?,?,?,?,0,?)');
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', '/notifications', now);
     }
-    // External push (fire and forget)
-    sendNotification(title, content, type).catch(() => {});
+
+    // 外部推送：逐用户推送（读取个人设置）
+    for (const uid of targets) {
+      const role = (db.prepare('SELECT role FROM users WHERE id = ?').get(uid) as any)?.role;
+      if (!isContentTypeAllowed(role, type)) continue;
+      sendToUser(uid, title, content).catch((e: any) => {
+        console.warn('[推送] 用户' + uid + '外部推送失败:', e.message);
+      });
+    }
   } catch (e) {
     console.error('triggerNotification error:', e);
+  }
+}
+
+// 供 report-scheduler 调用：向有权限的用户推送报表
+export async function pushReportToUsers(title: string, textContent: string, htmlContent: string, reportType: string): Promise<void> {
+  const users = db.prepare('SELECT id, role FROM users').all() as any[];
+  for (const u of users) {
+    if (!isContentTypeAllowed(u.role, reportType)) continue;
+    // 检查用户的推送开关
+    const settings = db.prepare('SELECT push_report FROM user_notification_settings WHERE user_id = ?').get(u.id) as any;
+    if (settings && settings.push_report === 0) continue;
+    // 写站内通知
+    db.prepare('INSERT INTO notifications (user_id, title, content, type, read, created_at) VALUES (?,?,?,?,0,datetime("now","localtime"))').run(u.id, title, textContent, 'report');
+    // 外部推送
+    try { await sendToUser(u.id, title, textContent, htmlContent); } catch {}
   }
 }

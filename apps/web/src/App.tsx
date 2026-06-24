@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+﻿import { useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
@@ -27,7 +27,6 @@ const StoreLogsPage = lazy(() => import('./pages/store/StoreLogsPage'));
 const StoreSettingsPage = lazy(() => import('./pages/store/StoreSettingsPage'));
 const StoreAccountPage = lazy(() => import('./pages/store/StoreAccountPage'));
 const StoreNotificationsPage = lazy(() => import('./pages/store/StoreNotificationsPage'));
-const StoreNotificationSettingsPage = lazy(() => import('./pages/store/StoreNotificationSettingsPage'));
 
 function Loading() {
   return (
@@ -80,8 +79,7 @@ export default function App() {
           <Route path="store/:storeId/logs" element={<StoreGuard><StoreLogsPage /></StoreGuard>} />
           <Route path="store/:storeId/account" element={<StoreGuard><StoreAccountPage /></StoreGuard>} />
           <Route path="store/:storeId/notifications" element={<StoreGuard><StoreNotificationsPage /></StoreGuard>} />
-          <Route path="store/:storeId/notification-settings" element={<StoreGuard><StoreNotificationSettingsPage /></StoreGuard>} />
-          <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
+                    <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

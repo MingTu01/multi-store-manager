@@ -1,4 +1,4 @@
-import { uploadImage } from '../../lib/image';
+﻿import { uploadImage } from '../../lib/image';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
@@ -7,6 +7,7 @@ import { ImagePreview } from '../../components/ImagePreview';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { User, Phone, MapPin, Shield, Camera, Upload, Lock, Save, LogOut } from 'lucide-react';
+import { PushSettingsButton } from '../../components/PushSettingsButton';
 
 import { getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 
@@ -19,64 +20,6 @@ export default function AdminSettingsPage() {
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
   const [profileForm, setProfileForm] = useState({ username: user?.username || '', phone: user?.phone || '', address: user?.address || '' });
   const [saving, setSaving] = useState(false);
-  const [userNotifSettings, setUserNotifSettings] = useState<any>({});
-  const [userEditingChannel, setUserEditingChannel] = useState<string | null>(null);
-  const [userChannelForm, setUserChannelForm] = useState<any>({});
-  const [userShowSecret, setUserShowSecret] = useState<Record<string, boolean>>({});
-  const [userTesting, setUserTesting] = useState(false);
-  const [userTestResult, setUserTestResult] = useState<{ok: boolean; text: string} | null>(null);
-  const [userChannelStatus, setUserChannelStatus] = useState<Record<string, boolean>>({});
-
-  const pushChannels = [
-    { key: 'pushplus', label: 'PushPlus', fields: [{ f: 'pushplus_token', label: 'Token', secret: true }] },
-    { key: 'serverchan', label: 'Server酱', fields: [{ f: 'serverchan_key', label: 'SendKey', secret: true }] },
-    { key: 'wecom', label: '企业微信', fields: [
-      { f: 'wecom_corpid', label: 'CorpID', secret: false },
-      { f: 'wecom_agentid', label: 'AgentID', secret: false },
-      { f: 'wecom_secret', label: 'Secret', secret: true },
-      { f: 'wecom_userid', label: 'UserID', secret: false },
-      { f: 'wecom_proxy_url', label: '代理地址', secret: false },
-    ] },
-  ];
-
-  useEffect(() => {
-    api.get('/system/user-notification-settings').then((d: any) => {
-      setUserNotifSettings(d || {});
-      const status: Record<string, boolean> = {};
-      pushChannels.forEach(ch => { status[ch.key] = ch.fields.every(f => d && d[f.f]); });
-      setUserChannelStatus(status);
-    }).catch(() => {});
-  }, []);
-
-  const saveUserChannel = async () => {
-    try {
-      const updated = { ...userNotifSettings, ...userChannelForm };
-      await api.put('/system/user-notification-settings', updated);
-      setUserNotifSettings(updated);
-      setUserEditingChannel(null);
-    } catch (e: any) { alert(e.message || '保存失败'); }
-  };
-
-  const handleUserTestChannel = async () => {
-    const ch = pushChannels.find(c => c.key === userEditingChannel);
-    if (!ch) return;
-    const hasConfig = ch.fields.every(f => userChannelForm[f.f]);
-    if (!hasConfig) { setUserTestResult({ ok: false, text: '请先填写所有必填配置项' }); return; }
-    setUserTesting(true);
-    setUserTestResult(null);
-    try {
-      const testRes = await api.post('/system/user-notification-settings/test?channel=' + userEditingChannel, { config: userChannelForm });
-      if (testRes.results && testRes.results.length > 0) {
-        setUserTestResult({ ok: true, text: '测试成功，推送已发送。请点击"保存"保存配置' });
-      } else {
-        setUserTestResult({ ok: false, text: '推送失败: ' + (testRes.errors ? testRes.errors.join('; ') : '未知错误') });
-      }
-    } catch (e: any) {
-      setUserTestResult({ ok: false, text: e.message || '测试失败' });
-    } finally {
-      setUserTesting(false);
-    }
-  };
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -124,7 +67,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="账户信息" subtitle="管理您的个人资料" />
+      <PageHeader title="账户信息" subtitle="管理您的个人资料" action={<PushSettingsButton />} />
 
       {msg && <div className={'rounded-xl p-3 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>{msg.text}</div>}
 

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { useNotificationStore } from '../../stores/notification';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Bell, CheckCircle, AlertCircle, Info, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
+import { PushSettingsButton } from '../../components/PushSettingsButton';
 import { Modal } from '../../components/Modal';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -87,7 +88,7 @@ export default function StoreNotificationsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="消息通知" subtitle={'共 ' + total + ' 条，未读 ' + unread + ' 条'} />
+      <PageHeader title="消息通知" action={<PushSettingsButton />} subtitle={'共 ' + total + ' 条，未读 ' + unread + ' 条'} />
 
       {unread > 0 && (
         <button onClick={markAllRead}

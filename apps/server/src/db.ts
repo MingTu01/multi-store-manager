@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+﻿import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import { mkdirSync } from 'fs';
@@ -309,8 +309,20 @@ const migrations = [
   "ALTER TABLE notifications ADD COLUMN content TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN store_id TEXT DEFAULT ''",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_entry INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_payroll INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_dividend INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_inventory INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_shift INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_purchase INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_health_cert INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_staff INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_store INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_report INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_review INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_alert INTEGER DEFAULT 1",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
-  "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', updated_at TEXT DEFAULT '')",
+  "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', push_entry INTEGER DEFAULT 1, push_payroll INTEGER DEFAULT 1, push_dividend INTEGER DEFAULT 1, push_inventory INTEGER DEFAULT 1, push_shift INTEGER DEFAULT 1, push_purchase INTEGER DEFAULT 1, push_health_cert INTEGER DEFAULT 1, push_staff INTEGER DEFAULT 1, push_store INTEGER DEFAULT 1, push_report INTEGER DEFAULT 1, push_review INTEGER DEFAULT 1, push_alert INTEGER DEFAULT 1, updated_at TEXT DEFAULT '')",
 ];
 
 for (const sql of migrations) {

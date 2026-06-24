@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { useNotificationStore } from '../../stores/notification';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Bell, CheckCircle, AlertCircle, Info, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
+import { PushSettingsButton } from '../../components/PushSettingsButton';
 import { Modal } from '../../components/Modal';
 
 const TYPE_FILTERS = [
@@ -101,15 +102,16 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="消息通知" subtitle={'共 ' + total + ' 条，未读 ' + unread + ' 条'} />
+      <PageHeader title="消息通知" action={<PushSettingsButton />} subtitle={'共 ' + total + ' 条，未读 ' + unread + ' 条'} />
 
-      {/* Mark all read button */}
-      {unread > 0 && (
-        <button onClick={markAllRead}
-          className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors">
-          <CheckCheck className="h-4 w-4" />全部已读
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {unread > 0 && (
+          <button onClick={markAllRead}
+            className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors">
+            <CheckCheck className="h-4 w-4" />全部已读
+          </button>
+        )}
+      </div>
 
       {/* Type filter */}
       <div className="flex flex-wrap gap-2">

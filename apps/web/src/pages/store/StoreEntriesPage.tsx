@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { formatMoney, MoneyDisplay } from '../../lib/format';
@@ -45,6 +46,7 @@ export default function StoreEntriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const longPressTimer = useRef<any>(null);
+  const [menuPos, setMenuPos] = useState<{x: number; y: number} | null>(null);
   const [longPressId, setLongPressId] = useState<number | null>(null);
   
 
@@ -81,6 +83,19 @@ export default function StoreEntriesPage() {
       setShowModal(true);
     }
   }, [location.state]);
+
+  // Dismiss long press menu when clicking elsewhere
+  useEffect(() => {
+    const dismiss = () => setLongPressId(null);
+    if (longPressId !== null) {
+      // Use setTimeout to avoid immediate trigger from the same click
+      const timer = setTimeout(() => {
+        document.addEventListener('click', dismiss, { once: true });
+        document.addEventListener('touchstart', dismiss, { once: true });
+      }, 0);
+      return () => { clearTimeout(timer); document.removeEventListener('click', dismiss); document.removeEventListener('touchstart', dismiss); };
+    }
+  }, [longPressId]);
 
   const openCreate = () => {
     setEditId(null);
@@ -165,7 +180,7 @@ export default function StoreEntriesPage() {
         {entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
-          <div key={e.id} className="flex items-center justify-between px-4 py-3" onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) setLongPressId(e.id); }} onPointerDown={() => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
+          <div key={e.id} className="flex items-center justify-between px-4 py-3" onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
             <div className="flex items-center gap-3">
               {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500" /> : <ArrowDownCircle className="h-5 w-5 text-rose-500" />}
               <div>
@@ -173,14 +188,33 @@ export default function StoreEntriesPage() {
                 <div className="text-xs text-slate-400">{e.note || ''} · {e.creator_name || '未知'} · {e.created_at || e.date}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 relative">
               <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
               </span>
-              {!isReadonly && (<button onClick={() => openEdit(e)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
-)}
-              {!isReadonly && (<button onClick={() => handleDelete(e.id)} className="action-btn flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
-)}
+              {/* Desktop: always-visible edit/delete buttons */}
+              {!isReadonly && (
+                <div className="hidden lg:flex items-center gap-1">
+                  <button onClick={() => openEdit(e)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
+                  <button onClick={() => handleDelete(e.id)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50 transition-colors"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
+                </div>
+              )}
+              {/* Mobile: long-press context menu via Portal */}
+              {longPressId === e.id && menuPos && createPortal(
+                <div className="fixed inset-0 z-[9999]" onClick={() => setLongPressId(null)}>
+                  <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
+                    style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
+                    onClick={(ev) => ev.stopPropagation()}>
+                    <button onClick={() => { setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
+                      <Edit3 className="h-4 w-4 text-indigo-500" />编辑
+                    </button>
+                    <button onClick={() => { setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
+                      <Trash2 className="h-4 w-4 text-rose-500" />删除
+                    </button>
+                  </div>
+                </div>,
+                document.body
+              )}
             </div>
           </div>
         ))}

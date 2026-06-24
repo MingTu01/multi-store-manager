@@ -35,7 +35,6 @@ export function Sidebar() {
     { to: '/store/' + storeId + '/notifications', icon: Bell, label: '消息通知', key: 'storeNotifications', badge: true },
     { to: '/store/' + storeId + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
     { to: '/store/' + storeId + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
-    { to: '/store/' + storeId + '/notification-settings', icon: Settings, label: '消息推送', key: 'storeAdminSettings' },
     { to: '/store/' + storeId + '/payroll', icon: DollarSign, label: '工资', key: 'storePayroll' },
     { to: '/store/' + storeId + '/dividends', icon: Divide, label: '分红', key: 'storeDividends' },
     { to: '/store/' + storeId + '/staff', icon: Users, label: '员工', key: 'storeStaff' },

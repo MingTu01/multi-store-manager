@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { showToast } from '../../components/Toast';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
+import { PushSettingsButton } from '../../components/PushSettingsButton';
 import { Modal } from '../../components/Modal';
 import { User, Phone, MapPin, Shield, Camera, Lock, Save, LogOut, Upload, FileCheck, AlertTriangle, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -158,7 +159,7 @@ export default function StoreAccountPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-10rem)] space-y-4">
-      <PageHeader title="我的" subtitle="账户信息管理" />
+      <PageHeader title="我的" subtitle="账户信息管理" action={<PushSettingsButton />} />
       {msg && <div className={'rounded-xl p-3 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>{msg.text}</div>}
 
       <GlassCard className="p-5">

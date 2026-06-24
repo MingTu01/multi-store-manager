@@ -5,12 +5,11 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
 
-type Tab = 'info' | 'backup' | 'upgrade' | 'notif' | 'perms' | 'ocr';
+type Tab = 'info' | 'backup' | 'upgrade' | 'perms' | 'ocr';
 const tabs: { key: Tab; label: string; icon: any }[] = [
   { key: 'info', label: '系统信息', icon: Server },
   { key: 'backup', label: '数据备份', icon: Database },
   { key: 'upgrade', label: '系统升级', icon: Upload },
-  { key: 'notif', label: '消息推送', icon: Send },
   { key: 'perms', label: '权限说明', icon: Info },
   { key: 'ocr', label: 'OCR 配置', icon: ScanLine },
 ];
@@ -706,44 +705,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-{tab === 'notif' && (
-        <div className="space-y-3">
-          <GlassCard className="p-4">
-            <h3 className="mb-4 text-sm font-semibold text-slate-700">渠道配置</h3>
-            <div className="space-y-3">
-              {channels.map((ch) => {
-                const configured = channelStatus[ch.key];
-                return (
-                  <div key={ch.key} className={`flex items-center justify-between rounded-xl p-3 transition-all ${configured ? 'bg-emerald-50/80 border border-emerald-200' : 'bg-white/40'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`h-2.5 w-2.5 rounded-full ${configured ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                      <div>
-                        <div className="text-sm font-medium text-slate-700">{ch.label}</div>
-                        <div className="text-xs text-slate-400">{configured ? '已配置' : '未配置'}</div>
-                      </div>
-                    </div>
-                    <button onClick={() => openEditChannel(ch.key)} className="rounded-lg bg-white/60 p-2 text-slate-500 hover:bg-white/80"><Edit2 className="h-4 w-4" /></button>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-3 text-xs text-slate-400">配置了多个渠道时，消息将同时推送到所有已配置的渠道。</p>
-          </GlassCard>
-          <GlassCard className="p-4">
-            <h3 className="mb-4 text-sm font-semibold text-slate-700">推送内容</h3>
-            <div className="space-y-2">
-              {reportOptions.map((opt) => (
-                <label key={opt.key} className="flex cursor-pointer items-center justify-between rounded-xl bg-white/40 p-3 hover:bg-white/60 transition-all">
-                  <span className="text-sm text-slate-700">{opt.label}</span>
-                  <div className={`relative h-6 w-11 rounded-full transition-colors ${notifSettings[opt.key] ? 'bg-indigo-500' : 'bg-slate-300'}`} onClick={() => handleToggleNotif(opt.key)}>
-                    <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${notifSettings[opt.key] ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                  </div>
-                </label>
-              ))}
-            </div>
-          </GlassCard>
-        </div>
-      )}
+
 
       {/* === Permissions === */}
       {tab === 'perms' && (
