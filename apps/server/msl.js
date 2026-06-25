@@ -11,7 +11,7 @@ const DB_PATH = path.join(BASE_DIR, 'data', 'store.db');
 const VERSION_FILE = path.join(BASE_DIR, 'data', 'version.json');
 const BACKUP_DIR = path.join(BASE_DIR, 'backups');
 const UPLOADS_DIR = path.join(BASE_DIR, 'uploads');
-const DEPLOY_REPO = 'https://github.com/MingTu01/multi-shop-link-deploy/archive/refs/heads/main.zip';
+const DEPLOY_REPO = 'https://gh.llkk.cc/https://github.com/MingTu01/multi-shop-link-deploy/archive/refs/heads/main.zip';
 
 // Lazy imports
 let db, AdmZip;
