@@ -24,7 +24,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       return { ...d, items };
     });
     res.json({ dividends: enriched, shareholders, balance });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.post('/', (req: AuthRequest, res: Response) => {
@@ -48,7 +48,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const dividendId = createDividend();
     triggerNotification({ type: 'dividend', action: '创建分红', storeId, detail: '新分红已创建, 总额¥' + Number(total_amount).toFixed(2) + (note ? ', 备注: ' + note : ''), operatorName: req.user.name || req.user.username });
     res.json({ id: dividendId, message: '分红创建成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
@@ -75,7 +75,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     });
     updateDividend();
     res.json({ message: '分红更新成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.put('/:id/archive', (req: AuthRequest, res: Response) => {
@@ -92,7 +92,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, req.params.storeId, '归档分红', '归档分红 #' + req.params.id);
     triggerNotification({ type: 'dividend', action: '分红归档', storeId: req.params.storeId, detail: '分红 #' + req.params.id + ' 已归档, 金额 ¥' + dividend.total_amount.toFixed(2), operatorName: req.user.name || req.user.username });
     res.json({ message: '分红已归档' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.delete('/:id', (req: AuthRequest, res: Response) => {
@@ -107,7 +107,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     });
     deleteDividend();
     res.json({ message: '分红已删除' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 export default router;

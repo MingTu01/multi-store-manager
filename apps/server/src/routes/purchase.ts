@@ -21,7 +21,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       record: recordMap[item.id] || { morning_qty: 0, afternoon_qty: 0 }
     }));
     res.json({ items: data, date });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // POST /items - Add purchase item
@@ -35,7 +35,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     const result = db.prepare('INSERT INTO purchase_items (store_id, name, sort_order) VALUES (?,?,?)').run(storeId, name.trim(), maxOrder + 1);
     opLog(req.user.id, storeId, '进货', '添加商品: ' + name);
     res.json({ id: result.lastInsertRowid, message: '商品添加成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // PUT /items/:id - Update purchase item
@@ -51,7 +51,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
     vals.push(req.params.id);
     db.prepare('UPDATE purchase_items SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
     res.json({ message: '更新成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // DELETE /items/:id - Delete purchase item
@@ -65,7 +65,7 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
     });
     tx();
     res.json({ message: '删除成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // PUT /records - Save/update records for a date (batch upsert)
@@ -99,7 +99,7 @@ router.put('/records', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, storeId, '进货', '更新进货记录: ' + date);
     triggerNotification({ type: 'purchase', action: '更新进货', storeId, detail: date + ' 进货数据已更新', operatorName: req.user.name || req.user.username });
     res.json({ message: '保存成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // GET /trend - Get trend data for analysis
@@ -218,7 +218,7 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     });
 
     res.json({ sameWeekdayData, sameWeekdayDates, tomorrowLabel, trendData, weekdayAvg, itemNames, recommendations });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 export default router;

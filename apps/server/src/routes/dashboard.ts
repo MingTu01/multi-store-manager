@@ -124,7 +124,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       yoy: { incomeChange: pct(ci,yi), expenseChange: pct(ce,ye), profitChange: pct(cp,yp), marginChange: cm !== 0 && yi > 0 ? (cm - (yi>0?(yi-ye)/yi:0)) / Math.abs(yi>0?(yi-ye)/yi:0||1) : 0 },
       incomeByCategory, expenseByCategory, stores, fundBalance: totalFundBalance
     });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 
@@ -183,7 +183,7 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     }
     
     res.json({ trend: points });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 export default router;
 

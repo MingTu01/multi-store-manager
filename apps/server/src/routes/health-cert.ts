@@ -42,7 +42,7 @@ router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) 
     if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
     renameSync(file.path, join(destDir, newName));
     res.json({ url: '/uploads/' + newName, filename: newName });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 // POST /ocr - 阿里云 OCR 识别健康证
@@ -228,7 +228,7 @@ router.put('/save', (req: AuthRequest, res: Response) => {
       }
     }
     res.json({ message: '健康证信息已保存' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.get('/', (req: AuthRequest, res: Response) => {
@@ -243,7 +243,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
         verified: !!user.health_cert_verified
       }
     });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.get('/check-expiry', (req: AuthRequest, res: Response) => {
@@ -256,7 +256,7 @@ router.get('/check-expiry', (req: AuthRequest, res: Response) => {
       return { ...u, daysLeft, status: daysLeft <= 0 ? 'expired' : daysLeft <= 30 ? 'warning' : 'valid' };
     });
     res.json({ results });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 export default router;

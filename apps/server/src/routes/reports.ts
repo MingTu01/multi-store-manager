@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     const files = readdirSync(reportsDir).filter(f => f.endsWith('.html') || f.endsWith('.png') || f.endsWith('.jpg'));
     res.json(files);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
   }
 });
 
@@ -44,7 +44,7 @@ router.get('/:filename', (req, res) => {
       res.sendFile(filepath);
     }
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
   }
 });
 
