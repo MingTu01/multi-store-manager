@@ -50,10 +50,41 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
   return <>{children}</>;
 }
 
+async function clearSWCachesAndReload() {
+  try {
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map(n => caches.delete(n)));
+    }
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (e) { console.warn('[App] Cache clear failed:', e); }
+  window.location.reload();
+}
+
 export default function App() {
   const restore = useStore((s) => s.restore);
   useEffect(() => { restore(); }, [restore]);
   const user = useStore((s) => s.user);
+
+  // Global: listen for server-ready after upgrades -> auto clear SW caches
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleServerReady = () => {
+      if (debounceTimer) return;
+      console.log('[App] server-ready received, will reload in 3s');
+      debounceTimer = setTimeout(() => {
+        clearSWCachesAndReload();
+      }, 3000);
+    };
+    window.addEventListener('server-ready', handleServerReady);
+    return () => {
+      window.removeEventListener('server-ready', handleServerReady);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, []);
 
   return (
     <ErrorBoundary>

@@ -11,11 +11,30 @@ if ('serviceWorker' in navigator) {
 
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(reg => {
-      reg.update();
+      reg.update().catch(() => {});
       if (reg.waiting && !swReloaded) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
+      // If installing SW exists, wait for it
+      if (reg.installing) {
+        reg.installing.addEventListener('statechange', (e) => {
+          const sw = e.target as ServiceWorker;
+          if (sw.state === 'activated' && !swReloaded) {
+            sessionStorage.setItem('sw-reloaded', '1');
+            window.location.reload();
+          }
+          if (sw.state === 'redundant') {
+            // SW failed to install - likely broken, unregister and reload
+            reg.unregister().then(() => window.location.reload());
+          }
+        });
+      }
     });
+  }).catch(() => {
+    // Registration fetch failed - try to recover
+    navigator.serviceWorker.getRegistrations().then(regs =>
+      Promise.all(regs.map(r => r.unregister()))
+    ).then(() => window.location.reload());
   });
 
   let refreshing = false;
