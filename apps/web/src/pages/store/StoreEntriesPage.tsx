@@ -180,7 +180,7 @@ export default function StoreEntriesPage() {
         {entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
-          <div key={e.id} className="flex items-center justify-between px-3 py-2 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
+          <div key={e.id} className="flex items-center justify-between px-3 py-2 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly && longPressId !== e.id) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
             {/* Mobile layout: icon 2-row centered, category+amount row1, details row2 indented */}
             <div className="flex-1 min-w-0 lg:hidden flex gap-2">
               <div className="flex items-center shrink-0 py-0.5">
@@ -216,14 +216,14 @@ export default function StoreEntriesPage() {
               )}
             </div>
             {longPressId === e.id && menuPos && createPortal(
-              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onClick={() => setLongPressId(null)}>
+              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onPointerDown={(ev) => { ev.preventDefault(); setLongPressId(null); }}>
                 <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
                   style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
                   onClick={(ev) => ev.stopPropagation()}>
-                  <button onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
+                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
                     <Edit3 className="h-4 w-4 text-indigo-500" />编辑
                   </button>
-                  <button onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
+                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
                     <Trash2 className="h-4 w-4 text-rose-500" />删除
                   </button>
                 </div>
