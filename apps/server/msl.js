@@ -336,12 +336,8 @@ async function doUpdate() {
   } catch {}
   console.log('  最新版本: ' + (latestVer !== '?' ? g('v' + latestVer) : y('获取失败')));
   
-  if (curVer === latestVer) {
-    console.log(y('  已是最新版本，无需更新'));
-    return;
-  }
   
-  console.log(y('  ⚠ 将从 v' + curVer + ' 更新到 v' + latestVer));
+  if (curVer !== latestVer) console.log(y('  ⚠ 将从 v' + curVer + ' 更新到 v' + latestVer));
   const confirm = await ask(y('  确认更新? (y/N): '));
   if (confirm !== 'y' && confirm !== 'Y') { console.log('  已取消'); return; }
   
