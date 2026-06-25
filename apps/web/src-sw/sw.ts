@@ -5,7 +5,8 @@ import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: any[] };
 
-self.skipWaiting();
+import { skipWaiting, clientsClaim } from 'workbox-core';
+skipWaiting();
 clientsClaim();
 
 precacheAndRoute(self.__WB_MANIFEST);
