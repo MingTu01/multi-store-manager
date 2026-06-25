@@ -312,7 +312,35 @@ async function doUpdate() {
   console.log(b('═══ 更新系统 ═══'));
   const { execSync } = require('child_process');
   
-  console.log('  ' + y('⚠ 此操作将从 GitHub 拉取最新版本并重启'));
+  // Show current version
+  let curVer = '?';
+  try { curVer = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8')).version; } catch {}
+  console.log('  当前版本: ' + g('v' + curVer));
+  
+  // Fetch latest version from deploy repo
+  console.log('  检查最新版本...');
+  let latestVer = '?';
+  try {
+    const https = require('https');
+    const verUrl = 'https://gh.llkk.cc/https://raw.githubusercontent.com/MingTu01/multi-shop-link-deploy/main/data/version.json';
+    latestVer = await new Promise((resolve, reject) => {
+      https.get(verUrl, {timeout: 10000, headers:{'User-Agent':'MSL/1.0'}}, (res) => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data).version); } catch { resolve('?'); }
+        });
+      }).on('error', () => resolve('?'));
+    });
+  } catch {}
+  console.log('  最新版本: ' + (latestVer !== '?' ? g('v' + latestVer) : y('获取失败')));
+  
+  if (curVer === latestVer) {
+    console.log(y('  已是最新版本，无需更新'));
+    return;
+  }
+  
+  console.log(y('  ⚠ 将从 v' + curVer + ' 更新到 v' + latestVer));
   const confirm = await ask(y('  确认更新? (y/N): '));
   if (confirm !== 'y' && confirm !== 'Y') { console.log('  已取消'); return; }
   
