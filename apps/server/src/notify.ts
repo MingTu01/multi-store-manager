@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto';
+import crypto from 'crypto';
 import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';
@@ -121,6 +121,21 @@ export async function sendWeCom(title: string, content: string, s: any): Promise
   if (sendData.errcode !== 0) throw new Error('企业微信发送失败: ' + (sendData.errmsg || '错误码' + sendData.errcode));
 }
 
+export async function sendIyuu(title: string, content: string, s: any): Promise<void> {
+  if (!s.iyuu_token) throw new Error('爱语飞飞 Token 未配置');
+  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send', {
+    method: 'GET',
+  });
+  const text = await res.text();
+  // 爱语飞飞返回 JSON: {"code":0,"msg":"success",...}
+  try {
+    const data = JSON.parse(text);
+    if (data.code !== 0) throw new Error(data.msg || '发送失败');
+  } catch (e: any) {
+    if (e.message.includes('发送失败')) throw e;
+    // 如果返回的不是JSON，可能是成功页面HTML
+  }
+}
 // ── 统一发送：根据用户设置推送 ──
 export async function sendToUser(userId: number, title: string, content: string, htmlContent?: string): Promise<{results: string[], errors: string[]}> {
   const s = getUserPushSettings(userId);
@@ -139,6 +154,7 @@ export async function sendToUser(userId: number, title: string, content: string,
     if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content, htmlContent || '', s));
     if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content, s));
     if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content, s));
+    if (s.iyuu_token) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
   }
   if (errors.length > 0) console.warn('[推送] 用户' + userId + '部分推送失败:', errors.join('; '));
   return { results, errors };
@@ -155,6 +171,7 @@ export async function sendNotification(title: string, content: string, type?: st
   if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content, '', s));
   if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content, s));
   if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content, s));
+  if (s.iyuu_token) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
   if (results.length === 0 && errors.length === 0) throw new Error('未配置任何推送渠道');
   if (errors.length > 0 && results.length === 0) throw new Error('推送失败: ' + errors.join('; '));
 }
@@ -170,6 +187,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
   if (s.pushplus_token && (!testChannel || testChannel === 'pushplus')) await sendOne('PushPlus', () => sendPushPlus(title, content, '', s));
   if (s.serverchan_key && (!testChannel || testChannel === 'serverchan')) await sendOne('Server酱', () => sendServerChan(title, content, s));
   if (s.wecom_corpid && (!testChannel || testChannel === 'wecom')) await sendOne('企业微信', () => sendWeCom(title, content, s));
+  if (s.iyuu_token && (!testChannel || testChannel === 'iyuu')) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
   return { results, errors };
 }
 

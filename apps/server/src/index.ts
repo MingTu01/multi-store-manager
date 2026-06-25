@@ -1,5 +1,6 @@
-process.env.TZ = 'Asia/Shanghai';
+﻿process.env.TZ = 'Asia/Shanghai';
 if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production';
+import { initPush } from './push-notify.js';
 import express from 'express';
 import crypto from 'crypto';
 import cors from 'cors';

@@ -1,6 +1,7 @@
 ﻿import db from './db.js';
 import { ROLES } from './lib/roles.js';
 import { sendToUser, isContentTypeAllowed } from './notify.js';
+import { sendPushNotification } from './push-notify.js';
 
 type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'report';
 
@@ -57,10 +58,11 @@ export function triggerNotification(params: NotifyParams): void {
       stmt.run(uid, title, content, type, storeId || '', '/notifications', now);
     }
 
-    // 外部推送：逐用户推送（读取个人设置）
+    // 外部推送：逐用户推送（读取个人设置 + 浏览器推送）
     for (const uid of targets) {
       const role = (db.prepare('SELECT role FROM users WHERE id = ?').get(uid) as any)?.role;
       if (!isContentTypeAllowed(role, type)) continue;
+      sendPushNotification(uid, title, content, '/notifications').catch(() => {});
       sendToUser(uid, title, content).catch((e: any) => {
         console.warn('[推送] 用户' + uid + '外部推送失败:', e.message);
       });

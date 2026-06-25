@@ -1,11 +1,11 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
 import { Modal } from './Modal';
 import { GlassCard } from './GlassCard';
 import {
   Send, Check, Edit2, Eye, EyeOff, Loader2, AlertCircle,
-  Bell, Settings2, Clock,
+  Bell, Settings2, Clock, ExternalLink, Smartphone,
 } from 'lucide-react';
 
 /* ---------- 常量 ---------- */
@@ -40,7 +40,20 @@ const CHANNELS: ChannelDef[] = [
       { f: 'wecom_proxy_url', label: '代理URL', secret: false },
     ],
   },
+  {
+    key: 'iyuu',
+    label: '爱语飞飞',
+    fields: [{ f: 'iyuu_token', label: 'Token', secret: true }],
+  },
 ];
+
+/** 渠道教程链接 */
+const CHANNEL_TUTORIALS: Record<string, { url: string; desc: string }> = {
+  pushplus: { url: 'https://www.pushplus.plus/push1.html', desc: '注册后获取Token' },
+  serverchan: { url: 'https://sct.ftqq.com/forward', desc: '微信扫码登录获取SendKey' },
+  wecom: { url: 'https://developer.work.weixin.qq.com/document/path/90236', desc: '创建自建应用获取配置' },
+  iyuu: { url: 'https://iyuu.cn/index.php/wechat/index.html', desc: '关注公众号获取Token' },
+};
 
 interface PushOption {
   key: string;
@@ -88,6 +101,10 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* ---- PWA 浏览器推送通知状态 ---- */
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const [isIOS, setIsIOS] = useState(false);
+
   /* ---- 可见渠道 & 推送选项 ---- */
   const visibleChannels = CHANNELS.filter(
     (ch) => !ch.adminOnly || role === 'ADMIN',
@@ -99,6 +116,39 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
     setMsg({ ok, text });
     setTimeout(() => setMsg(null), 4000);
   }, []);
+
+  /* ---- 检查浏览器推送通知权限 ---- */
+  useEffect(() => {
+    if (!open) return;
+    // 检测 iOS
+    const ua = navigator.userAgent || '';
+    setIsIOS(/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    // 检查 Notification API 是否可用
+    if ('Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, [open]);
+
+  /* ---- 请求浏览器推送通知权限并订阅 ---- */
+  const handleRequestNotifPermission = async () => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    try {
+      const result = await Notification.requestPermission();
+      setNotifPermission(result);
+      if (result === 'granted') {
+        const reg = await navigator.serviceWorker.ready;
+        const vapidRes = await api.get('/system/push/vapid-key') as any;
+        const vapidKey = vapidRes.publicKey;
+        const applicationServerKey = Uint8Array.from(atob(vapidKey), c => c.charCodeAt(0));
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        const subJson = sub.toJSON();
+        await api.post('/system/push/subscribe', { endpoint: subJson.endpoint, keys: subJson.keys });
+        showMsg(true, '浏览器推送已开启');
+      }
+    } catch (e: any) {
+      showMsg(false, '开启推送失败: ' + (e.message || '未知错误'));
+    }
+  };
 
   /* ---- 加载设置 ---- */
   useEffect(() => {
@@ -238,6 +288,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
               <div className="space-y-2.5">
                 {visibleChannels.map((ch) => {
                   const configured = channelStatus[ch.key];
+                  const tutorial = CHANNEL_TUTORIALS[ch.key];
                   return (
                     <div
                       key={ch.key}
@@ -259,15 +310,35 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                           </div>
                           <div className="text-xs text-slate-400">
                             {configured ? '已配置' : '未配置'}
+                            {tutorial && (
+                              <>
+                                {' · '}
+                                <span className="text-slate-400">{tutorial.desc}</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => openEditChannel(ch)}
-                        className="rounded-lg bg-white/60 p-2 text-slate-500 hover:bg-white/80"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {tutorial && (
+                          <a
+                            href={tutorial.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-lg bg-white/60 px-2 py-1.5 text-xs text-indigo-500 hover:bg-white/80 hover:text-indigo-700"
+                            title="查看教程"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            教程
+                          </a>
+                        )}
+                        <button
+                          onClick={() => openEditChannel(ch)}
+                          className="rounded-lg bg-white/60 p-2 text-slate-500 hover:bg-white/80"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -275,6 +346,71 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
               <p className="mt-3 text-xs text-slate-400">
                 配置了多个渠道时，消息将同时推送到所有已配置的渠道。
               </p>
+            </GlassCard>
+
+            {/* ===== 浏览器推送通知 ===== */}
+            <GlassCard className="p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <Bell className="h-4 w-4 text-indigo-500" />
+                浏览器推送通知
+              </h3>
+              <div className="flex items-center justify-between rounded-xl bg-white/40 p-3">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      notifPermission === 'granted'
+                        ? 'bg-emerald-500'
+                        : notifPermission === 'denied'
+                        ? 'bg-rose-500'
+                        : 'bg-slate-300'
+                    }`}
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-slate-700">
+                      浏览器推送通知
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {notifPermission === 'granted'
+                        ? '已开启'
+                        : notifPermission === 'denied'
+                        ? '已拒绝，请到浏览器设置中开启通知权限'
+                        : '未开启'}
+                    </div>
+                  </div>
+                </div>
+                {notifPermission === 'granted' ? (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.post('/system/push/test');
+                        showMsg(true, '测试推送已发送');
+                      } catch { showMsg(false, '发送失败'); }
+                    }}
+                    className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                  >
+                    已开启 · 测试
+                  </button>
+                ) : notifPermission === 'denied' ? (
+                  <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-500">
+                    已拒绝
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleRequestNotifPermission}
+                    className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
+                  >
+                    开启通知
+                  </button>
+                )}
+              </div>
+              {isIOS && (
+                <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50/80 px-3 py-2 text-xs text-amber-700">
+                  <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    iOS Safari 需要将本站添加到主屏幕（PWA 模式）才能使用浏览器推送通知。
+                  </span>
+                </div>
+              )}
             </GlassCard>
 
             {/* ===== 推送内容 ===== */}
@@ -369,6 +505,24 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                   </div>
                 </div>
               ))}
+
+          {/* 教程链接提示 */}
+          {editingChannel && CHANNEL_TUTORIALS[editingChannel] && (
+            <div className="flex items-center gap-2 rounded-xl bg-indigo-50/80 px-3 py-2 text-xs text-indigo-600">
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {CHANNEL_TUTORIALS[editingChannel].desc}，{' '}
+                <a
+                  href={CHANNEL_TUTORIALS[editingChannel].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-indigo-800"
+                >
+                  查看教程
+                </a>
+              </span>
+            </div>
+          )}
 
           {testResult && (
             <div

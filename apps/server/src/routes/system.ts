@@ -858,7 +858,8 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 
 
 // ── 用户个人推送设置（改造版） ──
-import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom } from '../notify.js';
+import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
+import { getVapidPublicKey, saveSubscription, removeSubscription, sendPushNotification } from '../push-notify.js';
 
 // GET: 读取自己的设置（解密返回）
 router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
@@ -927,6 +928,36 @@ router.post('/user-notification-settings/test', async (req: AuthRequest, res: Re
     if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
     else if (errors.length > 0 && results.length === 0) res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
     else res.json({ results, errors });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ── 推送订阅 API ──
+router.get('/push/vapid-key', (req: AuthRequest, res: Response) => {
+  res.json({ publicKey: getVapidPublicKey() });
+});
+
+router.post('/push/subscribe', (req: AuthRequest, res: Response) => {
+  try {
+    const { endpoint, keys } = req.body;
+    if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: '参数不完整' });
+    saveSubscription(req.user.id, { endpoint, keys });
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) return res.status(400).json({ error: '参数不完整' });
+    removeSubscription(req.user.id, endpoint);
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/push/test', async (req: AuthRequest, res: Response) => {
+  try {
+    await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
+    res.json({ success: true, message: '测试推送已发送' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

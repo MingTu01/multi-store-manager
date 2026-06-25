@@ -1,4 +1,4 @@
-import { localDate, localDateTime } from '../lib/utils.js';
+﻿import { localDate, localDateTime } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
@@ -236,7 +236,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
-  if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
   try {
     const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: '员工不存在' });

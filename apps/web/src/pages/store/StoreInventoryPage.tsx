@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
@@ -73,7 +73,7 @@ function SortableDragHandle({ id }: { id: number }) {
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
-  const isReadonly = user?.role === 'SHAREHOLDER';
+  const isReadonly = user?.role === 'SHAREHOLDER' || user?.role === 'STAFF';
   const [items, setItems] = useState<InventoryItem[]>([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
   const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);

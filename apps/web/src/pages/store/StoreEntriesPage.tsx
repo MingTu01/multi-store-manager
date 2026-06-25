@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
@@ -38,7 +38,7 @@ export default function StoreEntriesPage() {
   const { storeId } = useParams();
   const dataVersion = useDataVersion('store', storeId);
   const myRole = useStore((s) => s.user?.role);
-  const isReadonly = myRole === 'SHAREHOLDER';
+  const isReadonly = myRole === 'SHAREHOLDER' || myRole === 'STAFF';
   const location = useLocation();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);
@@ -180,42 +180,49 @@ export default function StoreEntriesPage() {
         {entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
-          <div key={e.id} className="flex items-center justify-between px-4 py-3" onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
-            <div className="flex items-center gap-3">
+          <div key={e.id} className="flex items-center justify-between px-4 py-3 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
+            {/* Mobile layout: icon spans 3 rows left, amount spans 3 rows right */}
+            <div className="flex-1 min-w-0 lg:hidden grid items-center gap-x-2" style={{gridTemplateColumns:'auto 1fr auto',gridTemplateRows:'auto auto auto'}}>
+              {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500 shrink-0" style={{gridRow:'1/4',alignSelf:'center'}} /> : <ArrowDownCircle className="h-5 w-5 text-rose-500 shrink-0" style={{gridRow:'1/4',alignSelf:'center'}} />}
+              <span className="text-[13px] font-medium text-slate-800 truncate">{e.category_name || '未分类'}</span>
+              <span className={'text-[14px] font-bold shrink-0 ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')} style={{gridRow:'1/4',alignSelf:'center'}}>
+                {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
+              </span>
+              <span className="text-[11px] text-slate-400 truncate">{[e.note, e.creator_name].filter(Boolean).join(' · ') || '\u00A0'}</span>
+              <span className="text-[10px] text-slate-300">{e.created_at || e.date}</span>
+            </div>
+            {/* Desktop layout */}
+            <div className="hidden lg:flex lg:items-center lg:gap-3 lg:flex-1">
               {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500" /> : <ArrowDownCircle className="h-5 w-5 text-rose-500" />}
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-slate-800">{e.category_name || '未分类'}</div>
                 <div className="text-xs text-slate-400">{e.note || ''} · {e.creator_name || '未知'} · {e.created_at || e.date}</div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 relative">
-              <span className={'text-sm font-bold ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
+              <span className={'text-sm font-bold shrink-0 ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
                 {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
               </span>
-              {/* Desktop: always-visible edit/delete buttons */}
               {!isReadonly && (
-                <div className="hidden lg:flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => openEdit(e)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"><Edit3 className="h-3.5 w-3.5 text-slate-400" /></button>
                   <button onClick={() => handleDelete(e.id)} className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-rose-50 transition-colors"><Trash2 className="h-3.5 w-3.5 text-rose-400" /></button>
                 </div>
               )}
-              {/* Mobile: long-press context menu via Portal */}
-              {longPressId === e.id && menuPos && createPortal(
-                <div className="fixed inset-0 z-[9999]" onClick={() => setLongPressId(null)}>
-                  <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
-                    style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
-                    onClick={(ev) => ev.stopPropagation()}>
-                    <button onClick={() => { setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
-                      <Edit3 className="h-4 w-4 text-indigo-500" />编辑
-                    </button>
-                    <button onClick={() => { setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
-                      <Trash2 className="h-4 w-4 text-rose-500" />删除
-                    </button>
-                  </div>
-                </div>,
-                document.body
-              )}
             </div>
+            {longPressId === e.id && menuPos && createPortal(
+              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onMouseDown={() => setLongPressId(null)} onTouchStart={() => setLongPressId(null)}>
+                <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
+                  style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
+                  onClick={(ev) => ev.stopPropagation()}>
+                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={() => { setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
+                    <Edit3 className="h-4 w-4 text-indigo-500" />编辑
+                  </button>
+                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={() => { setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
+                    <Trash2 className="h-4 w-4 text-rose-500" />删除
+                  </button>
+                </div>
+              </div>,
+              document.body
+            )}
           </div>
         ))}
       </GlassCard>

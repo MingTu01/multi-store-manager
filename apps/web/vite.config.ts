@@ -17,6 +17,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      srcDir: 'src-sw',
+      filename: 'sw.ts',
+      strategies: 'injectManifest',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'logo.png', 'logo-192.png', 'icon-512.png', 'mingtu-logo.png'],
       manifest: {
