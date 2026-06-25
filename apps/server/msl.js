@@ -400,16 +400,19 @@ async function doUpdate() {
     const srcDir = path.join(extractDir, extractedRoot);
     
     // Copy files
-    const copyIfExist = (src, dest) => {
-      if (fs.existsSync(src)) {
-        fs.cpSync(src, dest, { recursive: true });
-        return true;
+    const copyDirSafe = (src, dest) => {
+      if (!fs.existsSync(src)) return;
+      fs.mkdirSync(dest, { recursive: true });
+      for (const item of fs.readdirSync(src, { withFileTypes: true })) {
+        const s = path.join(src, item.name);
+        const d = path.join(dest, item.name);
+        if (item.isDirectory()) { copyDirSafe(s, d); }
+        else { try { fs.copyFileSync(s, d); } catch {} }
       }
-      return false;
     };
     
-    copyIfExist(path.join(srcDir, 'src'), path.join(BASE_DIR, 'src'));
-    copyIfExist(path.join(srcDir, 'public', 'web-dist'), path.join(BASE_DIR, 'public', 'web-dist'));
+    copyDirSafe(path.join(srcDir, 'src'), path.join(BASE_DIR, 'src'));
+    copyDirSafe(path.join(srcDir, 'public', 'web-dist'), path.join(BASE_DIR, 'public', 'web-dist'));
     
     // Update package.json
     const srcPkg = path.join(srcDir, 'apps', 'server', 'package.json');
@@ -466,20 +469,23 @@ async function doRollback() {
     fs.mkdirSync(tmpDir, { recursive: true });
     zip.extractAllTo(tmpDir, true);
     
-    // Restore src and web-dist
-    if (fs.existsSync(path.join(tmpDir, 'src'))) {
-      fs.rmSync(path.join(BASE_DIR, 'src'), { recursive: true, force: true });
-      fs.cpSync(path.join(tmpDir, 'src'), path.join(BASE_DIR, 'src'), { recursive: true });
+    // Restore src and web-dist (overwrite, no delete - files may be locked)
+    const copyOverwrite = (src, dest) => {
+      fs.mkdirSync(dest, { recursive: true });
+      for (const item of fs.readdirSync(src, { withFileTypes: true })) {
+        const s = path.join(src, item.name);
+        const d = path.join(dest, item.name);
+        if (item.isDirectory()) { copyOverwrite(s, d); }
+        else { try { fs.copyFileSync(s, d); } catch {} }
+      }
+    };
+    if (fs.existsSync(path.join(tmpDir, "src"))) {
+      copyOverwrite(path.join(tmpDir, "src"), path.join(BASE_DIR, "src"));
     }
-    if (fs.existsSync(path.join(tmpDir, 'web-dist'))) {
-      fs.rmSync(path.join(BASE_DIR, 'public', 'web-dist'), { recursive: true, force: true });
-      fs.cpSync(path.join(tmpDir, 'web-dist'), path.join(BASE_DIR, 'public', 'web-dist'), { recursive: true });
+    if (fs.existsSync(path.join(tmpDir, "web-dist"))) {
+      copyOverwrite(path.join(tmpDir, "web-dist"), path.join(BASE_DIR, "public", "web-dist"));
     }
-    if (fs.existsSync(path.join(tmpDir, 'version.json'))) {
-      fs.copyFileSync(path.join(tmpDir, 'version.json'), path.join(BASE_DIR, 'data', 'version.json'));
-    }
-    
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
     console.log(g('  ✓ 代码已回退'));
     const restart = await ask(y('  是否立即重启? (y/N): '));
     if (restart === 'y' || restart === 'Y') {
