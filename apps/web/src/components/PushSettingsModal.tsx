@@ -52,7 +52,7 @@ const CHANNEL_TUTORIALS: Record<string, { url: string; desc: string }> = {
   pushplus: { url: 'https://www.pushplus.plus/push1.html', desc: '注册后获取Token' },
   serverchan: { url: 'https://sct.ftqq.com/forward', desc: '微信扫码登录获取SendKey' },
   wecom: { url: 'https://developer.work.weixin.qq.com/document/path/90236', desc: '创建自建应用获取配置' },
-  iyuu: { url: 'https://iyuu.cn/index.php/wechat/index.html', desc: '关注公众号获取Token' },
+  iyuu: { url: 'https://iyuu.cn/', desc: '关注公众号获取Token' },
 };
 
 interface PushOption {
