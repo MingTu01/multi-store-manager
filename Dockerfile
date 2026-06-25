@@ -15,6 +15,8 @@ COPY apps/server/src ./src/
 COPY apps/server/tsconfig.json ./
 COPY apps/server/public ./public/
 COPY apps/server/data/version.json ./data/version.json
+COPY apps/server/msl.js ./msl.js
+RUN echo '#!/bin/sh' > /usr/local/bin/msl && echo 'node /app/msl.js' >> /usr/local/bin/msl && chmod +x /usr/local/bin/msl
 
 RUN mkdir -p /public && ln -s /app/public/web-dist /public/web-dist
 RUN mkdir -p data uploads backups
