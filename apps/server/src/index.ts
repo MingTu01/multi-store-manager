@@ -52,7 +52,7 @@ const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
     : true,
-  credentials: !!corsOrigin  // Only set credentials when specific origins are configured
+  credentials: true  // Always allow credentials for httpOnly cookie auth
 };
 app.use(compression({ level: 6, threshold: 1024 }));
 // 安全HTTP头
@@ -315,11 +315,11 @@ app.listen(PORT, '0.0.0.0', () => {
   // Broadcast server-ready to all SSE clients after startup
   setTimeout(() => {
     try {
-      const { eventBus } = require('./event-bus');
+      // eventBus already imported at top
       eventBus.broadcastSystem('server-ready');
       console.log('[SSE] Broadcasted server-ready');
     } catch (e) { console.log('[SSE] server-ready broadcast skipped:', e.message); }
-  }, 1000);
+  }, 5000);
 })
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {

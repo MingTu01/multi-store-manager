@@ -97,6 +97,13 @@ router.post('/', (req: AuthRequest, res: Response) => {
 router.put('/:storeId', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    // 校验用户是否管理该门店
+    if (req.user.role === 'STORE_ADMIN') {
+      const store = db.prepare('SELECT manager_id FROM stores WHERE id = ?').get(req.params.storeId) as any;
+      if (store && store.manager_id && store.manager_id !== req.user.id) {
+        return res.status(403).json({ error: '无权操作此门店' });
+      }
+    }
     const { name, address, initial_capital } = req.body;
     const now = localDateTime();
     const tx = db.transaction(() => {
@@ -352,6 +359,13 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
 router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    // 校验用户是否管理该门店
+    if (req.user.role === 'STORE_ADMIN') {
+      const store = db.prepare('SELECT manager_id FROM stores WHERE id = ?').get(req.params.storeId) as any;
+      if (store && store.manager_id && store.manager_id !== req.user.id) {
+        return res.status(403).json({ error: '无权操作此门店' });
+      }
+    }
     const storeId = req.params.storeId;
     const s = req.body;
     const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);
@@ -380,6 +394,13 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
 router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    // 校验用户是否管理该门店
+    if (req.user.role === 'STORE_ADMIN') {
+      const store = db.prepare('SELECT manager_id FROM stores WHERE id = ?').get(req.params.storeId) as any;
+      if (store && store.manager_id && store.manager_id !== req.user.id) {
+        return res.status(403).json({ error: '无权操作此门店' });
+      }
+    }
     const storeId = req.params.storeId;
     const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
     const bodyConfig = req.body && req.body.config ? req.body.config : {};

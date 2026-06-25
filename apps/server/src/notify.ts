@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';
@@ -6,7 +6,7 @@ import { ROLES } from './lib/roles.js';
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
 function getEncKey(): Buffer {
-  const secret = process.env.NOTIFY_ENC_KEY || 'msl-default-notify-key-change-me';
+  const secret = process.env.NOTIFY_ENC_KEY || (process.env.JWT_SECRET || 'msl-notify-key-' + (process.env.PORT || '3001'));
   return crypto.createHash('sha256').update(secret).digest();
 }
 
@@ -256,7 +256,8 @@ export function buildWeeklyReport(): string {
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
-  const ss = ws.toISOString().slice(0,10), es = we.toISOString().slice(0,10);
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const ss = fmt(ws), es = fmt(we);
   let ti=0,te=0;
   let r = '◆ 每周经营报告\n' + LINE + '\n' + ss + ' 至 ' + es + '\n\n';
   for (const s of stores) {
@@ -272,7 +273,8 @@ export function buildWeeklyReportHtml(): string {
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
-  const ss = ws.toISOString().slice(0,10), es = we.toISOString().slice(0,10);
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const ss = fmt(ws), es = fmt(we);
   let ti=0,te=0;
   let h = reportHtmlHeader('每周经营报告', ss + ' 至 ' + es) + reportHtmlTable();
   for (const s of stores) {

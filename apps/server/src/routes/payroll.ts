@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
@@ -14,7 +14,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const p = parseInt(page as string) || 1;
     const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
-    const canSeeAll = req.user.role !== 'STAFF';
+    const canSeeAll = ['ADMIN', 'STORE_ADMIN', 'MANAGER'].includes(req.user.role);
     const total = (db.prepare('SELECT COUNT(*) as count FROM payroll WHERE store_id = ?').get(storeId) as any).count;
     const payrolls = db.prepare('SELECT * FROM payroll WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
     const enriched = payrolls.map((pr: any) => {

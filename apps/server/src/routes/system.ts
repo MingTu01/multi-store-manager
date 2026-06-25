@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -503,7 +503,7 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     // 字段白名单验证，防止写入非法字段
     const allowedFields = ['pushplus_enabled', 'pushplus_token', 'serverchan_enabled', 'serverchan_key',
@@ -530,7 +530,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
 
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
 
     const bodyConfig = req.body && req.body.config ? req.body.config : null;
     const type = req.query.type as string || 'daily';
@@ -892,13 +892,22 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
     if (existing) {
       let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, method=?, updated_at=?';
       const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
-      for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
+      // 白名单校验，防止列名注入
+      const allowedPushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
+      for (const [k, v] of Object.entries(pushValues)) {
+        if (!allowedPushFields.includes(k)) continue;
+        sql += ', ' + k + '=?'; params.push(v);
+      }
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);
     } else {
       const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','method','updated_at'];
       const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
-      for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
+      // 白名单校验，防止列名注入
+      for (const [k, v] of Object.entries(pushValues)) {
+        if (!allowedPushFields.includes(k)) continue;
+        cols.push(k); vals.push(v);
+      }
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
     res.json({ message: '推送设置已保存' });

@@ -32,7 +32,7 @@ router.post('/login', loginLimiter, (req, res) => {
     const { password_hash, ...userData } = user;
     setAuthCookie(res, token);
     res.json({ user: userData });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 
@@ -47,7 +47,7 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const store = user.store_id ? db.prepare('SELECT name FROM stores WHERE id = ?').get(user.store_id) as any : null;
     res.json({ user: { ...user, store_name: store?.name || '' } });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
@@ -73,8 +73,6 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
           return res.status(400).json({ error: '手机号格式不正确，必须是11位有效手机号' });
         }
         updates.push('phone=?'); vals.push(phone);
-        // Sync username to phone (login name = phone)
-        updates.push('username=?'); vals.push(phone);
       }
     }
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
@@ -90,7 +88,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     if (oldPassword && newPassword) { opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip); }
     const updated = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address FROM users WHERE id = ?').get(req.user.id) as any;
     res.json({ user: updated, message: '信息已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
@@ -105,7 +103,7 @@ router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     res.json({ message: '密码修改成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
 
 export default router;

@@ -132,6 +132,7 @@ export const api = {
       body: formData,
     });
     if (!res.ok) throw await parseError(res);
+    invalidateRelated(url);
     return res.json();
   },
 };

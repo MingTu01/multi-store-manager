@@ -1,4 +1,4 @@
-﻿import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
@@ -70,12 +70,20 @@ export default function App() {
   const user = useStore((s) => s.user);
 
   // Global: listen for server-ready after upgrades -> auto clear SW caches
+  // Uses sessionStorage guard to prevent infinite reload loops
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleServerReady = () => {
+      // Guard: don't reload if we just reloaded within 15s
+      const lastReload = sessionStorage.getItem('app-server-ready-reload');
+      if (lastReload && Date.now() - parseInt(lastReload) < 15000) {
+        console.log('[App] server-ready ignored (recent reload)');
+        return;
+      }
       if (debounceTimer) return;
       console.log('[App] server-ready received, will reload in 3s');
       debounceTimer = setTimeout(() => {
+        sessionStorage.setItem('app-server-ready-reload', String(Date.now()));
         clearSWCachesAndReload();
       }, 3000);
     };
@@ -101,7 +109,7 @@ export default function App() {
           <Route path="store/:storeId" element={<StoreGuard><StoreOverviewPage /></StoreGuard>} />
           <Route path="store/:storeId/entries" element={<StoreGuard><StoreEntriesPage /></StoreGuard>} />
           <Route path="store/:storeId/inventory" element={<StoreGuard><StoreInventoryPage /></StoreGuard>} />
-<Route path="store/:storeId/purchase" element={<StoreGuard><StorePurchasePage /></StoreGuard>} />
+          <Route path="store/:storeId/purchase" element={<StoreGuard><StorePurchasePage /></StoreGuard>} />
           <Route path="store/:storeId/shifts" element={<StoreGuard><StoreShiftsPage /></StoreGuard>} />
           <Route path="store/:storeId/payroll" element={<StoreGuard><StorePayrollPage /></StoreGuard>} />
           <Route path="store/:storeId/dividends" element={<StoreGuard><StoreDividendsPage /></StoreGuard>} />
@@ -110,7 +118,7 @@ export default function App() {
           <Route path="store/:storeId/logs" element={<StoreGuard><StoreLogsPage /></StoreGuard>} />
           <Route path="store/:storeId/account" element={<StoreGuard><StoreAccountPage /></StoreGuard>} />
           <Route path="store/:storeId/notifications" element={<StoreGuard><StoreNotificationsPage /></StoreGuard>} />
-                    <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
+          <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

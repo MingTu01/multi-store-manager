@@ -1,5 +1,5 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { registerRoute } from 'workbox-routing';
 import { NetworkOnly, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 
@@ -12,14 +12,25 @@ clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
-registerRoute(new NavigationRoute(new NetworkFirst()));
-
-registerRoute(/^https?:\/\/.*\/api\/auth/, new NetworkOnly(), 'GET');
-registerRoute(/^https?:\/\/.*\/api\/stores\/.*\/payroll/, new NetworkOnly(), 'GET');
-registerRoute(/^https?:\/\/.*\/api\/stores\/.*\/dividends/, new NetworkOnly(), 'GET');
-registerRoute(/^https?:\/\/.*\/api\/stores\/.*\/staff/, new NetworkOnly(), 'GET');
+// SPA navigation fallback - use match callback instead of NavigationRoute
+// (NavigationRoute has compatibility issues with injectManifest mode)
 registerRoute(
-  /^https?:\/\/.*\/api\//,
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst()
+);
+
+// API routes that must NEVER be cached (auth, SSE)
+registerRoute(/\/api\/auth/, new NetworkOnly(), 'GET');
+registerRoute(/\/api\/sse/, new NetworkOnly());
+
+// API routes that should not be cached (sensitive data)
+registerRoute(/\/api\/stores\/.*\/payroll/, new NetworkOnly(), 'GET');
+registerRoute(/\/api\/stores\/.*\/dividends/, new NetworkOnly(), 'GET');
+registerRoute(/\/api\/stores\/.*\/staff/, new NetworkOnly(), 'GET');
+
+// Other API GET requests - short-lived cache
+registerRoute(
+  /\/api\//,
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 })],

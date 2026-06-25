@@ -33,10 +33,10 @@ export const useStore = create<AppState>((set) => ({
     try {
       invalidateCache();
       resetRedirectFlag();
-      reconnectSSE();
       const d = await api.post('/auth/login', { username, password });
       if (d.user) {
         set({ token: 'cookie', user: d.user, loading: false });
+        reconnectSSE();
       }
     } catch (e: any) {
       throw new Error(e.message || '用户名或密码错误');

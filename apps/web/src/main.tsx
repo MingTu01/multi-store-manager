@@ -40,7 +40,10 @@ if ('serviceWorker' in navigator) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;
+    const lastReload = sessionStorage.getItem('sw-last-reload');
+    if (lastReload && Date.now() - parseInt(lastReload) < 10000) return;
     refreshing = true;
+    sessionStorage.setItem('sw-last-reload', String(Date.now()));
     sessionStorage.setItem('sw-reloaded', '1');
     window.location.reload();
   });
