@@ -123,7 +123,8 @@ export async function sendWeCom(title: string, content: string, s: any): Promise
 
 export async function sendIyuu(title: string, content: string, s: any): Promise<void> {
   if (!s.iyuu_token) throw new Error('爱语飞飞 Token 未配置');
-  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send', {
+  const params = new URLSearchParams({ title, desp: content });
+  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send?' + params.toString(), {
     method: 'GET',
   });
   const text = await res.text();

@@ -1,4 +1,4 @@
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -925,6 +925,7 @@ router.post('/user-notification-settings/test', async (req: AuthRequest, res: Re
     if (channel === 'pushplus' || (!channel && config.pushplus_token)) await sendOne('PushPlus', () => sendPushPlus(title, content, '', config));
     if (channel === 'serverchan' || (!channel && config.serverchan_key)) await sendOne('Server酱', () => sendServerChan(title, content, config));
     if (channel === 'wecom' || (!channel && config.wecom_corpid)) await sendOne('企业微信', () => sendWeCom(title, content, config));
+    if (channel === 'iyuu' || (!channel && config.iyuu_token)) await sendOne('爱语飞飞', () => sendIyuu(title, content, config));
     if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
     else if (errors.length > 0 && results.length === 0) res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
     else res.json({ results, errors });

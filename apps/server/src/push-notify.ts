@@ -1,9 +1,8 @@
-﻿import webpush from 'web-push';
+import webpush from 'web-push';
 import db from './db.js';
 import crypto from 'crypto';
 
 // VAPID 密钥管理
-const VAPID_KEY_FILE = 'vapid-keys.json';
 
 function getOrCreateVapidKeys(): { publicKey: string; privateKey: string } {
   const row = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'").get() as any;

@@ -1,4 +1,4 @@
-﻿process.env.TZ = 'Asia/Shanghai';
+process.env.TZ = 'Asia/Shanghai';
 if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production';
 import { initPush } from './push-notify.js';
 import express from 'express';
@@ -309,6 +309,7 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+initPush();
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on http://0.0.0.0:' + PORT);
   // Broadcast server-ready to all SSE clients after startup
