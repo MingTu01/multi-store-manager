@@ -388,7 +388,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                     }}
                     className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
                   >
-                    已开启 · 测试
+                    测试推送
                   </button>
                 ) : notifPermission === 'denied' ? (
                   <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-500">

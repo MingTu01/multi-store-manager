@@ -209,14 +209,14 @@ export default function StoreEntriesPage() {
               )}
             </div>
             {longPressId === e.id && menuPos && createPortal(
-              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onMouseDown={() => setLongPressId(null)} onTouchStart={() => setLongPressId(null)}>
+              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onClick={() => setLongPressId(null)}>
                 <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
                   style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
                   onClick={(ev) => ev.stopPropagation()}>
-                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={() => { setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
+                  <button onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
                     <Edit3 className="h-4 w-4 text-indigo-500" />编辑
                   </button>
-                  <button onPointerDown={(ev) => ev.stopPropagation()} onClick={() => { setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
+                  <button onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); handleDelete(e.id); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 active:bg-rose-100">
                     <Trash2 className="h-4 w-4 text-rose-500" />删除
                   </button>
                 </div>
