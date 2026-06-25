@@ -143,6 +143,40 @@ SQLite WAL 模式下，备份需要：
 - 客户端通过 EventSource 连接
 - 服务端通过 event-bus 广播事件
 
+### 7. 容器启动诊断
+容器启动时自动运行 `startup-check.js`，执行 15 项检查：
+- package.json 有效性（无 BOM，合法 JSON）
+- version.json 存在且有效
+- 数据目录完整（data/uploads/backups）
+- 数据库可访问 + 表结构完整
+- 管理员账号存在
+- JWT Secret 存在且长度 >= 32
+- 前端文件完整（index.html + JS bundle + SW）
+- WAL 文件大小正常
+- node_modules 存在
+- 环境变量检查（NODE_ENV/PORT/JWT_SECRET）
+- 数据库统计信息
+- 磁盘空间
+
+发现问题自动修复，不会阻塞启动。
+
+### 8. 容器管理工具 (msl)
+容器内运行 `msl` 进入交互式管理工具：
+- 系统信息、数据库备份/恢复
+- 重置管理员密码
+- 查看日志、清理临时文件
+- 数据库维护（WAL checkpoint/VACUUM）
+- 在线更新、版本回退
+- 诊断修复（12 项检查）
+
+### 9. 启动日志
+应用启动时显示详细系统状态：
+- 版本号、Node 版本、时区、环境
+- 端口、CORS 配置
+- 数据库统计（用户/门店/记账数量、大小、WAL）
+- JWT Secret 状态
+- 备份数量、磁盘空间
+
 ## 已知技术债
 
 1. **数据库 ID 类型** - `stores.id` 是 TEXT 类型，其他表是 INTEGER，需要兼容处理
