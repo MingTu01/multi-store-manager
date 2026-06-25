@@ -188,7 +188,7 @@ async function doRestore() {
     const restart = await ask(y('  是否立即重启? (y/N): '));
     if (restart === 'y' || restart === 'Y') {
       console.log('  正在重启...');
-      process.exit(0); // Docker restart:always will restart
+      try { require('child_process').execSync('kill -TERM 1', {timeout:3000}); } catch {}
     }
   } catch (e) {
     console.log(r('  恢复失败: ' + e.message));
@@ -318,7 +318,21 @@ async function doUpdate() {
   
   try {
     // Backup first
-    console.log('  1/4 备份数据库...');
+    console.log('  1/4 备份当前代码...');
+    {
+      const cbDir = path.join(BACKUP_DIR, 'code-backups');
+      fs.mkdirSync(cbDir, { recursive: true });
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      let ver = '?';
+      try { ver = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf8')).version; } catch {}
+      const cbZip = new (getZip())();
+      if (fs.existsSync(path.join(BASE_DIR, 'src'))) cbZip.addLocalFolder(path.join(BASE_DIR, 'src'), 'src');
+      if (fs.existsSync(path.join(BASE_DIR, 'public', 'web-dist'))) cbZip.addLocalFolder(path.join(BASE_DIR, 'public', 'web-dist'), 'web-dist');
+      if (fs.existsSync(VERSION_FILE)) cbZip.addLocalFile(VERSION_FILE, 'version.json');
+      const cbPath = path.join(cbDir, 'v' + ver + '-' + ts + '.zip');
+      cbZip.writeZip(cbPath);
+      console.log('    已保存代码备份: v' + ver);
+    }
     const d = getDb();
     d.pragma('wal_checkpoint(TRUNCATE)');
     
@@ -390,49 +404,62 @@ async function doUpdate() {
     console.log('  4/4 重启服务...');
     console.log(g('  ✓ 更新完成，正在重启...'));
     
-    // Exit to trigger Docker restart
-    process.exit(0);
+    try { require('child_process').execSync('kill -TERM 1', {timeout:3000}); } catch {}
   } catch (e) {
     console.log(r('  更新失败: ' + e.message));
     console.log(r('  数据库未受影响'));
   }
 }
 
-// 9. Rollback
+// 9. Rollback - restore previous code version from backup
 async function doRollback() {
   console.log();
   console.log(b('═══ 版本回退 ═══'));
+  const CODE_BACKUP = path.join(BACKUP_DIR, 'code-backups');
   try {
-    if (!fs.existsSync(BACKUP_DIR)) { console.log(r('  没有备份')); return; }
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.endsWith('.zip')).sort().reverse();
-    if (files.length === 0) { console.log(r('  没有可用备份')); return; }
+    if (!fs.existsSync(CODE_BACKUP)) { console.log(r('  没有代码备份。请先通过"更新系统"创建备份。')); return; }
+    const entries = fs.readdirSync(CODE_BACKUP).filter(f => f.endsWith('.zip')).sort().reverse();
+    if (entries.length === 0) { console.log(r('  没有可用代码备份')); return; }
     
-    console.log(b('可用备份 (将恢复数据库到此版本的状态):'));
-    files.slice(0, 15).forEach((f, i) => {
-      const s = fs.statSync(path.join(BACKUP_DIR, f));
+    console.log(b('可用代码备份:'));
+    entries.slice(0, 15).forEach((f, i) => {
+      const s = fs.statSync(path.join(CODE_BACKUP, f));
       console.log('  ' + g(i + 1) + ') ' + f + ' (' + formatSize(s.size) + ')');
     });
     
     const choice = await ask('\n选择备份序号 (0=取消): ');
     const idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= files.length) { console.log('  已取消'); return; }
+    if (isNaN(idx) || idx < 0 || idx >= entries.length) { console.log('  已取消'); return; }
     
-    console.log(y('  ⚠ 回退将替换当前数据库'));
-    const confirm = await ask(y('  确认回退到 ' + files[idx] + '? (y/N): '));
+    console.log(y('  ⚠ 回退将替换当前代码（src + web-dist）'));
+    const confirm = await ask(y('  确认回退到 ' + entries[idx] + '? (y/N): '));
     if (confirm !== 'y' && confirm !== 'Y') { console.log('  已取消'); return; }
     
-    const d = getDb();
-    d.pragma('wal_checkpoint(TRUNCATE)');
-    
     const Zip = getZip();
-    const zip = new Zip(path.join(BACKUP_DIR, files[idx]));
-    for (const entry of zip.getEntries()) {
-      fs.writeFileSync(path.join(BASE_DIR, 'data', entry.entryName), entry.getData());
+    const zip = new Zip(path.join(CODE_BACKUP, entries[idx]));
+    const tmpDir = path.join(UPLOADS_DIR, 'rollback-' + Date.now());
+    fs.mkdirSync(tmpDir, { recursive: true });
+    zip.extractAllTo(tmpDir, true);
+    
+    // Restore src and web-dist
+    if (fs.existsSync(path.join(tmpDir, 'src'))) {
+      fs.rmSync(path.join(BASE_DIR, 'src'), { recursive: true, force: true });
+      fs.cpSync(path.join(tmpDir, 'src'), path.join(BASE_DIR, 'src'), { recursive: true });
+    }
+    if (fs.existsSync(path.join(tmpDir, 'web-dist'))) {
+      fs.rmSync(path.join(BASE_DIR, 'public', 'web-dist'), { recursive: true, force: true });
+      fs.cpSync(path.join(tmpDir, 'web-dist'), path.join(BASE_DIR, 'public', 'web-dist'), { recursive: true });
+    }
+    if (fs.existsSync(path.join(tmpDir, 'version.json'))) {
+      fs.copyFileSync(path.join(tmpDir, 'version.json'), path.join(BASE_DIR, 'data', 'version.json'));
     }
     
-    console.log(g('  ✓ 数据库已回退'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    console.log(g('  ✓ 代码已回退'));
     const restart = await ask(y('  是否立即重启? (y/N): '));
-    if (restart === 'y' || restart === 'Y') process.exit(0);
+    if (restart === 'y' || restart === 'Y') {
+      try { require('child_process').execSync('kill -TERM 1', {timeout:3000}); } catch {}
+    }
   } catch (e) {
     console.log(r('  回退失败: ' + e.message));
   }
