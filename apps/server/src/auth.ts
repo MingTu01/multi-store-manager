@@ -56,7 +56,7 @@ export function getCookie(req: Request, name: string): string | undefined {
 export function setAuthCookie(res: Response, token: string) {
   res.cookie('auth_token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true',
+    secure: process.env.COOKIE_SECURE !== 'false' && (process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'),
     sameSite: 'lax',
     maxAge: 4 * 60 * 60 * 1000, // 4h, matches TOKEN_EXPIRY
     path: '/',
