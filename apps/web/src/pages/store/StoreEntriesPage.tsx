@@ -181,15 +181,21 @@ export default function StoreEntriesPage() {
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
           <div key={e.id} className="flex items-center justify-between px-4 py-3 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
-            {/* Mobile layout: icon left 3 rows, category/note/date right, amount far-right */}
-            <div className="flex-1 min-w-0 lg:hidden" style={{display:'grid',gridTemplateColumns:'auto 1fr auto',gridTemplateRows:'auto auto auto',gap:'0 8px',alignItems:'center'}}>
-              {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-5 w-5 text-emerald-500 shrink-0" style={{gridRow:'1/4',gridColumn:'1'}} /> : <ArrowDownCircle className="h-5 w-5 text-rose-500 shrink-0" style={{gridRow:'1/4',gridColumn:'1'}} />}
-              <span className="text-[14px] font-medium text-slate-800 truncate" style={{gridRow:'1',gridColumn:'2'}}>{e.category_name || '未分类'}</span>
-              <span className={'text-[15px] font-bold shrink-0 ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')} style={{gridRow:'1/4',gridColumn:'3',alignSelf:'center'}}>
-                {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
-              </span>
-              <span className="text-[12px] text-slate-400 truncate" style={{gridRow:'2',gridColumn:'2'}}>{[e.note, e.creator_name].filter(Boolean).join(' · ') || '\u00A0'}</span>
-              <span className="text-[11px] text-slate-300" style={{gridRow:'3',gridColumn:'2'}}>{e.created_at || e.date}</span>
+            {/* Mobile layout: compact - icon+category+amount on row1, details below */}
+            <div className="flex-1 min-w-0 lg:hidden">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-4 w-4 text-emerald-500 shrink-0" /> : <ArrowDownCircle className="h-4 w-4 text-rose-500 shrink-0" />}
+                  <span className="text-[14px] font-medium text-slate-800 truncate">{e.category_name || '未分类'}</span>
+                </div>
+                <span className={'text-[14px] font-bold shrink-0 ' + ((e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500')}>
+                  {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
+                </span>
+              </div>
+              <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
+                <span className="truncate">{[e.note, e.creator_name].filter(Boolean).join(' · ')}</span>
+                <span className="shrink-0 text-slate-300">{e.created_at || e.date}</span>
+              </div>
             </div>
             {/* Desktop layout */}
             <div className="hidden lg:flex lg:items-center lg:gap-3 lg:flex-1">
