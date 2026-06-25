@@ -12,7 +12,7 @@ clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
-registerRoute(new NavigationRoute((handler: any) => handler.createHandlerBoundToURL('index.html')));
+registerRoute(new NavigationRoute(new NetworkFirst()));
 
 registerRoute(/^https?:\/\/.*\/api\/auth/, new NetworkOnly(), 'GET');
 registerRoute(/^https?:\/\/.*\/api\/stores\/.*\/payroll/, new NetworkOnly(), 'GET');

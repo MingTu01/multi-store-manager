@@ -28,8 +28,13 @@ function globalConnect() {
     es.onopen = () => {
       notifyListeners('connected');
       document.body.dataset.sseStatus = 'connected';
+      const wasReconnected = (window as any).__sseReconnected;
       (window as any).__sseReconnected = true;
-      window.dispatchEvent(new CustomEvent('server-ready'));
+      // Only dispatch server-ready on RECONNECT (not first connect)
+      // This prevents App.tsx from clearing caches on every page load
+      if (wasReconnected) {
+        window.dispatchEvent(new CustomEvent('server-ready'));
+      }
     };
 
     es.addEventListener('system', (e) => {
