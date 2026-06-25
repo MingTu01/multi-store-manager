@@ -180,11 +180,11 @@ export default function StoreEntriesPage() {
         {entries.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无记录</div>
         ) : entries.map((e: any) => (
-          <div key={e.id} className="flex items-center justify-between px-4 py-3 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
+          <div key={e.id} className="flex items-center justify-between px-3 py-2 select-none" style={{userSelect:"none",WebkitUserSelect:"none",WebkitTouchCallout:"none"}} onContextMenu={(ev) => { ev.preventDefault(); if (!isReadonly) { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); } }} onPointerDown={(ev) => { if (!isReadonly) longPressTimer.current = setTimeout(() => { setLongPressId(e.id); setMenuPos({ x: ev.clientX, y: ev.clientY }); if (navigator.vibrate) navigator.vibrate(50); }, 500); }} onPointerUp={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }} onPointerLeave={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } }}>
             {/* Mobile layout: icon 2-row centered, category+amount row1, details row2 indented */}
             <div className="flex-1 min-w-0 lg:hidden flex gap-2">
               <div className="flex items-center shrink-0 py-0.5">
-                {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-8 w-8 text-emerald-500" /> : <ArrowDownCircle className="h-8 w-8 text-rose-500" />}
+                {(e.type === 'income' || e.type === '收入') ? <ArrowUpCircle className="h-6 w-6 text-emerald-500" /> : <ArrowDownCircle className="h-6 w-6 text-rose-500" />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
@@ -193,9 +193,8 @@ export default function StoreEntriesPage() {
                     {(e.type === 'income' || e.type === '收入') ? '+' : '-'}<MoneyDisplay value={e.amount} className={(e.type === 'income' || e.type === '收入') ? 'text-emerald-600' : 'text-rose-500'} />
                   </span>
                 </div>
-                <div className="flex items-center justify-between gap-2 text-[11px] text-slate-400">
-                  <span className="truncate">{[e.note, e.creator_name].filter(Boolean).join(' · ')}</span>
-                  <span className="shrink-0 text-slate-300">{e.created_at || e.date}</span>
+                <div className="text-[11px] text-slate-400 truncate">
+                  {[e.note, e.creator_name, e.created_at || e.date].filter(Boolean).join('·')}
                 </div>
               </div>
             </div>
