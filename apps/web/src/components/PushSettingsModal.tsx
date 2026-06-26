@@ -384,7 +384,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                       try {
                         await api.post('/system/push/test');
                         showMsg(true, '测试推送已发送');
-                      } catch { showMsg(false, '发送失败'); }
+                      } catch(e:any) { showMsg(false, e.message || '发送失败'); }
                     }}
                     className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
                   >

@@ -216,7 +216,7 @@ export default function StoreEntriesPage() {
               )}
             </div>
             {longPressId === e.id && menuPos && createPortal(
-              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onPointerDown={(ev) => { ev.preventDefault(); setLongPressId(null); }}>
+              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onClick={(ev) => { ev.preventDefault(); setLongPressId(null); }}>
                 <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
                   style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
                   onClick={(ev) => ev.stopPropagation()}>

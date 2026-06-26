@@ -866,10 +866,19 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
     const row = db.prepare('SELECT * FROM user_notification_settings WHERE user_id = ?').get(req.user.id) as any;
     if (!row) return res.json({});
-    const result = { ...row };
+    const result: any = { ...row };
     if (result.pushplus_token) result.pushplus_token = decryptToken(result.pushplus_token);
     if (result.serverchan_key) result.serverchan_key = decryptToken(result.serverchan_key);
     if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
+    if (result.iyuu_token) result.iyuu_token = decryptToken(result.iyuu_token);
+    if (result.push_report !== undefined) { result.push_daily_report = !!result.push_report; result.push_weekly_report = !!result.push_report; result.push_monthly_report = !!result.push_report; }
+    if (result.push_review !== undefined) result.push_review_reminder = !!result.push_review;
+    if (result.push_entry !== undefined) result.push_bookkeeping_notify = !!result.push_entry;
+    if (result.push_inventory !== undefined) result.push_inventory_notify = !!result.push_inventory;
+    if (result.push_shift !== undefined) result.push_openclose_notify = !!result.push_shift;
+    if (result.push_purchase !== undefined) result.push_purchase_notify = !!result.push_purchase;
+    if (result.push_payroll !== undefined) result.push_salary_notify = !!result.push_payroll;
+    if (result.push_dividend !== undefined) result.push_dividend_notify = !!result.push_dividend;
     res.json(result);
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
@@ -878,22 +887,22 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
 router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
     const role = req.user.role;
-    const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, method } = req.body;
+    const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
     if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {
       return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
     }
-    const pushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
+    const FIELD_MAP: Record<string, string> = { push_daily_report: 'push_report', push_weekly_report: 'push_report', push_monthly_report: 'push_report', push_review_reminder: 'push_review', push_alert: 'push_alert', push_bookkeeping_notify: 'push_entry', push_inventory_notify: 'push_inventory', push_openclose_notify: 'push_shift', push_purchase_notify: 'push_purchase', push_salary_notify: 'push_payroll', push_dividend_notify: 'push_dividend' }; const allowedPushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
     const pushValues: Record<string, number> = {};
-    for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
+    for (const [feKey, dbCol] of Object.entries(FIELD_MAP)) { if (req.body[feKey] !== undefined) pushValues[dbCol] = req.body[feKey] ? 1 : 0; } for (const f of allowedPushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
     const encToken = pushplus_token ? encryptToken(pushplus_token) : '';
     const encKey = serverchan_key ? encryptToken(serverchan_key) : '';
     const encSecret = wecom_secret ? encryptToken(wecom_secret) : '';
+    const encIyuu = iyuu_token ? encryptToken(iyuu_token) : '';
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, method=?, updated_at=?';
-      const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
+      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, method=?, updated_at=?';
+      const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
       // 白名单校验，防止列名注入
-      const allowedPushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
       for (const [k, v] of Object.entries(pushValues)) {
         if (!allowedPushFields.includes(k)) continue;
         sql += ', ' + k + '=?'; params.push(v);
@@ -901,8 +910,8 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);
     } else {
-      const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','method','updated_at'];
-      const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', method||'none', new Date().toISOString()];
+      const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
+      const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
       // 白名单校验，防止列名注入
       for (const [k, v] of Object.entries(pushValues)) {
         if (!allowedPushFields.includes(k)) continue;
@@ -966,7 +975,7 @@ router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
 
 router.post('/push/test', async (req: AuthRequest, res: Response) => {
   try {
-    await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
+    const subsCount = db.prepare('SELECT COUNT(*) as c FROM push_subscriptions WHERE user_id=?').get(req.user.id) as any;if (!subsCount || subsCount.c === 0) return res.status(400).json({ error: '请先开启浏览器推送通知' });await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
     res.json({ success: true, message: '测试推送已发送' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
 });
