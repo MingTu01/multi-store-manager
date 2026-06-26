@@ -5,7 +5,7 @@ import { useNotificationStore } from '../stores/notification';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-let globalController: AbortController | null = null;
+let globalSource: EventSource | null = null;
 let globalStatus: ConnectionStatus = 'disconnected';
 let globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let globalStopped = false;
@@ -19,90 +19,55 @@ function notifyListeners(s: ConnectionStatus) {
 function globalConnect() {
   if (globalStopped) return;
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
-
-  if (globalController) {
-    const old = globalController;
-    globalController = null;
-    try { old.abort(); } catch {}
-  }
+  if (globalSource) { globalSource.close(); globalSource = null; }
 
   notifyListeners('connecting');
   console.log('[SSE] Connecting...');
-  const controller = new AbortController();
-  globalController = controller;
 
-  fetch('/api/sse', {
-    credentials: 'include',
-    signal: controller.signal,
-    cache: 'no-store',
-  }).then(response => {
-    if (!response.ok) {
-      console.error('[SSE] HTTP error:', response.status);
-      throw new Error('SSE HTTP ' + response.status);
-    }
-    if (globalController !== controller) { console.log('[SSE] Stale connection, aborting'); return; }
-    console.log('[SSE] Connected successfully');
+  const source = new EventSource('/api/sse', { withCredentials: true });
+  globalSource = source;
+
+  source.onopen = function() {
+    console.log('[SSE] Connected');
     notifyListeners('connected');
+  };
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+  // Default message handler (events without explicit event type)
+  source.onmessage = function(e) {
+    try {
+      var data = JSON.parse(e.data);
+      handleEvent('message', data);
+    } catch {}
+  };
 
-    function processBuffer() {
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      let currentEvent = 'message';
-      for (const line of lines) {
-        if (line.startsWith('event:')) {
-          currentEvent = line.slice(6).trim();
-        } else if (line.startsWith('data:')) {
-          const rawData = line.slice(5).trim();
-          try {
-            const data = JSON.parse(rawData);
-            console.log('[SSE] Event:', currentEvent, 'unreadCount:', data.unreadCount, 'type:', data.type);
-            handleEvent(currentEvent, data);
-          } catch (e) { console.warn('[SSE] Parse error:', rawData.substring(0, 100)); }
-          currentEvent = 'message';
-        } else if (line.startsWith(':')) {
-          // heartbeat
-        } else if (line.trim() === '') {
-          currentEvent = 'message';
-        }
-      }
-    }
-
-    function read() {
-      reader.read().then(({ done, value }) => {
-        if (done) { console.log('[SSE] Stream ended'); return; }
-        buffer += decoder.decode(value, { stream: true });
-        processBuffer();
-        read();
-      }).catch(function(e) { console.warn('[SSE] Read error:', e.message); });
-    }
-    read();
-
-    reader.closed.catch(function() {}).finally(function() {
-      if (globalController === controller) {
-        console.log('[SSE] Connection closed, scheduling reconnect');
-        globalController = null;
-        notifyListeners('disconnected');
-        if (!globalStopped) {
-          globalReconnectTimer = setTimeout(globalConnect, 5000);
-        }
-      } else {
-        console.log('[SSE] Old connection closed (not active), ignoring');
-      }
-    });
-  }).catch(function(err) {
-    if (globalController === controller) {
-      globalController = null;
-      notifyListeners('disconnected');
-      if (!globalStopped && err.name !== 'AbortError') {
-        console.error('[SSE] Fetch error:', err.message, '- reconnecting in 5s');
-        globalReconnectTimer = setTimeout(globalConnect, 5000);
-      }
-    }
+  // data-change events (badge + cache invalidation)
+  source.addEventListener('data-change', function(e: MessageEvent) {
+    try {
+      var data = JSON.parse(e.data);
+      console.log('[SSE] data-change:', data.type, 'unreadCount:', data.unreadCount);
+      handleEvent('data-change', data);
+    } catch {}
   });
+
+  // system events (server-ready, etc.)
+  source.addEventListener('system', function(e: MessageEvent) {
+    try {
+      var data = JSON.parse(e.data);
+      console.log('[SSE] system:', data.action);
+      handleEvent('system', data);
+    } catch {}
+  });
+
+  source.onerror = function() {
+    console.warn('[SSE] Connection error');
+    source.close();
+    globalSource = null;
+    notifyListeners('disconnected');
+    if (!globalStopped) {
+      console.log('[SSE] Reconnecting in 3s...');
+      globalReconnectTimer = setTimeout(globalConnect, 3000);
+    }
+  };
 }
 
 function handleEvent(eventName: string, data: any) {
@@ -117,10 +82,8 @@ function handleEvent(eventName: string, data: any) {
     try {
       const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
       if (typeof data.unreadCount === 'number') {
-        console.log('[SSE] Updating badge from SSE: unreadCount=' + data.unreadCount);
+        console.log('[SSE] Badge update: ' + data.unreadCount);
         useNotificationStore.setState({ unreadCount: data.unreadCount });
-      } else {
-        console.log('[SSE] No unreadCount in data-change event');
       }
       if (data.storeId) {
         invalidateCache('/stores/' + data.storeId);
@@ -142,11 +105,7 @@ function handleEvent(eventName: string, data: any) {
 
 export function disconnectSSE() {
   globalStopped = true;
-  if (globalController) {
-    const c = globalController;
-    globalController = null;
-    try { c.abort(); } catch {}
-  }
+  if (globalSource) { globalSource.close(); globalSource = null; }
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
   notifyListeners('disconnected');
 }
@@ -162,7 +121,7 @@ export function useSSE(): ConnectionStatus {
 
   useEffect(() => {
     listeners.add(setStatus);
-    if (!globalStopped && !globalController && globalStatus === 'disconnected') {
+    if (!globalStopped && !globalSource && globalStatus === 'disconnected') {
       globalConnect();
     }
     return () => { listeners.delete(setStatus); };
