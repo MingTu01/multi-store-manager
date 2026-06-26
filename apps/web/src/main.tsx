@@ -1,14 +1,11 @@
-﻿import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+﻿import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
 // Nuclear SW cleanup: unregister ALL old service workers, clear ALL caches
-// This runs on EVERY page load to ensure old VitePWA SW is removed
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(function(regs) {
-    // Unregister ALL old service workers
     var promises = [];
     for (var i = 0; i < regs.length; i++) {
       console.log('[SW] Unregistering old SW:', regs[i].scope);
@@ -16,7 +13,6 @@ if ('serviceWorker' in navigator) {
     }
     return Promise.all(promises);
   }).then(function() {
-    // Clear ALL caches
     return caches.keys().then(function(names) {
       return Promise.all(names.map(function(n) {
         console.log('[SW] Deleting cache:', n);
@@ -24,7 +20,6 @@ if ('serviceWorker' in navigator) {
       }));
     });
   }).then(function() {
-    // Register new push-only SW
     return navigator.serviceWorker.register('/msl-sw.js', { scope: '/' });
   }).then(function(reg) {
     console.log('[SW] Registered push-only SW:', reg.scope);
@@ -34,9 +29,7 @@ if ('serviceWorker' in navigator) {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>,
 );

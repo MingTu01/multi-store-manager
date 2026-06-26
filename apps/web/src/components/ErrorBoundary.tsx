@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 interface Props {
   children: React.ReactNode;
@@ -7,24 +7,32 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorCount: number;
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorCount: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary]', error, errorInfo);
+    this.setState(prev => ({ errorCount: prev.errorCount + 1 }));
+    // Prevent infinite error loops - if too many errors, force reload
+    if (this.state.errorCount > 3) {
+      console.error('[ErrorBoundary] Too many errors, forcing reload');
+      window.location.reload();
+      return;
+    }
+    console.error('[ErrorBoundary]', error.message);
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, errorCount: 0 });
     window.location.href = '/';
   };
 
