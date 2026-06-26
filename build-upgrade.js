@@ -39,7 +39,10 @@ zip.addLocalFolder(serverSrc, 'server-src', (filename) => {
 });
 console.log('  Added server-src/');
 
-const pkg = { version: version.replace('v', ''), notes: notes, buildDate: new Date().toISOString() };
+const realPkgPath = path.join(SERVER_DIR, "package.json");
+const pkg = fs.existsSync(realPkgPath) ? JSON.parse(fs.readFileSync(realPkgPath, "utf8")) : {name:"multi-shop-link"};
+pkg.version = version.replace("v","");
+pkg.buildDate = new Date().toISOString();
 zip.addFile('package.json', Buffer.from(JSON.stringify(pkg, null, 2), 'utf8'));
 console.log('  Added package.json (version: ' + version + ')');
 

@@ -5,7 +5,7 @@
 echo ""
 echo "========================================"
 echo "  MSL Container Starting..."
-echo "  Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo "  Time: $(date)"
 echo "  TZ: ${TZ:-not set}"
 echo "  Node: $(node -v)"
 echo "  NPM: $(npm -v)"
@@ -34,12 +34,23 @@ else
       npm install 2>&1
       echo "[Startup] npm install completed"
     else
-      echo "[Startup] node_modules up to date, skipping npm install"
+      if [ ! -d "/app/node_modules/tsx" ]; then
+  echo "[Startup] Critical dependency tsx missing, running npm install..."
+  npm install 2>&1
+  echo "[Startup] npm install completed"
+else
+  echo "[Startup] node_modules up to date, skipping npm install"
+fi
     fi
   else
     echo "[Startup] No lock marker found, verifying node_modules..."
     if [ -d "/app/node_modules/better-sqlite3" ] && [ -d "/app/node_modules/express" ]; then
       echo "[Startup] node_modules looks OK"
+    if [ ! -d "/app/node_modules/tsx" ]; then
+      echo "[Startup] Critical dependency tsx missing, running npm install..."
+      npm install 2>&1
+      echo "[Startup] npm install completed"
+    fi
     else
       echo "[Startup] node_modules incomplete, running npm install..."
       npm install 2>&1

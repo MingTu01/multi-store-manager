@@ -74,6 +74,11 @@ export default function App() {
   useEffect(() => {
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleServerReady = () => {
+      // Skip auto-reload during upgrade (upgrade handler manages its own flow)
+      if ((window as any).__upgradeInProgress) {
+        console.log('[App] server-ready ignored (upgrade in progress)');
+        return;
+      }
       // Guard: don't reload if we just reloaded within 15s
       const lastReload = sessionStorage.getItem('app-server-ready-reload');
       if (lastReload && Date.now() - parseInt(lastReload) < 15000) {

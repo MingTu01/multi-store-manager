@@ -312,47 +312,33 @@ export default function SettingsPage() {
         if (restartDetected) return;
         restartDetected = true;
         setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1, msg: i === prev.length - 1 ? '服务器重启中...' : s.msg })));
-        setTimeout(() => {
-          let attempts = 0;
-          const rp = setInterval(async () => {
-            attempts++;
-            try {
-              const ctrl = new AbortController();
-              const tmo = setTimeout(() => ctrl.abort(), 3000);
-              const res = await fetch('/api/system/info', { signal: ctrl.signal, credentials: 'include' });
-              clearTimeout(tmo);
-              if (res.ok) {
-                clearInterval(rp);
-                setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
-                setUpgradeComplete(true);
-                setUpdating(false);
-              }
-            } catch {
-              if (attempts > 60) { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }
-            }
-          }, 2000);
-          setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 120000);
-        }, 5000);
+        (window as any).__upgradeInProgress = true;
+        const stepIdx = onlineStepNames.length - 1;
+        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < stepIdx, msg: i === stepIdx ? '等待服务器重启...' : s.msg })));
+        const waitForReady1 = () => {
+          window.removeEventListener('server-ready', waitForReady1);
+          delete (window as any).__upgradeInProgress;
+          setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+          setUpgradeComplete(true);
+          setUpdating(false);
+        };
+        if ((window as any).__sseReconnected) { waitForReady1(); } else { window.addEventListener('server-ready', waitForReady1); }
+        setTimeout(() => { window.removeEventListener('server-ready', waitForReady1); delete (window as any).__upgradeInProgress; waitForReady1(); }, 120000);
       };let RestartPoll: () => void; RestartPoll = () => {
         if (restartDetected) return;
         restartDetected = true;
-        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < prev.length - 1 })));
-        let attempts = 0;
-        const rp = setInterval(async () => {
-          attempts++;
-          try {
-            const ctrl = new AbortController();
-            const tmo = setTimeout(() => ctrl.abort(), 3000);
-            await fetch('/api/system/info', { signal: ctrl.signal, credentials: 'include' });
-            clearTimeout(tmo); clearInterval(rp);
-            setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
-            setUpgradeComplete(true);
-            setUpdating(false);
-          } catch {
-            if (attempts > 30) { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }
-          }
-        }, 2000);
-        setTimeout(() => { clearInterval(rp); setUpdateSteps(prev => prev.map(s => ({ ...s, done: true }))); setUpgradeComplete(true); setUpdating(false); }, 60000);
+        (window as any).__upgradeInProgress = true;
+        const stepIdx2 = onlineStepNames.length - 1;
+        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < stepIdx2, msg: i === stepIdx2 ? '等待服务器重启...' : s.msg })));
+        const waitForReady2 = () => {
+          window.removeEventListener('server-ready', waitForReady2);
+          delete (window as any).__upgradeInProgress;
+          setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
+          setUpgradeComplete(true);
+          setUpdating(false);
+        };
+        if ((window as any).__sseReconnected) { waitForReady2(); } else { window.addEventListener('server-ready', waitForReady2); }
+        setTimeout(() => { window.removeEventListener('server-ready', waitForReady2); delete (window as any).__upgradeInProgress; waitForReady2(); }, 120000);
       };
       es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
       // Polling fallback for upgrade status (used when SSE fails)
@@ -444,13 +430,18 @@ export default function SettingsPage() {
             clearInterval(poll);
             setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
             setUpgrading(false);
-            setUpgradeComplete(true);
-            let attempts = 0;
-            const rp = setInterval(async () => {
-              attempts++;
-              try { await fetch('/api/system/info', { credentials: 'include' }); clearInterval(rp); setTimeout(() => reloadWithCacheClear(), 1500); }
-              catch { if (attempts > 30) { clearInterval(rp); reloadWithCacheClear(); } }
-            }, 2000);
+            (window as any).__upgradeInProgress = true;
+            const stepIdx3 = stepNames.length - 1;
+            setUpgradeSteps(stepNames.map((n, ii) => ({ msg: n, done: ii < stepIdx3 })));
+            const waitForReady3 = () => {
+              window.removeEventListener('server-ready', waitForReady3);
+              delete (window as any).__upgradeInProgress;
+              setUpgradeSteps(stepNames.map(n => ({ msg: n, done: true })));
+              setUpgrading(false);
+              setUpgradeComplete(true);
+            };
+            if ((window as any).__sseReconnected) { waitForReady3(); } else { window.addEventListener('server-ready', waitForReady3); }
+            setTimeout(() => { window.removeEventListener('server-ready', waitForReady3); delete (window as any).__upgradeInProgress; waitForReady3(); }, 120000);
           }
         } else if (maxStep >= 3 && !restartDetected) {
           restartDetected = true;
@@ -867,7 +858,7 @@ export default function SettingsPage() {
 
 
       {/* === Upgrade Progress Modal === */}
-      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
+      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { delete (window as any).__upgradeInProgress; fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
         <div className="space-y-6">
           {uploadProgress > 0 && uploadProgress < 100 && (
             <div className="space-y-2">
@@ -920,7 +911,7 @@ export default function SettingsPage() {
                 <div className="text-xl font-bold text-emerald-700 mb-1">升级完成</div>
                 <div className="text-sm text-emerald-500">系统已更新到最新版本</div>
               </div>
-              <button onClick={() => { fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); reloadWithCacheClear(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
+              <button onClick={() => { delete (window as any).__upgradeInProgress; fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); reloadWithCacheClear(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
                 <RefreshCw className="h-5 w-5" />确认并刷新页面
               </button>
             </div>
