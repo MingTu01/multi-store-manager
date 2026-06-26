@@ -20,15 +20,14 @@ function globalConnect() {
   if (globalStopped) return;
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
 
-  // Abort existing connection and CLEAR the reference immediately
-  // so the old reader.closed handler sees globalController !== oldController and skips reconnect
   if (globalController) {
     const old = globalController;
-    globalController = null; // Clear BEFORE abort
+    globalController = null;
     try { old.abort(); } catch {}
   }
 
   notifyListeners('connecting');
+  console.log('[SSE] Connecting...');
   const controller = new AbortController();
   globalController = controller;
 
@@ -37,8 +36,12 @@ function globalConnect() {
     signal: controller.signal,
     cache: 'no-store',
   }).then(response => {
-    if (!response.ok) { throw new Error('SSE HTTP ' + response.status); }
-    if (globalController !== controller) return;
+    if (!response.ok) {
+      console.error('[SSE] HTTP error:', response.status);
+      throw new Error('SSE HTTP ' + response.status);
+    }
+    if (globalController !== controller) { console.log('[SSE] Stale connection, aborting'); return; }
+    console.log('[SSE] Connected successfully');
     notifyListeners('connected');
 
     const reader = response.body!.getReader();
@@ -56,8 +59,9 @@ function globalConnect() {
           const rawData = line.slice(5).trim();
           try {
             const data = JSON.parse(rawData);
+            console.log('[SSE] Event:', currentEvent, 'unreadCount:', data.unreadCount, 'type:', data.type);
             handleEvent(currentEvent, data);
-          } catch {}
+          } catch (e) { console.warn('[SSE] Parse error:', rawData.substring(0, 100)); }
           currentEvent = 'message';
         } else if (line.startsWith(':')) {
           // heartbeat
@@ -69,31 +73,32 @@ function globalConnect() {
 
     function read() {
       reader.read().then(({ done, value }) => {
-        if (done) return;
+        if (done) { console.log('[SSE] Stream ended'); return; }
         buffer += decoder.decode(value, { stream: true });
         processBuffer();
         read();
-      }).catch(() => {});
+      }).catch(function(e) { console.warn('[SSE] Read error:', e.message); });
     }
     read();
 
-    // When stream ends (server closed, network error, etc.)
-    reader.closed.catch(() => {}).finally(() => {
-      // Only reconnect if THIS is still the active controller
+    reader.closed.catch(function() {}).finally(function() {
       if (globalController === controller) {
+        console.log('[SSE] Connection closed, scheduling reconnect');
         globalController = null;
         notifyListeners('disconnected');
         if (!globalStopped) {
           globalReconnectTimer = setTimeout(globalConnect, 5000);
         }
+      } else {
+        console.log('[SSE] Old connection closed (not active), ignoring');
       }
     });
-  }).catch((err) => {
+  }).catch(function(err) {
     if (globalController === controller) {
       globalController = null;
       notifyListeners('disconnected');
-      // Don't reconnect on AbortError (intentional abort)
       if (!globalStopped && err.name !== 'AbortError') {
+        console.error('[SSE] Fetch error:', err.message, '- reconnecting in 5s');
         globalReconnectTimer = setTimeout(globalConnect, 5000);
       }
     }
@@ -112,7 +117,10 @@ function handleEvent(eventName: string, data: any) {
     try {
       const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
       if (typeof data.unreadCount === 'number') {
+        console.log('[SSE] Updating badge from SSE: unreadCount=' + data.unreadCount);
         useNotificationStore.setState({ unreadCount: data.unreadCount });
+      } else {
+        console.log('[SSE] No unreadCount in data-change event');
       }
       if (data.storeId) {
         invalidateCache('/stores/' + data.storeId);
@@ -128,7 +136,7 @@ function handleEvent(eventName: string, data: any) {
       invalidateCache('/dashboard');
       bumpGlobal();
       bumpNotifications();
-    } catch {}
+    } catch (e) { console.error('[SSE] handleEvent error:', e); }
   }
 }
 
