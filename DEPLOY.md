@@ -165,3 +165,36 @@ Copy-Item -Recurse -Force "D:\文档\DDDOR\multi-store-manager\apps\web\dist" "D
 # 同步后端（源码直接从 monorepo 复制）
 Copy-Item -Force "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\system.ts" "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts"
 ```
+---
+
+## 六、热更新方式（推荐）
+
+当无法使用在线更新或需要快速修复时，可以直接替换容器内的文件：
+
+### 前端热更新
+
+```powershell
+# 构建前端
+cd "D:\文档\DDDOR\multi-store-manager\apps\web"
+npx vite build
+
+# 复制到容器
+docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+
+# 重启容器
+docker restart multi-shop-link
+```
+
+### 后端热更新
+
+```powershell
+# 复制单个文件
+docker cp "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+docker restart multi-shop-link
+```
+
+### 注意事项
+
+- 热更新不会更新 `node_modules`，如果依赖有变化需要重新构建镜像
+- 热更新后容器内的旧 JS 文件不会自动清理，可能需要手动清理
+- 前端文件名包含 hash，旧文件不会被覆盖但也不会被引用

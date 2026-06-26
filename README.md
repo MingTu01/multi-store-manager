@@ -2,11 +2,18 @@
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.2.26**
+**当前版本：v1.2.27**
 ## 更新日志
+### v1.2.27
+- **SSE 重构** — 从 fetch ReadableStream 改回 EventSource API，解决浏览器流式缓冲问题
+- **Service Worker 清理** — 移除 VitePWA，改用最小化推送专用 SW（msl-sw.js），解决旧 SW 缓存导致页面不更新的问题
+- **event-bus 修复** — 修复缺失的 db 导入，SSE 事件现在正确附带 unreadCount
+- **StrictMode 移除** — 解决 React 19 的 removeChild DOM 协调错误
+- **热更新文档** — 新增 DEPLOY.md 热更新章节
 
 
-### v1.2.6 (2026-06-22)
+
+### v1.2.27 (2026-06-22)
 - **安全加固：httpOnly Cookie 认证** — 移除 localStorage JWT 存储，改用 httpOnly + Secure + SameSite=Lax Cookie
 - **后端 Cookie 工具** — 新增 getCookie/setAuthCookie/clearAuthCookie，不引入 cookie-parser 依赖
 - **向后兼容** — authMiddleware 优先读 Cookie → Authorization header → query token
@@ -20,15 +27,15 @@
 - **SQL 参数化** — notifications 路由消除字符串拼接
 - **文件删除权限** — upload 路由增加角色+门店归属校验
 
-### v1.2.5 (2026-06-22)
+### v1.2.27 (2026-06-22)
 - **在线升级修复** — broadcastProgress 正确更新 upgradeState，轮询带认证信息，重启检测修复
 - **升级进度细化** — 在线升级和 ZIP 升级均显示实时子步骤
 
-### v1.2.4 (2026-06-22)
+### v1.2.27 (2026-06-22)
 - **PWA 自动更新** — 添加 skipWaiting + clientsClaim，解决更新后页面不刷新的问题
 - **底部导航优化** — MAX_DIRECT 5→6，通知移到直接导航栏
 
-### v1.2.3 (2026-06-22)
+### v1.2.27 (2026-06-22)
 - **图表优化** — YAxis 保留数字标签，去掉轴线和刻度线，减少左边空地
 - **图表全屏展示** — 所有图表支持双击全屏，移动端强制横屏，桌面端居中弹窗
 - **趋势图筛选** — 仪表盘/报表/进货页面支持 7/14/30/60 天筛选
@@ -38,7 +45,7 @@
 - **进货单功能** — 表单模式、趋势分析、建议订货量、导出图片
 - **阿里云 OCR** — 替换 Tesseract.js，使用通用票证抽取 API
 
-### v1.2.2 (2026-06-22)
+### v1.2.27 (2026-06-22)
 - **SSE 单例化** — 全应用只维护一个 SSE 连接，解决快速切换页面导致连接累积、服务器卡死的问题
 - **服务端连接限制** — 每用户限 1 个 SSE 连接，新连接自动关闭旧连接
 - **登录切换修复** — 退出登录时断开 SSE 并清理缓存，登录时重连；API 缓存按 token 隔离
