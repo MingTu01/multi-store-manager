@@ -1,4 +1,4 @@
-process.env.TZ = 'Asia/Shanghai';
+﻿process.env.TZ = 'Asia/Shanghai';
 if (!process.env.NODE_ENV) process.env.NODE_ENV = 'production';
 import { initPush } from './push-notify.js';
 import express from 'express';
@@ -45,8 +45,8 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
-// S7: CORS 配置
-// 未设置 CORS_ORIGIN 时默认使用生产域名
+// S7: CORS 閰嶇疆
+// 鏈缃?CORS_ORIGIN 鏃堕粯璁や娇鐢ㄧ敓浜у煙鍚?
 const corsOrigin = process.env.CORS_ORIGIN || '';
 const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
@@ -55,23 +55,23 @@ const corsOptions: cors.CorsOptions = {
   credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
 app.use(compression({ level: 6, threshold: 1024 }));
-// 安全HTTP头
+// 瀹夊叏HTTP澶?
 app.use((req, res, next) => {
-  // 防止点击劫持
+  // 闃叉鐐瑰嚮鍔寔
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  // 防止MIME类型嗅探
+  // 闃叉MIME绫诲瀷鍡呮帰
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  // 防止信息泄露
+  // 闃叉淇℃伅娉勯湶
   res.removeHeader('X-Powered-By');
-  // CSP - 允许内联样式（Tailwind需要），禁止外部脚本
-  // 生成请求级别的 CSP nonce
+  // CSP - 鍏佽鍐呰仈鏍峰紡锛圱ailwind闇€瑕侊級锛岀姝㈠閮ㄨ剼鏈?
+  // 鐢熸垚璇锋眰绾у埆鐨?CSP nonce
   const nonce = crypto.randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
 
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
-    "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}'`,  // unsafe-inline 浣滀负 fallback
+    "style-src 'self' 'unsafe-inline'",  // Tailwind 闇€瑕?
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self'",
@@ -79,11 +79,11 @@ app.use((req, res, next) => {
     "base-uri 'self'",
     "form-action 'self'"
   ].join('; '));
-  // Referrer策略
+  // Referrer绛栫暐
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  // Permissions-Policy - 限制浏览器API
+  // Permissions-Policy - 闄愬埗娴忚鍣ˋPI
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
-  // Cross-Origin 安全头
+  // Cross-Origin 瀹夊叏澶?
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
@@ -91,7 +91,7 @@ app.use((req, res, next) => {
 
 app.use(cors(corsOptions));
 
-// P5: JSON body 大小限制可配置，默认从 50MB 降到 5MB
+// P5: JSON body 澶у皬闄愬埗鍙厤缃紝榛樿浠?50MB 闄嶅埌 5MB
 const jsonLimit = process.env.JSON_LIMIT || '5mb';
 app.use(express.json({ limit: jsonLimit }));
 
@@ -101,7 +101,7 @@ const globalLimiter = rateLimit({
   max: 100,
   standardHeaders: false,
   legacyHeaders: false,
-  message: '请求过于频繁，请稍后重试',
+  message: '璇锋眰杩囦簬棰戠箒锛岃绋嶅悗閲嶈瘯',
   skip: (req) => {
     // Skip rate limiting for non-API routes (static files, SPA)
     if (!req.path.startsWith('/api/')) return true;
@@ -153,8 +153,6 @@ app.get('/api/health', (_req, res) => { res.json({ status: 'ok', ts: Date.now() 
 // SSE - Server-Sent Events for real-time data push
 app.get('/api/sse', authMiddleware, (req, res) => {
   const userId = (req as any).user?.id || 0;
-  // Close existing connections for this user (limit 1 per user)
-  eventBus.closeUserConnections(userId);
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -164,9 +162,9 @@ app.get('/api/sse', authMiddleware, (req, res) => {
   const role = (req as any).user?.role || 'STAFF';
   const storeId = (req as any).user?.store_id || null;
   const clientId = eventBus.addClient(userId, role, storeId, res);
-  // 连接数超限（每用户最多3个）
+  // 杩炴帴鏁拌秴闄愶紙姣忕敤鎴锋渶澶?涓級
   if (!clientId) {
-    res.status(429).json({ error: 'SSE 连接数超限，请稍后重试' });
+    res.status(429).json({ error: 'SSE 杩炴帴鏁拌秴闄愶紝璇风◢鍚庨噸璇? });
     return;
   }
 
@@ -184,7 +182,7 @@ export { eventBus };
 
 app.use('/api/auth', authRouter);
 
-// Protected routes — 带门店访问控制
+// Protected routes 鈥?甯﹂棬搴楄闂帶鍒?
 app.use('/api/stores', authMiddleware, storesRouter);
 app.use('/api/stores/:storeId/entries', authMiddleware, requireStoreAccess, entriesRouter);
 app.use('/api/stores/:storeId/categories', authMiddleware, requireStoreAccess, categoriesRouter);
@@ -198,7 +196,7 @@ app.use('/api/notifications', authMiddleware, notificationsRouter);
 app.use('/api/users', authMiddleware, usersRouter);
 app.use('/api/system', authMiddleware, systemRouter);
 app.use('/api/logs', authMiddleware, logsRouter);
-// S6: 报表接口加认证
+// S6: 鎶ヨ〃鎺ュ彛鍔犺璇?
 app.use('/api/reports', authMiddleware, reportsRouter);
 app.use('/api/dashboard', authMiddleware, dashboardRouter);
 startHealthCheckScheduler();
@@ -229,7 +227,7 @@ function setupAutoBackup() {
       mkdirSync(backupDir, { recursive: true });
       const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const filename = 'auto-backup-' + config.interval + '-' + ts + '.db';
-      // Q8: 备份前执行 WAL checkpoint
+      // Q8: 澶囦唤鍓嶆墽琛?WAL checkpoint
       db.pragma('wal_checkpoint(TRUNCATE)');
       copyFileSync(join(BASE_DIR, 'data', 'store.db'), join(backupDir, filename));
 
@@ -251,19 +249,19 @@ function setupCron() {
     const h = now.getHours(), m = now.getMinutes(), day = now.getDay();
     if (h === 22 && m === 0) {
       const s = getSettings();
-      if (s.push_daily_report) sendNotification('每日营业简报', buildDailyReport()).catch(console.error);
+      if (s.push_daily_report) sendNotification('姣忔棩钀ヤ笟绠€鎶?, buildDailyReport()).catch(console.error);
     }
     if (day === 1 && h === 9 && m === 0) {
       const s = getSettings();
-      if (s.push_weekly_report) sendNotification('每周周报', buildWeeklyReport()).catch(console.error);
+      if (s.push_weekly_report) sendNotification('姣忓懆鍛ㄦ姤', buildWeeklyReport()).catch(console.error);
     }
     if (now.getDate() === 1 && h === 9 && m === 0) {
       const s = getSettings();
-      if (s.push_monthly_report) sendNotification('月度报告', buildMonthlyReport()).catch(console.error);
+      if (s.push_monthly_report) sendNotification('鏈堝害鎶ュ憡', buildMonthlyReport()).catch(console.error);
     }
     if (h === 9 && m === 0) {
       const s = getSettings();
-      if (s.push_review_reminder) sendNotification('待审核提醒', buildReviewReminder()).catch(console.error);
+      if (s.push_review_reminder) sendNotification('寰呭鏍告彁閱?, buildReviewReminder()).catch(console.error);
     }
   }, 60000);
 }
@@ -282,7 +280,7 @@ app.get('{*splat}', (req, res) => {
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message);
   console.error('[FATAL] Stack:', err.stack);
-  process.exit(1); // 让 Docker restart:always 自动重启
+  process.exit(1); // 璁?Docker restart:always 鑷姩閲嶅惎
 });
 process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled Rejection:', reason);
@@ -292,10 +290,10 @@ process.on('unhandledRejection', (reason) => {
 app.use((err: any, req: any, res: any, next: any) => {
   console.error(`[${new Date().toISOString()}] ERROR ${req.method} ${req.path}:`, err.message);
   if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ error: '文件大小超过限制 (最大5MB)' });
+    return res.status(400).json({ error: '鏂囦欢澶у皬瓒呰繃闄愬埗 (鏈€澶?MB)' });
   }
   const isProd = process.env.NODE_ENV === 'production';
-  res.status(500).json({ error: isProd ? '服务器内部错误' : (err.message || '服务器内部错误') });
+  res.status(500).json({ error: isProd ? '鏈嶅姟鍣ㄥ唴閮ㄩ敊璇? : (err.message || '鏈嶅姟鍣ㄥ唴閮ㄩ敊璇?) });
 });
 
 
@@ -323,9 +321,9 @@ app.listen(PORT, '0.0.0.0', () => {
 })
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {
-      console.error('端口 ' + PORT + ' 无权限，请尝试其他端口: PORT=3000 node --import tsx src/index.ts');
+      console.error('绔彛 ' + PORT + ' 鏃犳潈闄愶紝璇峰皾璇曞叾浠栫鍙? PORT=3000 node --import tsx src/index.ts');
     } else {
-      console.error('服务器启动失败:', err.message);
+      console.error('鏈嶅姟鍣ㄥ惎鍔ㄥけ璐?', err.message);
     }
     process.exit(1);
   });

@@ -18,9 +18,17 @@ function notifyListeners(s: ConnectionStatus) {
 
 function globalConnect() {
   if (globalStopped) return;
-  if (globalController) { try { globalController.abort(); } catch {} globalController = null; }
-  notifyListeners('connecting');
+  if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
 
+  // Abort existing connection and CLEAR the reference immediately
+  // so the old reader.closed handler sees globalController !== oldController and skips reconnect
+  if (globalController) {
+    const old = globalController;
+    globalController = null; // Clear BEFORE abort
+    try { old.abort(); } catch {}
+  }
+
+  notifyListeners('connecting');
   const controller = new AbortController();
   globalController = controller;
 
@@ -30,8 +38,8 @@ function globalConnect() {
     cache: 'no-store',
   }).then(response => {
     if (!response.ok) { throw new Error('SSE HTTP ' + response.status); }
+    if (globalController !== controller) return;
     notifyListeners('connected');
-    document.body.dataset.sseStatus = 'connected';
 
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
@@ -40,7 +48,6 @@ function globalConnect() {
     function processBuffer() {
       const lines = buffer.split('\n');
       buffer = lines.pop() || '';
-
       let currentEvent = 'message';
       for (const line of lines) {
         if (line.startsWith('event:')) {
@@ -53,7 +60,7 @@ function globalConnect() {
           } catch {}
           currentEvent = 'message';
         } else if (line.startsWith(':')) {
-          // SSE comment (heartbeat) — ignore
+          // heartbeat
         } else if (line.trim() === '') {
           currentEvent = 'message';
         }
@@ -66,25 +73,29 @@ function globalConnect() {
         buffer += decoder.decode(value, { stream: true });
         processBuffer();
         read();
-      }).catch(() => {
-        // Stream ended
-      });
+      }).catch(() => {});
     }
     read();
 
-    // Handle reconnect on stream close
+    // When stream ends (server closed, network error, etc.)
     reader.closed.catch(() => {}).finally(() => {
+      // Only reconnect if THIS is still the active controller
       if (globalController === controller) {
         globalController = null;
         notifyListeners('disconnected');
-        if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+        if (!globalStopped) {
+          globalReconnectTimer = setTimeout(globalConnect, 5000);
+        }
       }
     });
-  }).catch(() => {
+  }).catch((err) => {
     if (globalController === controller) {
       globalController = null;
       notifyListeners('disconnected');
-      if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+      // Don't reconnect on AbortError (intentional abort)
+      if (!globalStopped && err.name !== 'AbortError') {
+        globalReconnectTimer = setTimeout(globalConnect, 5000);
+      }
     }
   });
 }
@@ -100,7 +111,6 @@ function handleEvent(eventName: string, data: any) {
   if (eventName === 'data-change') {
     try {
       const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
-      // Update badge directly from SSE event data
       if (typeof data.unreadCount === 'number') {
         useNotificationStore.setState({ unreadCount: data.unreadCount });
       }
@@ -124,7 +134,11 @@ function handleEvent(eventName: string, data: any) {
 
 export function disconnectSSE() {
   globalStopped = true;
-  if (globalController) { try { globalController.abort(); } catch {} globalController = null; }
+  if (globalController) {
+    const c = globalController;
+    globalController = null;
+    try { c.abort(); } catch {}
+  }
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
   notifyListeners('disconnected');
 }
