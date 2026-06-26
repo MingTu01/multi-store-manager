@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+﻿import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
@@ -84,16 +84,15 @@ export default function StoreEntriesPage() {
     }
   }, [location.state]);
 
-  // Dismiss long press menu when clicking elsewhere
+  // Dismiss long press menu when tapping/clicking elsewhere (pointerdown unifies touch & mouse)
   useEffect(() => {
     const dismiss = () => setLongPressId(null);
     if (longPressId !== null) {
-      // Use setTimeout to avoid immediate trigger from the same click
+      // Use pointerdown (unified event model); 100ms delay avoids the pointerup from the long-press gesture
       const timer = setTimeout(() => {
-        document.addEventListener('click', dismiss, { once: true });
-        document.addEventListener('touchstart', dismiss, { once: true });
-      }, 0);
-      return () => { clearTimeout(timer); document.removeEventListener('click', dismiss); document.removeEventListener('touchstart', dismiss); };
+        document.addEventListener('pointerdown', dismiss, { once: true });
+      }, 100);
+      return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); };
     }
   }, [longPressId]);
 
@@ -216,10 +215,10 @@ export default function StoreEntriesPage() {
               )}
             </div>
             {longPressId === e.id && menuPos && createPortal(
-              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onClick={(ev) => { ev.preventDefault(); setLongPressId(null); }}>
+              <div className="fixed inset-0 z-[9999]" style={{background:"transparent"}} onPointerDown={(ev) => { ev.stopPropagation(); setLongPressId(null); }}>
                 <div className="absolute bg-white rounded-xl shadow-2xl border border-slate-200 py-1 min-w-[110px]"
                   style={{ left: Math.min(menuPos.x, window.innerWidth - 130), top: Math.min(menuPos.y, window.innerHeight - 100) }}
-                  onClick={(ev) => ev.stopPropagation()}>
+                  onClick={(ev) => ev.stopPropagation()} onPointerDown={(ev) => ev.stopPropagation()}>
                   <button onPointerDown={(ev) => ev.stopPropagation()} onClick={(ev) => { ev.stopPropagation(); setLongPressId(null); openEdit(e); }} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100">
                     <Edit3 className="h-4 w-4 text-indigo-500" />编辑
                   </button>

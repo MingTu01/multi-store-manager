@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { invalidateCache } from './api';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
-// Global singleton - one SSE connection for the entire app
-let globalES: EventSource | null = null;
+let globalController: AbortController | null = null;
 let globalStatus: ConnectionStatus = 'disconnected';
 let globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let globalStopped = false;
@@ -19,72 +18,113 @@ function notifyListeners(s: ConnectionStatus) {
 
 function globalConnect() {
   if (globalStopped) return;
-  if (globalES) { try { globalES.close(); } catch {} globalES = null; }
+  if (globalController) { try { globalController.abort(); } catch {} globalController = null; }
   notifyListeners('connecting');
-  try {
-    const es = new EventSource('/api/sse', { withCredentials: true });
-    globalES = es;
 
-    es.onopen = () => {
-      notifyListeners('connected');
-      document.body.dataset.sseStatus = 'connected';
-      const wasReconnected = (window as any).__sseReconnected;
-      (window as any).__sseReconnected = true;
-      // Only dispatch server-ready on RECONNECT (not first connect)
-      // This prevents App.tsx from clearing caches on every page load
-      if (wasReconnected) {
-        window.dispatchEvent(new CustomEvent('server-ready'));
+  const controller = new AbortController();
+  globalController = controller;
+
+  fetch('/api/sse', {
+    credentials: 'include',
+    signal: controller.signal,
+    cache: 'no-store',
+  }).then(response => {
+    if (!response.ok) { throw new Error('SSE HTTP ' + response.status); }
+    notifyListeners('connected');
+    document.body.dataset.sseStatus = 'connected';
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    function processBuffer() {
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      let currentEvent = 'message';
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          const rawData = line.slice(5).trim();
+          try {
+            const data = JSON.parse(rawData);
+            handleEvent(currentEvent, data);
+          } catch {}
+          currentEvent = 'message';
+        } else if (line.startsWith(':')) {
+          // SSE comment (heartbeat) — ignore
+        } else if (line.trim() === '') {
+          currentEvent = 'message';
+        }
       }
-    };
+    }
 
-    es.addEventListener('system', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.action === 'server-ready') {
-          window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));
-        }
-      } catch {}
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) return;
+        buffer += decoder.decode(value, { stream: true });
+        processBuffer();
+        read();
+      }).catch(() => {
+        // Stream ended
+      });
+    }
+    read();
+
+    // Handle reconnect on stream close
+    reader.closed.catch(() => {}).finally(() => {
+      if (globalController === controller) {
+        globalController = null;
+        notifyListeners('disconnected');
+        if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+      }
     });
-
-    es.addEventListener('data-change', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
-        const { fetchUnread } = useNotificationStore.getState();
-        if (data.storeId) {
-          invalidateCache('/stores/' + data.storeId);
-          invalidateCache('/stores/' + data.storeId + '/entries');
-          invalidateCache('/stores/' + data.storeId + '/entries/stats');
-          invalidateCache('/stores/' + data.storeId + '/inventory');
-          invalidateCache('/stores/' + data.storeId + '/report');
-          bumpStore(data.storeId);
-        }
-        invalidateCache('/notifications');
-        invalidateCache('/unread-count');
-        invalidateCache('/stores');
-        invalidateCache('/dashboard');
-        bumpGlobal();
-        bumpNotifications();
-        fetchUnread();
-      } catch {}
-    });
-
-    es.onerror = () => {
+  }).catch(() => {
+    if (globalController === controller) {
+      globalController = null;
       notifyListeners('disconnected');
-      try { es.close(); } catch {}
-      if (globalES === es) globalES = null;
-      if (globalReconnectTimer) clearTimeout(globalReconnectTimer);
       if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
-    };
-  } catch {
-    notifyListeners('disconnected');
-    if (!globalStopped) globalReconnectTimer = setTimeout(globalConnect, 5000);
+    }
+  });
+}
+
+function handleEvent(eventName: string, data: any) {
+  if (eventName === 'system') {
+    if (data.action === 'server-ready') {
+      window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));
+    }
+    return;
+  }
+
+  if (eventName === 'data-change') {
+    try {
+      const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
+      // Update badge directly from SSE event data
+      if (typeof data.unreadCount === 'number') {
+        useNotificationStore.setState({ unreadCount: data.unreadCount });
+      }
+      if (data.storeId) {
+        invalidateCache('/stores/' + data.storeId);
+        invalidateCache('/stores/' + data.storeId + '/entries');
+        invalidateCache('/stores/' + data.storeId + '/entries/stats');
+        invalidateCache('/stores/' + data.storeId + '/inventory');
+        invalidateCache('/stores/' + data.storeId + '/report');
+        bumpStore(data.storeId);
+      }
+      invalidateCache('/notifications');
+      invalidateCache('/unread-count');
+      invalidateCache('/stores');
+      invalidateCache('/dashboard');
+      bumpGlobal();
+      bumpNotifications();
+    } catch {}
   }
 }
 
 export function disconnectSSE() {
   globalStopped = true;
-  if (globalES) { try { globalES.close(); } catch {} globalES = null; }
+  if (globalController) { try { globalController.abort(); } catch {} globalController = null; }
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
   notifyListeners('disconnected');
 }
@@ -100,8 +140,7 @@ export function useSSE(): ConnectionStatus {
 
   useEffect(() => {
     listeners.add(setStatus);
-    // Start connection if not already running
-    if (!globalStopped && !globalES && globalStatus === 'disconnected') {
+    if (!globalStopped && !globalController && globalStatus === 'disconnected') {
       globalConnect();
     }
     return () => { listeners.delete(setStatus); };

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { api } from '../lib/api';
 
 interface NotificationState {
@@ -12,9 +12,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   unreadCount: 0,
   fetchUnread: async () => {
     try {
-      const d = await api.get('/notifications/unread-count', { silent: true });
-      set({ unreadCount: d.count || 0 });
-    } catch {}
+      const url = '/notifications/unread-count?t=' + Date.now();
+      const d = await api.get(url, { silent: true });
+      const newCount = d.count || 0;
+      console.log('[fetchUnread] OK count=' + newCount + ' prev=' + get().unreadCount);
+      set({ unreadCount: newCount });
+    } catch (e: any) {
+      console.warn('[fetchUnread] FAILED:', e?.message);
+    }
   },
   decrementUnread: (n = 1) => {
     set((s) => ({ unreadCount: Math.max(0, s.unreadCount - n) }));

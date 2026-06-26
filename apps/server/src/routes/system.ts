@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -88,7 +88,7 @@ router.get('/info', (req: AuthRequest, res: Response) => {
     let version = '1.0.0';
     try { version = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
     res.json({ version, userCount, storeCount, entryCount, dbSize: (dbSize / 1024 / 1024).toFixed(2) + ' MB', uptime: process.uptime(), cpu: cpuUsage + '%', memory: Math.round(usedMem / 1048576) + ' / ' + Math.round(totalMem / 1048576) + ' MB', nodeVersion: process.version });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S9: 备份 — 仅 ADMIN
@@ -109,7 +109,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
     zip.writeZip(zipPath);
     const size = statSync(zipPath).size;
     res.json({ filename, size: (size / 1024).toFixed(1) + ' KB', message: '备份成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S9+3: 备份信息 — ADMIN + 路径安全
@@ -120,7 +120,7 @@ router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const stats = statSync(filepath);
     res.json({ filename: req.params.filename, size: (stats.size / 1024).toFixed(1) + ' KB', sizeBytes: stats.size, date: stats.mtime.toISOString() });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S9: 备份列表 — ADMIN
@@ -134,7 +134,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
       return { filename: f, size: (stats.size / 1024).toFixed(1) + ' KB', date: stats.mtime.toISOString() };
     }).sort((a: any, b: any) => b.date.localeCompare(a.date));
     res.json({ backups: files });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S9+3: 备份下载 — ADMIN + 路径安全
@@ -160,7 +160,7 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
     copyFileSync(file.path, join(backupDir, filename));
     unlinkSync(file.path);
     res.json({ filename, message: '备份上传成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S2: 备份恢复 — ADMIN + 安全脚本生成（JSON.stringify 防注入）+ 路径安全
@@ -238,7 +238,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
       // Fallback: force exit after 2s if SIGTERM didn't work
       setTimeout(() => process.exit(0), 2000);
     }, 500);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S9: 删除备份 — ADMIN + 路径安全
@@ -249,7 +249,7 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     unlinkSync(filepath);
     res.json({ message: '备份已删除' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // 自动备份配置 — ADMIN
@@ -259,7 +259,7 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/auto-backup', (req: AuthRequest, res: Response) => {
@@ -269,7 +269,7 @@ router.put('/auto-backup', (req: AuthRequest, res: Response) => {
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     writeFileSync(configPath, JSON.stringify(req.body, null, 2));
     res.json({ message: '自动备份设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // 升级相关 — ADMIN
@@ -283,7 +283,7 @@ router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
 
 router.get('/upgrade/status', (req: AuthRequest, res: Response) => {
   if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-  try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: Response) => {
@@ -300,7 +300,7 @@ router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: 
     // Q15: 清理临时文件
     try { unlinkSync(file.path); } catch {}
     res.json({ version, file: file.originalname, valid: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response) => {
@@ -466,7 +466,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         broadcastProgress('error', { message: '升级失败: ' + err.message });
       }
     })();
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // 重启 — ADMIN
@@ -478,7 +478,7 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
       console.log('[Restart] Sending SIGTERM for restart...');
       process.kill(process.pid, 'SIGTERM');
     }, 500);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
@@ -498,12 +498,12 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
       return res.json(masked);
     }
     res.json(settings);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     // 字段白名单验证，防止写入非法字段
     const allowedFields = ['pushplus_enabled', 'pushplus_token', 'serverchan_enabled', 'serverchan_key',
@@ -525,12 +525,12 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
       s.push_alert ? 1 : 0
     )
     res.json({ message: '通知设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
 
     const bodyConfig = req.body && req.body.config ? req.body.config : null;
     const type = req.query.type as string || 'daily';
@@ -544,8 +544,8 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
       return sendNotification(title, content, type, bodyConfig);
     })()
       .then(() => res.json({ message: '测试通知已发送' }))
-      .catch((err: any) => res.status(500).json({ error: (process.env.NODE_ENV === 'production' ? '发送失败' : '发送失败: ' + err.message) }));
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+      .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 
@@ -568,7 +568,7 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
       }
     }
     res.json({ message: '清理完成' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 
@@ -681,7 +681,7 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
         warning
       }
     });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // Execute update
@@ -853,34 +853,25 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('error', { message: '更新失败: ' + err.message });
       }
     })();
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 
 // ── 用户个人推送设置（改造版） ──
 import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
-import { getVapidPublicKey, saveSubscription, removeSubscription, sendPushNotification } from '../push-notify.js';
+import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification } from '../push-notify.js';
 
 // GET: 读取自己的设置（解密返回）
 router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
     const row = db.prepare('SELECT * FROM user_notification_settings WHERE user_id = ?').get(req.user.id) as any;
     if (!row) return res.json({});
-    const result: any = { ...row };
+    const result = { ...row };
     if (result.pushplus_token) result.pushplus_token = decryptToken(result.pushplus_token);
     if (result.serverchan_key) result.serverchan_key = decryptToken(result.serverchan_key);
     if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
-    if (result.iyuu_token) result.iyuu_token = decryptToken(result.iyuu_token);
-    if (result.push_report !== undefined) { result.push_daily_report = !!result.push_report; result.push_weekly_report = !!result.push_report; result.push_monthly_report = !!result.push_report; }
-    if (result.push_review !== undefined) result.push_review_reminder = !!result.push_review;
-    if (result.push_entry !== undefined) result.push_bookkeeping_notify = !!result.push_entry;
-    if (result.push_inventory !== undefined) result.push_inventory_notify = !!result.push_inventory;
-    if (result.push_shift !== undefined) result.push_openclose_notify = !!result.push_shift;
-    if (result.push_purchase !== undefined) result.push_purchase_notify = !!result.push_purchase;
-    if (result.push_payroll !== undefined) result.push_salary_notify = !!result.push_payroll;
-    if (result.push_dividend !== undefined) result.push_dividend_notify = !!result.push_dividend;
     res.json(result);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // PUT: 保存自己的设置（加密存储，角色校验）
@@ -891,9 +882,9 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
     if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {
       return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
     }
-    const FIELD_MAP: Record<string, string> = { push_daily_report: 'push_report', push_weekly_report: 'push_report', push_monthly_report: 'push_report', push_review_reminder: 'push_review', push_alert: 'push_alert', push_bookkeeping_notify: 'push_entry', push_inventory_notify: 'push_inventory', push_openclose_notify: 'push_shift', push_purchase_notify: 'push_purchase', push_salary_notify: 'push_payroll', push_dividend_notify: 'push_dividend' }; const allowedPushFields = ['push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase','push_health_cert','push_staff','push_store','push_report','push_review','push_alert'];
+    const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert','push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify'];
     const pushValues: Record<string, number> = {};
-    for (const [feKey, dbCol] of Object.entries(FIELD_MAP)) { if (req.body[feKey] !== undefined) pushValues[dbCol] = req.body[feKey] ? 1 : 0; } for (const f of allowedPushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
+    for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
     const encToken = pushplus_token ? encryptToken(pushplus_token) : '';
     const encKey = serverchan_key ? encryptToken(serverchan_key) : '';
     const encSecret = wecom_secret ? encryptToken(wecom_secret) : '';
@@ -902,25 +893,17 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
     if (existing) {
       let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, method=?, updated_at=?';
       const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
-      // 白名单校验，防止列名注入
-      for (const [k, v] of Object.entries(pushValues)) {
-        if (!allowedPushFields.includes(k)) continue;
-        sql += ', ' + k + '=?'; params.push(v);
-      }
+      for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);
     } else {
       const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
       const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
-      // 白名单校验，防止列名注入
-      for (const [k, v] of Object.entries(pushValues)) {
-        if (!allowedPushFields.includes(k)) continue;
-        cols.push(k); vals.push(v);
-      }
+      for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
     res.json({ message: '推送设置已保存' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // POST test: 测试推送（频率限制 + 角色校验）
@@ -947,7 +930,7 @@ router.post('/user-notification-settings/test', async (req: AuthRequest, res: Re
     if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
     else if (errors.length > 0 && results.length === 0) res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
     else res.json({ results, errors });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // ── 推送订阅 API ──
@@ -961,7 +944,7 @@ router.post('/push/subscribe', (req: AuthRequest, res: Response) => {
     if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: '参数不完整' });
     saveSubscription(req.user.id, { endpoint, keys });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
@@ -970,14 +953,18 @@ router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
     if (!endpoint) return res.status(400).json({ error: '参数不完整' });
     removeSubscription(req.user.id, endpoint);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/push/test', async (req: AuthRequest, res: Response) => {
   try {
-    const subsCount = db.prepare('SELECT COUNT(*) as c FROM push_subscriptions WHERE user_id=?').get(req.user.id) as any;if (!subsCount || subsCount.c === 0) return res.status(400).json({ error: '请先开启浏览器推送通知' });await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
+    const subs = getUserSubscriptions(req.user.id);
+    if (subs.length === 0) {
+      return res.status(400).json({ error: '未订阅浏览器推送，请先开启推送通知' });
+    }
+    await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
     res.json({ success: true, message: '测试推送已发送' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;

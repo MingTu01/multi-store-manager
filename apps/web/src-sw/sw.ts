@@ -1,7 +1,6 @@
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+﻿import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkOnly, NetworkFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
 
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: any[] };
 
@@ -12,35 +11,21 @@ clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
-// SPA navigation fallback - use match callback instead of NavigationRoute
-// (NavigationRoute has compatibility issues with injectManifest mode)
+// SPA navigation fallback
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst()
 );
 
-// API routes that must NEVER be cached (auth, SSE)
-registerRoute(/\/api\/auth/, new NetworkOnly(), 'GET');
-registerRoute(/\/api\/sse/, new NetworkOnly());
-
-// API routes that should not be cached (sensitive data)
-registerRoute(/\/api\/stores\/.*\/payroll/, new NetworkOnly(), 'GET');
-registerRoute(/\/api\/stores\/.*\/dividends/, new NetworkOnly(), 'GET');
-registerRoute(/\/api\/stores\/.*\/staff/, new NetworkOnly(), 'GET');
-
-// Other API GET requests - short-lived cache
+// ALL API requests bypass SW completely (no caching, no interception)
 registerRoute(
-  /\/api\//,
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    plugins: [new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 })],
-  }),
-  'GET'
+  ({ url }) => url.pathname.startsWith('/api/'),
+  new NetworkOnly()
 );
 
 // Push notification handlers
 self.addEventListener('push', (event: any) => {
-  let data = { title: '新通知', body: '', url: '/' };
+  let data = { title: '\u65B0\u901A\u77E5', body: '', url: '/' };
   try {
     if (event.data) data = event.data.json();
   } catch {}

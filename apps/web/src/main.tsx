@@ -1,51 +1,36 @@
-import { StrictMode } from 'react';
+﻿import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
-// Service Worker: auto-update + auto-reload on new version
+// Clean up old VitePWA service workers and caches, then register minimal push-only SW
 if ('serviceWorker' in navigator) {
-  const swReloaded = sessionStorage.getItem('sw-reloaded');
-  if (swReloaded) sessionStorage.removeItem('sw-reloaded');
-
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => {
-      reg.update().catch(() => {});
-      if (reg.waiting && !swReloaded) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-      // If installing SW exists, wait for it
-      if (reg.installing) {
-        reg.installing.addEventListener('statechange', (e) => {
-          const sw = e.target as ServiceWorker;
-          if (sw.state === 'activated' && !swReloaded) {
-            sessionStorage.setItem('sw-reloaded', '1');
-            window.location.reload();
-          }
-          if (sw.state === 'redundant') {
-            // SW failed to install - likely broken, unregister and reload
-            reg.unregister().then(() => window.location.reload());
-          }
-        });
-      }
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    // Unregister ALL old service workers first
+    var promises = regs.map(function(reg) { return reg.unregister(); });
+    return Promise.all(promises);
+  }).then(function() {
+    // Clear ALL caches (old VitePWA precache)
+    return caches.keys().then(function(names) {
+      return Promise.all(names.map(function(n) { return caches.delete(n); }));
     });
-  }).catch(() => {
-    // Registration fetch failed - try to recover
-    navigator.serviceWorker.getRegistrations().then(regs =>
-      Promise.all(regs.map(r => r.unregister()))
-    ).then(() => window.location.reload());
+  }).then(function() {
+    // Register the new minimal push-only SW
+    return navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  }).then(function(reg) {
+    console.log('[SW] Registered push-only SW:', reg.scope);
+    // Check for updates every 60 seconds
+    setInterval(function() { reg.update(); }, 60000);
+  }).catch(function(err) {
+    console.warn('[SW] Registration failed:', err);
   });
 
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    const lastReload = sessionStorage.getItem('sw-last-reload');
-    if (lastReload && Date.now() - parseInt(lastReload) < 10000) return;
-    refreshing = true;
-    sessionStorage.setItem('sw-last-reload', String(Date.now()));
-    sessionStorage.setItem('sw-reloaded', '1');
-    window.location.reload();
+  // Listen for server-ready event from SSE to trigger SW update check
+  window.addEventListener('server-ready', function() {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+      regs.forEach(function(reg) { reg.update(); });
+    });
   });
 }
 

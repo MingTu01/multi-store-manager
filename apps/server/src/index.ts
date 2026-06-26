@@ -52,7 +52,7 @@ const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
     : true,
-  credentials: true  // Always allow credentials for httpOnly cookie auth
+  credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
 app.use(compression({ level: 6, threshold: 1024 }));
 // 安全HTTP头
@@ -309,80 +309,17 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// --- Startup banner ---
-function printStartupBanner() {
-  const ver = (() => { try { return JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf8')).version; } catch { return '?'; } })();
-  const sep = '========================================';
-  console.log('');
-  console.log(sep);
-  console.log('  MSL Server Starting...');
-  console.log('  Version:  v' + ver);
-  console.log('  Node:     ' + process.version);
-  console.log('  TZ:       ' + (process.env.TZ || 'not set'));
-  console.log('  ENV:      ' + (process.env.NODE_ENV || 'development'));
-  console.log('  PORT:     ' + PORT);
-  console.log('  CORS:     ' + (corsOrigin || '* (dynamic)'));
-  console.log('  Time:     ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }));
-  console.log(sep);
-  console.log('');
-  console.log('[PATH] Web dist: ' + WEB_DIST_PATH);
-  console.log('[PATH] BASE_DIR: ' + BASE_DIR);
-  try {
-    const html = readFileSync(join(WEB_DIST_PATH, 'index.html'), 'utf8');
-    const match = html.match(/index-[A-Za-z0-9_-]+\.js/);
-    console.log('[PATH] index.html content ref: ' + (match ? match[0] : 'NONE'));
-  } catch { console.log('[PATH] index.html: NOT FOUND'); }
-  try {
-    const stats = {
-      users: db.prepare('SELECT COUNT(*) as c FROM users').get().c,
-      stores: db.prepare('SELECT COUNT(*) as c FROM stores').get().c,
-      entries: db.prepare('SELECT COUNT(*) as c FROM entries').get().c,
-    };
-    console.log('[DB] Users: ' + stats.users + '  Stores: ' + stats.stores + '  Entries: ' + stats.entries);
-    try {
-      const s = statSync(join(BASE_DIR, 'data', 'store.db'));
-      console.log('[DB] Size: ' + (s.size < 1048576 ? (s.size / 1024).toFixed(1) + ' KB' : (s.size / 1048576).toFixed(2) + ' MB'));
-    } catch {}
-    try {
-      const walPath = join(BASE_DIR, 'data', 'store.db-wal');
-      if (existsSync(walPath)) {
-        const ws = statSync(walPath);
-        console.log('[DB] WAL: ' + (ws.size < 1048576 ? (ws.size / 1024).toFixed(1) + ' KB' : (ws.size / 1048576).toFixed(2) + ' MB'));
-      }
-    } catch {}
-  } catch (e) { console.log('[DB] Stats unavailable: ' + (e as Error).message); }
-  try {
-    const jwtFile = join(BASE_DIR, 'data', 'jwt-secret');
-    if (existsSync(jwtFile)) {
-      const secret = readFileSync(jwtFile, 'utf8').trim();
-      console.log('[AUTH] JWT Secret: loaded (' + secret.length + ' chars)');
-    } else {
-      console.log('[AUTH] JWT Secret: using env var' + (process.env.JWT_SECRET ? ' (set)' : ' (NOT SET)'));
-    }
-  } catch {}
-  try {
-    const backupDir = join(BASE_DIR, 'backups');
-    if (existsSync(backupDir)) {
-      const files = readdirSync(backupDir).filter((f: string) => f.endsWith('.zip') || f.endsWith('.db'));
-      console.log('[BACKUP] ' + files.length + ' backup(s) available');
-    }
-  } catch {}
-  console.log('');
-}
-
-printStartupBanner();
-
 initPush();
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('[SERVER] Listening on http://0.0.0.0:' + PORT);
-  console.log('[SERVER] Ready to accept connections');
-  console.log('');
+  console.log('Server running on http://0.0.0.0:' + PORT);
+  // Broadcast server-ready to all SSE clients after startup
   setTimeout(() => {
     try {
+      const { eventBus } = require('./event-bus');
       eventBus.broadcastSystem('server-ready');
       console.log('[SSE] Broadcasted server-ready');
-    } catch (e) { console.log('[SSE] server-ready broadcast skipped:', (e as Error).message); }
-  }, 5000);
+    } catch (e) { console.log('[SSE] server-ready broadcast skipped:', e.message); }
+  }, 1000);
 })
   .on('error', (err: any) => {
     if (err.code === 'EACCES') {

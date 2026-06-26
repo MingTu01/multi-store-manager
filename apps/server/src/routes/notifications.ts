@@ -30,31 +30,27 @@ router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
+    const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
     const typeFilter = type && type !== 'all' ? String(type) : '';
 
-    // 参数化构建 WHERE 条件
-    const conditions: string[] = ['user_id = ?'];
-    const params: any[] = [req.user.id];
-    if (typeFilter) {
-      conditions.push('type = ?');
-      params.push(typeFilter);
-    }
-    const where = 'WHERE ' + conditions.join(' AND ');
+    // Build WHERE for count queries (no table alias)
+    const countWhere = typeFilter ? 'WHERE user_id = ? AND type = ?' : 'WHERE user_id = ?';
+    const countParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
 
-    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + where).get(...params) as any).count;
-    const unread = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + where + ' AND read = 0').get(...params) as any).count;
+    const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + countWhere).get(...countParams) as any).count;
+    const unreadWhere = typeFilter ? 'WHERE user_id = ? AND read = 0 AND type = ?' : 'WHERE user_id = ? AND read = 0';
+    const unreadParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
+    const unread = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + unreadWhere).get(...unreadParams) as any).count;
 
-    // SELECT 查询使用表别名
-    const selConditions = conditions.map(c => 'n.' + c);
-    const selWhere = 'WHERE ' + selConditions.join(' AND ');
-    const queryParams = [...params, ps, offset];
+    // Build WHERE for SELECT query (with table alias n.)
+    const selWhere = typeFilter ? 'WHERE n.user_id = ? AND n.type = ?' : 'WHERE n.user_id = ?';
+    const queryParams: any[] = typeFilter ? [req.user.id, typeFilter, ps, offset] : [req.user.id, ps, offset];
     const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id ' + selWhere + ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(...queryParams);
 
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });;
 
@@ -64,7 +60,7 @@ router.get('/unread-count', (req: AuthRequest, res: Response) => {
     const result = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any;
     res.json({ count: result.count });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -79,7 +75,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     ).run(user_id, title, link || '', type || '', content || '', store_id || null);
     res.json({ id: result.lastInsertRowid, message: '通知发送成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -88,7 +84,7 @@ router.put('/:id/read', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '已标记为已读' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -97,7 +93,7 @@ router.put('/read-all', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE user_id = ?').run(req.user.id);
     res.json({ message: '全部已读' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -106,7 +102,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '通知已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 

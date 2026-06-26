@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isReadonly, entryFilterClause } from '../lib/roles.js';
+import { isAdmin, isReadonly } from '../lib/roles.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
@@ -19,12 +19,11 @@ const router = Router({ mergeParams: true });
 router.get('/stats', (req: AuthRequest, res: Response) => {
   try {
     const { storeId } = req.params;
-    const userRole = req.user.role;
     const today = localDate();
-    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?" + entryFilterClause(userRole)).get(storeId, today) as any)?.total || 0;
-    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(userRole)).get(storeId, today) as any)?.total || 0;
+    const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
+    const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
     res.json({ income, expense, profit: income - expense });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.get('/', (req: AuthRequest, res: Response) => {
@@ -32,7 +31,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const { storeId } = req.params;
     const { date, dateFrom, dateTo, month, year, week, period, limit, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
+    const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
     let whereClause = ' WHERE e.store_id=?';
     const params: any[] = [storeId];
@@ -50,14 +49,13 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if (month) { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(month); }
     if (year) { whereClause += " AND strftime('%Y',e.date)=?"; params.push(year); }
     if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
-    whereClause += entryFilterClause(user.role, 'e');
     const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
     const qp = [...params];
     let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name, u.name AS creator_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN users u ON e.created_by = u.id' + whereClause + ' ORDER BY e.created_at DESC';
     if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
     const totalPages = Math.ceil(total / ps);
     res.json({ data: db.prepare(sql).all(...qp), total, page: p, pageSize: ps, totalPages });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', (req: AuthRequest, res: Response) => {
@@ -85,7 +83,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid }, excludeUserId: user.id });
     res.json({ id: result.lastInsertRowid, success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S12: PUT 添加记录归属校验
@@ -118,7 +116,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id }, excludeUserId: user.id });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S12: DELETE 添加记录归属校验
@@ -147,7 +145,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'delete', storeId, data: { id: req.params.id }, excludeUserId: user.id });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;

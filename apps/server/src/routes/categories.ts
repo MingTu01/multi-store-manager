@@ -15,7 +15,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     sql += ' ORDER BY sort_order, id';
     const rows = db.prepare(sql).all(...params);
     res.json(rows);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', (req: AuthRequest, res: Response) => {
@@ -25,7 +25,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (!name || !type) return res.status(400).json({ error: '请输入分类名和类型' });
     const result = db.prepare('INSERT INTO categories (name, type, store_id) VALUES (?,?,?)').run(name, type, storeId);
     res.json({ id: result.lastInsertRowid, success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
@@ -43,7 +43,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     }
     db.prepare('UPDATE categories SET name = COALESCE(?, name), type = COALESCE(?, type) WHERE id = ?').run(name, type, req.params.id);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // S28: DELETE 添加归属校验
@@ -60,7 +60,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     }
     db.prepare('DELETE FROM categories WHERE id = ?').run(req.params.id);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 export default router;

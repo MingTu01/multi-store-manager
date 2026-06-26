@@ -2,7 +2,6 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
-import { isManagerOrAbove } from '../lib/roles.js';
 import { triggerNotification } from '../notify-trigger.js';
 
 const router = Router({ mergeParams: true });
@@ -13,7 +12,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
+    const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
 
     let condition = 'store_id = ?';
@@ -34,7 +33,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     res.json({ shifts: enriched, total, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -45,7 +44,7 @@ router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const last = db.prepare("SELECT handover_content, created_at FROM store_opens WHERE store_id = ? AND type = 'close' AND handover_content != '' ORDER BY created_at DESC LIMIT 1").get(storeId) as any;
     res.json({ handover: last?.handover_content || '', date: last?.created_at || '' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // GET /:shiftId - Get single shift with photos
@@ -57,14 +56,13 @@ router.get('/:shiftId', (req: AuthRequest, res: Response) => {
     try { photos = JSON.parse(shift.photos || '[]'); } catch {}
     res.json({ ...shift, photos });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 // POST /
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { type, photos, note, handover_content } = req.body;
     if (!type || !['open', 'close'].includes(type)) {
@@ -88,7 +86,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ id: result.lastInsertRowid, message: action + '成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -97,7 +95,6 @@ router.post('/', (req: AuthRequest, res: Response) => {
 router.post('/open', (req: AuthRequest, res: Response) => {
   req.body.type = 'open';
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);
@@ -113,13 +110,12 @@ router.post('/open', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '开店成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // POST /close
 router.post('/close', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);
@@ -135,7 +131,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '关店成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 

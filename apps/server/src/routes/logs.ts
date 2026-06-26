@@ -1,33 +1,21 @@
 import { Router } from 'express';
 import db from '../db.js';
-import { AuthRequest } from '../auth.js';
-import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
   try {
-    const user = (req as AuthRequest).user;
-    if (!user) return res.status(401).json({ error: '未认证' });
-
     const { storeId, action, dateFrom, dateTo, search, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
+    const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
 
     let whereClause = '';
     const countParams: any[] = [];
     const queryParams: any[] = [];
 
-    // 角色权限控制：非管理员只能查看自己门店的日志
-    if (!isAdmin(user.role) && !isStoreAdmin(user.role)) {
-      whereClause += (whereClause ? ' AND ' : ' WHERE ') + 'o.target=?';
-      countParams.push(user.store_id);
-      queryParams.push(user.store_id);
-    }
-
-    // Filter by store (仅管理员/门店管理员可指定外部storeId)
-    if (storeId && (isAdmin(user.role) || isStoreAdmin(user.role))) {
+    // Filter by store
+    if (storeId) {
       whereClause += (whereClause ? ' AND ' : ' WHERE ') + 'o.target=?';
       countParams.push(String(storeId));
       queryParams.push(String(storeId));
@@ -69,7 +57,7 @@ router.get('/', (req, res) => {
     const totalPages = Math.ceil(total / ps);
     res.json({ data: rows, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 

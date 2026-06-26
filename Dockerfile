@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+﻿FROM node:20-bookworm-slim
 
 WORKDIR /app
 
@@ -6,8 +6,9 @@ RUN apt-get update && \
     apt-get install -y python3 make g++ --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+COPY .npmrc /app/.npmrc
 COPY apps/server/package.json ./
-RUN npm install && npm cache clean --force
+RUN npm install --registry=https://registry.npmmirror.com && npm cache clean --force
 
 RUN apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 

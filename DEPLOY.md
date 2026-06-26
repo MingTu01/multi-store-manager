@@ -1,4 +1,4 @@
-# Multi Shop Link - 部署文档
+﻿# Multi Shop Link - 部署文档
 
 ## 服务器环境要求
 
@@ -108,4 +108,60 @@ rm -f /app/data/store.db-wal /app/data/store.db-shm
 ```bash
 # 设置 Node.js 内存限制
 NODE_OPTIONS="--max-old-space-size=512" node --import tsx src/index.ts
+```
+
+## 五、开发热更新（不重建镜像）
+
+开发调试时，直接把修改后的文件复制到运行中的容器，避免重复 docker build。
+
+### 5.1 前端热更新
+
+```powershell
+# 1. 构建前端
+cd "D:\文档\DDDOR\multi-store-manager\apps\web"
+npx vite build
+
+# 2. 复制到容器
+docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+
+# 3. 浏览器强制刷新 (Ctrl+Shift+R) 即可看到最新前端
+```
+
+> 前端改动不需要重启容器，只要文件替换后浏览器刷新即可。
+
+### 5.2 后端热更新
+
+```powershell
+# 1. 复制修改后的后端文件到容器（按需替换具体文件）
+docker cp "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+
+# 2. 重启容器使后端代码生效
+docker restart multi-shop-link
+```
+
+### 5.3 前后端同时更新
+
+```powershell
+# 前端
+cd "D:\文档\DDDOR\multi-store-manager\apps\web"; npx vite build
+docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+
+# 后端
+docker cp "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+
+# 重启
+docker restart multi-shop-link
+```
+
+### 5.4 同步到部署仓库
+
+热更新验证通过后，记得把修改同步到部署仓库：
+
+```powershell
+# 同步前端
+Remove-Item -Recurse -Force "D:\文档\DDDOR\multi-shop-link-deploy\public\web-dist" -ErrorAction SilentlyContinue
+Copy-Item -Recurse -Force "D:\文档\DDDOR\multi-store-manager\apps\web\dist" "D:\文档\DDDOR\multi-shop-link-deploy\public\web-dist"
+
+# 同步后端（源码直接从 monorepo 复制）
+Copy-Item -Force "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\system.ts" "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts"
 ```

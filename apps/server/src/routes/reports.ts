@@ -18,7 +18,7 @@ router.get('/', (req, res) => {
     const files = readdirSync(reportsDir).filter(f => f.endsWith('.html') || f.endsWith('.png') || f.endsWith('.jpg'));
     res.json(files);
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -32,7 +32,6 @@ router.get('/:filename', (req, res) => {
     if (ext === 'html') {
       const content = readFileSync(filepath, 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; object-src 'none'");
       res.send(content);
     } else if (ext === 'png') {
       res.setHeader('Content-Type', 'image/png');
@@ -44,7 +43,7 @@ router.get('/:filename', (req, res) => {
       res.sendFile(filepath);
     }
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === 'production' ? '服务器内部错误' : err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -104,6 +104,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   /* ---- PWA 浏览器推送通知状态 ---- */
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [isIOS, setIsIOS] = useState(false);
+  const [hasPushSub, setHasPushSub] = useState(false);
 
   /* ---- 可见渠道 & 推送选项 ---- */
   const visibleChannels = CHANNELS.filter(
@@ -117,15 +118,19 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
     setTimeout(() => setMsg(null), 4000);
   }, []);
 
-  /* ---- 检查浏览器推送通知权限 ---- */
+  /* ---- 检查浏览器推送通知权限 + 订阅状态 ---- */
   useEffect(() => {
     if (!open) return;
-    // 检测 iOS
     const ua = navigator.userAgent || '';
     setIsIOS(/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-    // 检查 Notification API 是否可用
-    if ('Notification' in window) {
-      setNotifPermission(Notification.permission);
+    if ('Notification' in window && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        setHasPushSub(!!sub);
+        setNotifPermission(Notification.permission);
+      }).catch(() => {
+        setNotifPermission(Notification.permission);
+      });
     }
   }, [open]);
 
@@ -139,10 +144,12 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
         const reg = await navigator.serviceWorker.ready;
         const vapidRes = await api.get('/system/push/vapid-key') as any;
         const vapidKey = vapidRes.publicKey;
-        const applicationServerKey = Uint8Array.from(atob(vapidKey), c => c.charCodeAt(0));
+        const base64 = vapidKey.replace(/-/g, '+').replace(/_/g, '/');
+        const applicationServerKey = Uint8Array.from(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')), c => c.charCodeAt(0));
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
         const subJson = sub.toJSON();
         await api.post('/system/push/subscribe', { endpoint: subJson.endpoint, keys: subJson.keys });
+        setHasPushSub(true);
         showMsg(true, '浏览器推送已开启');
       }
     } catch (e: any) {
@@ -370,25 +377,34 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                       浏览器推送通知
                     </div>
                     <div className="text-xs text-slate-400">
-                      {notifPermission === 'granted'
-                        ? '已开启'
+                      {notifPermission === 'granted' && hasPushSub
+                        ? '已开启 · 已订阅'
+                        : notifPermission === 'granted'
+                        ? '已授权 · 未订阅'
                         : notifPermission === 'denied'
                         ? '已拒绝，请到浏览器设置中开启通知权限'
                         : '未开启'}
                     </div>
                   </div>
                 </div>
-                {notifPermission === 'granted' ? (
+                {notifPermission === 'granted' && hasPushSub ? (
                   <button
                     onClick={async () => {
                       try {
-                        await api.post('/system/push/test');
-                        showMsg(true, '测试推送已发送');
+                        const res = await api.post('/system/push/test') as any;
+                        showMsg(true, '测试推送已发送，请查看设备通知');
                       } catch(e:any) { showMsg(false, e.message || '发送失败'); }
                     }}
                     className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
                   >
                     测试推送
+                  </button>
+                ) : notifPermission === 'granted' && !hasPushSub ? (
+                  <button
+                    onClick={handleRequestNotifPermission}
+                    className="rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-100"
+                  >
+                    订阅推送
                   </button>
                 ) : notifPermission === 'denied' ? (
                   <span className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-500">
