@@ -1,4 +1,4 @@
-import webpush from 'web-push';
+﻿import webpush from 'web-push';
 import db from './db.js';
 import crypto from 'crypto';
 
@@ -30,7 +30,6 @@ export function initPush(): void {
   try {
     vapidKeys = getOrCreateVapidKeys();
     webpush.setVapidDetails('mailto:admin@msl.908521.xyz', vapidKeys.publicKey, vapidKeys.privateKey);
-    console.log('[Push] VAPID initialized, public key:', vapidKeys.publicKey.substring(0, 20) + '...');
   } catch (e) {
     console.error('[Push] Failed to initialize VAPID:', e);
   }

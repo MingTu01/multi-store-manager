@@ -152,7 +152,6 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   };
 
   const handleRequestNotifPermission = async () => {
-    console.log("[Push] Button clicked!");
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       showMsg(false, "当前浏览器不支持推送通知");
       return;
@@ -160,38 +159,28 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
     // Chrome 特殊检测：测试 FCM 连通性
     if (isChromeBrowser()) {
-      console.log("[Push] Chrome detected, testing FCM connectivity...");
       const fcmOk = await testFCMConnectivity();
       if (!fcmOk) {
-        console.log("[Push] FCM unreachable in Chrome");
         showMsg(false, "Chrome 无法连接 Google 推送服务（国内网络限制）。请使用 Edge、Firefox 或 Safari 浏览器开启推送通知。");
         return;
       }
     }
-
-    console.log("[Push] Permission:", Notification.permission);
     try {
       if (Notification.permission === "denied") {
         showMsg(false, "通知权限已被拒绝，请在浏览器地址栏左侧设置中重置为允许");
         return;
       }
       const result = await Notification.requestPermission();
-      console.log("[Push] Permission result:", result);
       setNotifPermission(result);
       if (result !== "granted") {
         if (result === "denied") showMsg(false, "通知权限被拒绝");
         return;
       }
-
-      console.log("[Push] Getting SW...");
       const reg = await navigator.serviceWorker.ready;
-      console.log("[Push] SW ready");
-
       // 取消旧订阅
       try {
         const old = await reg.pushManager.getSubscription();
         if (old) {
-          console.log("[Push] Removing old sub...");
           await old.unsubscribe();
         }
       } catch (_) {}
@@ -204,23 +193,16 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       const raw = atob(padded);
       const appKey = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
-      console.log("[Push] VAPID decoded,", appKey.length, "bytes");
-
       // Chrome bug workaround: fire-and-forget + polling
-      console.log("[Push] Subscribing...");
       reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey })
-        .then(() => console.log("[Push] subscribe() resolved"))
-        .catch((e: any) => console.log("[Push] subscribe() rejected:", e.message));
 
       let sub: PushSubscription | null = null;
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 500));
         sub = await reg.pushManager.getSubscription();
-        if (sub) { console.log("[Push] Subscribed after", (i+1)*500, "ms"); break; }
       }
 
       if (!sub) {
-        console.log("[Push] No subscription after 15s");
         const hint = isChromeBrowser()
           ? "Chrome 在当前网络下无法使用推送，请使用 Edge、Firefox 或 Safari"
           : "推送订阅失败，请检查浏览器通知设置";
@@ -230,11 +212,9 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
       const subJson = sub.toJSON();
       await api.post("/system/push/subscribe", { endpoint: subJson.endpoint, keys: subJson.keys });
-      console.log("[Push] DONE!");
       setHasPushSub(true);
       showMsg(true, "浏览器推送已开启");
     } catch (e: any) {
-      console.log("[Push] ERROR:", e.message);
       showMsg(false, "开启推送失败: " + (e.message || "未知错误"));
     }
   };

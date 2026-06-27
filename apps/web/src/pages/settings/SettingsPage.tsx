@@ -27,8 +27,7 @@ export default function SettingsPage() {
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
-      }
-    } catch (e) { console.warn('[Upgrade] Cache clear failed:', e); }
+      }  } catch (_) { /* ignore */ }
     // 3. 强制刷新（不走缓存）
     window.location.replace(window.location.href);
   };
@@ -374,8 +373,7 @@ export default function SettingsPage() {
           if (!restartDetected) setTimeout(pollUpgradeStatus, pollAttempts > 10 ? 3000 : 2000);
         };;
       es.onerror = () => { 
-          es.close(); 
-          console.log('[Upgrade] SSE failed, falling back to polling');
+          es.close();
           if (!restartDetected) {
             pollUpgradeStatus();
           }
