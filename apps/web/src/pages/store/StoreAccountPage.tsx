@@ -1,9 +1,9 @@
+import { showToast } from '../../components/Toast';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 import { ImagePreview } from '../../components/ImagePreview';
 import { api } from '../../lib/api';
-import { showToast } from '../../components/Toast';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { PushSettingsButton } from '../../components/PushSettingsButton';
@@ -15,7 +15,7 @@ import { getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 export default function StoreAccountPage() {
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // msg state removed - using showToast
   const [showPwd, setShowPwd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
@@ -39,7 +39,7 @@ export default function StoreAccountPage() {
   const healthFileRef = useRef<HTMLInputElement>(null);
   const healthCameraRef = useRef<HTMLInputElement>(null);
 
-  const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 3000); };
+  const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   useEffect(() => {
     api.get('/health-cert').then((d: any) => {
@@ -50,7 +50,7 @@ export default function StoreAccountPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { alert('手机号格式不正确'); return; }
+      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { showToast('手机号格式不正确', 'error'); return; }
       const d: any = await api.put('/auth/me', profileForm);
       if (d.user) useStore.setState({ user: { ...user!, ...d.user } });
       showMsg(true, d.message || '信息已更新');
@@ -122,7 +122,7 @@ export default function StoreAccountPage() {
     if (manualEdit && rawDate) {
       const d = new Date(rawDate);
       d.setFullYear(d.getFullYear() + 1);
-      finalDate = d.toISOString().slice(0, 10);
+      finalDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
     setSaving(true);
     try {
@@ -160,7 +160,6 @@ export default function StoreAccountPage() {
   return (
     <div className="flex flex-col min-h-[calc(100vh-10rem)] space-y-4">
       <PageHeader title="我的" subtitle="账户信息管理" action={<PushSettingsButton />} />
-      {msg && <div className={'rounded-xl p-3 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>{msg.text}</div>}
 
       <GlassCard className="p-5">
         <div className="flex items-center gap-4">
@@ -344,7 +343,7 @@ export default function StoreAccountPage() {
                 <label className="mb-1 block text-xs text-slate-500">体检日期</label>
                 <input type="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-300" />
                 {manualDate && (
-                  <div className="mt-1 text-xs text-emerald-600">有效期将自动设为：{(() => { const d = new Date(manualDate); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0, 10); })()}</div>
+                  <div className="mt-1 text-xs text-emerald-600">有效期将自动设为：{(() => { const d = new Date(manualDate); d.setFullYear(d.getFullYear() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()}</div>
                 )}
               </div>
             </div>

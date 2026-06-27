@@ -53,7 +53,7 @@ const corsOrigin = process.env.CORS_ORIGIN || '';
 const corsOptions: cors.CorsOptions = {
   origin: corsOrigin
     ? corsOrigin.split(',').map(s => s.trim())
-    : true,
+    : false,
   credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
 app.use(requestLogger);
@@ -70,6 +70,8 @@ app.use(compression({
 app.use((req, res, next) => {
   // 防止点击劫持
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  // HSTS - enforce HTTPS
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   // 防止MIME类型嗅探
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // 防止信息泄露
@@ -81,7 +83,7 @@ app.use((req, res, next) => {
 
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
+    `script-src 'self' 'unsafe-inline' 'nonce-${nonce}'`,  // unsafe-inline 作为 fallback
     "style-src 'self' 'unsafe-inline'",  // Tailwind 需要
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
@@ -357,7 +359,6 @@ app.listen(PORT, '0.0.0.0', () => {
   // Broadcast server-ready to all SSE clients after startup
   setTimeout(() => {
     try {
-      const { eventBus } = require('./event-bus');
       eventBus.broadcastSystem('server-ready');
       console.log('[SSE] Broadcasted server-ready');
     } catch (e) { console.log('[SSE] server-ready broadcast skipped:', e.message); }

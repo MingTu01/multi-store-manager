@@ -33,8 +33,8 @@ export default function StorePurchasePage() {
   
   const exportRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const dateStr = date.toISOString().slice(0, 10);
+  const today = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  const dateStr = (() => { const d = date; return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
   const isToday = dateStr === today;
 
   const load = () => {

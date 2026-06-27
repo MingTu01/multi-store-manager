@@ -30,7 +30,7 @@ router.post('/login', loginLimiter, (req, res) => {
     setAuthCookie(res, token);
     const { password_hash, ...userData } = user;
     res.json({ token, user: userData });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: '登录失败，请稍后重试' }); }
 });
 
 router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
@@ -44,23 +44,18 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
 
 router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   try {
-    const { username, phone, address, avatar, oldPassword, newPassword } = req.body;
+    const { phone, address, avatar, oldPassword, newPassword } = req.body;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const updates: string[] = [];
     const vals: any[] = [];
-    if (username !== undefined && username !== user.username) {
-      const exists = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
-      if (exists) return res.status(400).json({ error: '账号已存在' });
-      updates.push('username=?'); vals.push(username);
-    }
+    // username update removed for security}
     if (phone !== undefined) {
       if (user.role !== 'ADMIN') {
         if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
           return res.status(400).json({ error: '手机号格式不正确，必须是11位有效手机号' });
         }
         updates.push('phone=?'); vals.push(phone);
-        // Sync username to phone (login name = phone)
         updates.push('username=?'); vals.push(phone);
       }
     }

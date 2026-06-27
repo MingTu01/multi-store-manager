@@ -15,6 +15,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const ps = parseInt(pageSize as string) || 20;
     const offset = (p - 1) * ps;
     const canSeeAll = req.user.role !== 'STAFF';
+    const isStaff = req.user.role === 'STAFF';
     const total = (db.prepare('SELECT COUNT(*) as count FROM payroll WHERE store_id = ?').get(storeId) as any).count;
     const payrolls = db.prepare('SELECT * FROM payroll WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
     const enriched = payrolls.map((pr: any) => {
@@ -24,7 +25,15 @@ router.get('/', (req: AuthRequest, res: Response) => {
       } else {
         items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ? AND pi.user_id = ?').all(pr.id, req.user.id);
       }
-      return { ...pr, items };
+      // For STAFF, override total_amount with their own sum only
+      let payrollData: any = { ...pr, items };
+      if (isStaff && items.length > 0) {
+        const myTotal = items.reduce((sum: number, it: any) => sum + (it.total_amount || 0), 0);
+        payrollData.total_amount = myTotal;
+      } else if (isStaff) {
+        payrollData.total_amount = 0;
+      }
+      return payrollData;
     }).filter((pr: any) => canSeeAll || pr.items.length > 0);
     res.json({ payrolls: enriched, total, page: p, pageSize: ps });
   } catch (err: any) {
@@ -131,12 +140,27 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     });
     tx();
 
+    // Send individual salary notifications to each employee
+    for (const item of items) {
+      if (item.user_id) {
+        triggerNotification({
+          type: 'payroll',
+          action: '工资已生成',
+          storeId,
+          detail: payrollPeriod + ' 工资 ¥' + item.total_amount.toFixed(2),
+          targetUserId: item.user_id,
+          operatorName: req.user.name || req.user.username
+        });
+      }
+    }
+    // Notify admin about total
     triggerNotification({
       type: 'payroll',
       action: '生成工资单',
       storeId,
-      detail: '工资单已生成: ' + payrollPeriod + ', 总金额 ¥' + totalAmount.toFixed(2)
-    , operatorName: req.user.name || req.user.username});
+      detail: payrollPeriod + ' 工资单已生成, 总金额 ¥' + totalAmount.toFixed(2),
+      operatorName: req.user.name || req.user.username
+    });
 
     res.json({ id: payrollId, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -157,12 +181,14 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
     confirmPayroll(Number(req.params.id), req.params.storeId, req.user.id);
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
 
+    // Notify admin about total
     triggerNotification({
       type: 'payroll',
       action: '确认工资单',
       storeId: req.params.storeId,
-      detail: '工资单 #' + req.params.id + ' 已确认, 周期: ' + payroll.period + ', 总金额 ¥' + payroll.total_amount.toFixed(2)
-    , operatorName: req.user.name || req.user.username});
+      detail: '工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认, 总金额 ¥' + payroll.total_amount.toFixed(2),
+      operatorName: req.user.name || req.user.username
+    });
 
     // 通知相关员工
     const payrollItems = db.prepare('SELECT user_id FROM payroll_items WHERE payroll_id = ?').all(req.params.id) as any[];

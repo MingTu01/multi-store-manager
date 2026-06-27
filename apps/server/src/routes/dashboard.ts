@@ -1,8 +1,7 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
-import { localDate } from '../lib/utils.js';
+import { localDate, calculateFundBalance } from '../lib/utils.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 
 
 
@@ -11,9 +10,7 @@ const router = Router({ mergeParams: true });
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     // Q13: 仅 ADMIN 可访问管理大屏
-    if (!isStoreAdmin(req.user.role)) {
-      return res.status(403).json({ error: '无权限' });
-    }
+    
     const { period, date, storeId } = req.query;
     const d = date ? new Date(date as string) : new Date();
     const dateStr = localDate(d);
@@ -73,19 +70,13 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const expenseByCategory = db.prepare(`SELECT category, SUM(amount) as amount ${base} AND type IN ('支出','expense') ${conds.cur} GROUP BY category ORDER BY amount DESC`).all(...storeParams, ...conds.curP);
 
 
-    // Fund balance: initial_capital + all_income - all_expense (payroll/dividends already in entries)
-    const stores_all = db.prepare('SELECT id, initial_capital FROM stores').all() as any[];
-    let totalFundBalance = 0;
+    // Fund balance: extracted to calculateFundBalance(db)
+    const totalFundBalance = calculateFundBalance(db);
     const storeFundBalances: Record<string, number> = {};
+    const stores_all = db.prepare('SELECT id FROM stores').all() as any[];
     for (const s of stores_all) {
-      const ic = s.initial_capital || 0;
-      const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(s.id) as any).t || 0;
-      const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(s.id) as any).t || 0;
-      const fb = ic + allInc - allExp;
-      storeFundBalances[s.id] = fb;
-      totalFundBalance += fb;
+      storeFundBalances[s.id] = calculateFundBalance(db, s.id);
     }
-
     // Per-store summary (only for admin without storeId filter)
     let stores: any[] = [];
     if (!storeId) {
@@ -131,9 +122,6 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // GET /dashboard/trend - get trend data for charts
 router.get('/trend', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) {
-      return res.status(403).json({ error: '无权限' });
-    }
     const { period = 'day', storeId, days } = req.query;
     const now = new Date();
     const points: any[] = [];
@@ -166,18 +154,18 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const ms = localDate(m).slice(0, 7);
         const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [ms + '%', storeId] : [ms + '%'];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const params = storeId ? [ms, storeId] : [ms];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y-%m',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y-%m',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
         points.push({ label: (m.getMonth() + 1) + '月', income: inc, expense: exp });
       }
     } else if (period === 'year') {
       for (let i = 9; i >= 0; i--) {
         const y = String(now.getFullYear() - i);
         const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [y + '%', storeId] : [y + '%'];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date LIKE ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const params = storeId ? [y, storeId] : [y];
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
         points.push({ label: y, income: inc, expense: exp });
       }
     }

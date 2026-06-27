@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 import { formatMoney } from '../../lib/format';
 import { useEffect, useState, useRef } from 'react';
@@ -83,11 +84,11 @@ export default function StoreStaffPage() {
     try {
       const url = await uploadImage(file, api, 'avatars');
       setForm({ ...form, avatar: url });
-    } catch (err: any) { alert(err.message || '上传失败'); }
+    } catch (err: any) { showToast(err.message || '上传失败', 'error'); }
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.phone) { alert('请填写姓名和手机号'); return; } if (!/^1[3-9]\d{9}$/.test(form.phone)) { alert('手机号格式不正确，必须是11位有效手机号'); return; }
+    if (!form.name || !form.phone) { showToast('请填写姓名和手机号', 'error'); return; } if (!/^1[3-9]\d{9}$/.test(form.phone)) { showToast('手机号格式不正确，必须是11位有效手机号', 'error'); return; }
     setSaving(true);
     try {
       const body: any = {
@@ -109,7 +110,7 @@ export default function StoreStaffPage() {
       setShowModal(false);
       resetForm();
       load();
-    } catch (e: any) { alert(e.message || '保存失败'); }
+    } catch (e: any) { showToast(e.message || '保存失败', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -117,7 +118,7 @@ export default function StoreStaffPage() {
     if (!confirm('确认删除 ' + name + '？历史记录将保留。')) return;
     setDeleting(id);
     try { await api.del('/stores/' + storeId + '/staff/' + id); load(); }
-    catch (e: any) { alert(e.message || '删除失败'); }
+    catch (e: any) { showToast(e.message || '删除失败', 'error'); }
     finally { setDeleting(null); }
   };
 

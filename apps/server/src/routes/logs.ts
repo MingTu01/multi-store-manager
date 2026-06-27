@@ -1,10 +1,15 @@
 import { Router } from 'express';
+import { AuthRequest, authMiddleware } from '../auth.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 import db from '../db.js';
 
 const router = Router();
 
-router.get('/', (req, res) => {
+router.get('/', authMiddleware, (req: AuthRequest, res) => {
   try {
+    const userRole = req.user?.role || 'STAFF';
+    const userId = req.user?.id;
+    const userStoreId = req.user?.store_id;
     const { storeId, action, dateFrom, dateTo, search, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
     const ps = parseInt(pageSize as string) || 20;
@@ -46,6 +51,17 @@ router.get('/', (req, res) => {
       const searchTerm = '%' + String(search) + '%';
       countParams.push(searchTerm, searchTerm);
       queryParams.push(searchTerm, searchTerm);
+    }
+
+    // Role-based access control for logs
+    if (userRole === 'STAFF') {
+      whereClause += (whereClause ? ' AND ' : ' WHERE ') + 'o.user_id=?';
+      countParams.push(userId);
+      queryParams.push(userId);
+    } else if (userRole === 'MANAGER' && userStoreId) {
+      whereClause += (whereClause ? ' AND ' : ' WHERE ') + '(o.target=? OR o.user_id=?)';
+      countParams.push(String(userStoreId), userId);
+      queryParams.push(String(userStoreId), userId);
     }
 
     const total = (db.prepare('SELECT COUNT(*) as count FROM op_logs o' + whereClause).get(...countParams) as any).count;

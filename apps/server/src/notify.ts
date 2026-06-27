@@ -7,8 +7,27 @@ import { validateWebhookUrl } from './lib/network.js';
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
 function getEncKey(): Buffer {
-  const secret = process.env.NOTIFY_ENC_KEY || 'msl-default-notify-key-change-me';
-  return crypto.createHash('sha256').update(secret).digest();
+  if (process.env.NOTIFY_ENC_KEY) {
+    return crypto.createHash('sha256').update(process.env.NOTIFY_ENC_KEY).digest();
+  }
+  const { existsSync, readFileSync, writeFileSync: wf, mkdirSync: md } = require('fs');
+  const { join } = require('path');
+  const keyFile = join('/app/data', 'notify-enc-key');
+  try {
+    if (existsSync(keyFile)) {
+      const key = readFileSync(keyFile, 'utf-8').trim();
+      if (key) return Buffer.from(key, 'hex');
+    }
+  } catch {}
+  const newKey = crypto.randomBytes(32);
+  try {
+    md('/app/data', { recursive: true });
+    wf(keyFile, newKey.toString('hex'), 'utf-8');
+    console.log('[NOTIFY] Generated new notify encryption key');
+  } catch (e) {
+    console.error('[NOTIFY] Failed to save notify encryption key:', e);
+  }
+  return newKey;
 }
 
 export function encryptToken(plain: string): string {
@@ -43,8 +62,8 @@ export function getSettings(): any {
 
 // ── 角色可接收的推送类型 ──
 const ROLE_ALLOWED_TYPES: Record<string, string[]> = {
-  ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','entry','inventory','shift','payroll','dividend','health_cert','staff','store','purchase'],
-  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','entry','inventory','shift','purchase'],
+  ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','store_alert','entry','inventory','shift','payroll','dividend','health_cert','staff','store','purchase','salary_confirm','staff_change'],
+  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','entry','inventory','shift','purchase','salary_confirm','health_cert','staff_change'],
   MANAGER: ['entry','inventory','shift','purchase'],
   STAFF: ['payroll'],
   SHAREHOLDER: ['dividend'],
@@ -235,7 +254,8 @@ export function buildWeeklyReport(): string {
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
-  const ss = ws.toISOString().slice(0,10), es = we.toISOString().slice(0,10);
+  const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
+  const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
   let ti=0,te=0;
   let r = '◆ 每周经营报告\n' + LINE + '\n' + ss + ' 至 ' + es + '\n\n';
   for (const s of stores) {
@@ -251,7 +271,8 @@ export function buildWeeklyReportHtml(): string {
   const now = new Date();
   const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
-  const ss = ws.toISOString().slice(0,10), es = we.toISOString().slice(0,10);
+  const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
+  const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
   let ti=0,te=0;
   let h = reportHtmlHeader('每周经营报告', ss + ' 至 ' + es) + reportHtmlTable();
   for (const s of stores) {

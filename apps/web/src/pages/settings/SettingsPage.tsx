@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
@@ -44,7 +45,7 @@ export default function SettingsPage() {
   const [restoring, setRestoring] = useState(false);
   const backupFileRef = useRef<HTMLInputElement>(null);
   const [notifSettings, setNotifSettings] = useState<any>({});
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // msg state removed - using showToast
   const [editingChannel, setEditingChannel] = useState<string | null>(null);
   const [channelForm, setChannelForm] = useState<any>({});
   const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
@@ -89,7 +90,7 @@ export default function SettingsPage() {
     { key: 'push_alert', label: '异常警告' },
   ];
 
-  const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
+  const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
 
@@ -219,7 +220,7 @@ export default function SettingsPage() {
     try { await api.del('/system/backups/' + filename); showMsg(true, '备份已删除'); setBackups(b => b.filter(x => x.filename !== filename)); }
     catch (e: any) { showMsg(false, e.message || '删除失败'); }
   };
-  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { credentials: 'include' }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { alert('下载失败'); } };
+  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { credentials: 'include' }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { showToast('下载失败', 'error'); } };
   
   // Get backup type label
   const getBackupType = (filename: string) => {
@@ -545,7 +546,6 @@ export default function SettingsPage() {
           </button>
         ))}
       </div>
-      {msg && <div className={`rounded-xl p-3 text-sm ${msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</div>}
 
       {/* === System Info === */}
       {tab === 'info' && (

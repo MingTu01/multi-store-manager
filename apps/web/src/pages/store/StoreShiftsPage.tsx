@@ -1,4 +1,5 @@
 // VITE_BUILD_VERIFY_20260610_205500
+import { showToast } from '../../components/Toast';
 import { useParams } from 'react-router-dom';
 import { uploadImage } from '../../lib/image';
 import { useEffect, useState, useRef } from 'react';
@@ -63,7 +64,7 @@ export default function StoreShiftsPage() {
       await api.post('/stores/' + storeId + '/shifts/open', { photos });
       setShowOpen(false); setPhotos([]);
       setTimeout(() => location.reload(), 500);
-    } catch (e: any) { alert(e.message || '开店失败'); }
+    } catch (e: any) { showToast(e.message || '开店失败', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -73,7 +74,7 @@ export default function StoreShiftsPage() {
       await api.post('/stores/' + storeId + '/shifts/close', { handover_content: handover, photos });
       setShowClose(false); setHandover(''); setPhotos([]);
       setTimeout(() => location.reload(), 500);
-    } catch (e: any) { alert(e.message || '闭店失败'); }
+    } catch (e: any) { showToast(e.message || '闭店失败', 'error'); }
     finally { setSaving(false); }
   };
 

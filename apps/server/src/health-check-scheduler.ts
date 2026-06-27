@@ -9,7 +9,7 @@ export function startHealthCheckScheduler() {
     try {
       const users = db.prepare("SELECT id, name, health_cert_expiry FROM users WHERE health_cert_expiry != '' AND health_cert_expiry IS NOT NULL AND health_cert_expiry != '0000-00-00'").all() as any[];
       const now = new Date();
-      const today = now.toISOString().slice(0, 10);
+      const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
       const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon
 
       for (const user of users) {

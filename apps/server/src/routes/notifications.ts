@@ -5,14 +5,28 @@ import { isAdmin } from '../lib/roles.js';
 
 
 
-// Auto-cleanup: delete read notifications older than 48 hours
+// Auto-cleanup: delete read notifications older than 30 days, limit unread to 500
 function cleanupReadNotifications() {
   try {
+    // 删除超过30天的已读通知
     const result = db.prepare(
-      "DELETE FROM notifications WHERE read = 1 AND created_at < datetime('now', '-48 hours', 'localtime')"
+      "DELETE FROM notifications WHERE read = 1 AND created_at < datetime('now', '-30 days', 'localtime')"
     ).run();
     if (result.changes > 0) {
-      console.log('[通知清理] 已清除 ' + result.changes + ' 条已读通知(超过48小时)');
+      console.log('[通知清理] 已清理 ' + result.changes + ' 条已读通知(超过30天)');
+    }
+    // 限制每用户未读通知上限500条
+    const users = db.prepare("SELECT DISTINCT user_id FROM notifications WHERE read = 0").all() as any[];
+    for (const u of users) {
+      const count = (db.prepare("SELECT COUNT(*) as cnt FROM notifications WHERE user_id = ? AND read = 0").get(u.user_id) as any).cnt;
+      if (count > 500) {
+        const excess = db.prepare(
+          "DELETE FROM notifications WHERE user_id = ? AND read = 0 AND id NOT IN (SELECT id FROM notifications WHERE user_id = ? AND read = 0 ORDER BY created_at DESC LIMIT 500)"
+        ).run(u.user_id, u.user_id);
+        if (excess.changes > 0) {
+          console.log('[通知清理] 用户 ' + u.user_id + ' 未读通知超出限制，已删除 ' + excess.changes + ' 条');
+        }
+      }
     }
   } catch (err) {
     console.error('[通知清理] 清理失败:', err);
@@ -52,7 +66,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
-});;
+});
 
 // GET /notifications/unread-count - 轻量API，仅返回未读数量
 router.get('/unread-count', (req: AuthRequest, res: Response) => {

@@ -34,6 +34,16 @@ function validateCleanupPath(p: string): boolean {
   if (!normalized.startsWith('src/') && !normalized.startsWith('public/')) return false;
   return true;
 }
+// Zip Slip protection: validate all entry names before extraction
+function validateZipEntries(zip: any): boolean {
+  const entries = zip.getEntries();
+  for (const entry of entries) {
+    if (entry.entryName.includes('..') || entry.entryName.includes('\x00')) {
+      return false;
+    }
+  }
+  return true;
+}
 const router = Router();
 const upload = multer({
   dest: join(BASE_DIR, 'uploads'),
@@ -195,6 +205,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
 
     // Step 4: Extract backup ZIP
     const zip = new AdmZip(filepath);
+    if (!validateZipEntries(zip)) return res.status(400).json({ error: "ZIP contains unsafe paths" });
     zip.extractAllTo(dbDir, true);
 
     // Step 5: Verify extracted files exist
@@ -332,6 +343,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const extractDir = join(BASE_DIR, 'uploads', 'extract-' + Date.now());
         mkdirSync(extractDir, { recursive: true });
         const zip = new AdmZip(file.path);
+        if (!validateZipEntries(zip)) return res.status(400).json({ error: "ZIP contains unsafe paths" });
         zip.extractAllTo(extractDir, true);
         await new Promise(r => setTimeout(r, 500));
         console.log('[Upgrade] Step 3: Starting file copy...');
@@ -738,6 +750,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const extractDir = join(BASE_DIR, 'uploads', 'extract-' + now);
         mkdirSync(extractDir, { recursive: true });
         const zip = new AdmZip(zipBuffer);
+        if (!validateZipEntries(zip)) return res.status(400).json({ error: "ZIP contains unsafe paths" });
         zip.extractAllTo(extractDir, true);
         let extractedFolder = join(extractDir, 'multi-shop-link-deploy-main');
         if (!existsSync(extractedFolder)) {

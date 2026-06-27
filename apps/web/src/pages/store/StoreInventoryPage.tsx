@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
@@ -73,7 +74,7 @@ function SortableDragHandle({ id }: { id: number }) {
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
-  const isReadonly = user?.role === 'SHAREHOLDER' || user?.role === 'STAFF';
+  const isReadonly = user?.role === 'SHAREHOLDER';
   const [items, setItems] = useState<InventoryItem[]>([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
   const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);
@@ -116,8 +117,8 @@ export default function StoreInventoryPage() {
     if (!showTakeout || !takeoutQty) return;
     try {
       const r: any = await api.post('/stores/' + storeId + '/inventory/items/' + showTakeout.id + '/takeout', { quantity: Number(takeoutQty) });
-      setShowTakeout(null); setTakeoutQty(''); loadItems(); alert(r.message || '领出成功');
-    } catch (e: any) { alert(e.message || '领出失败'); }
+      setShowTakeout(null); setTakeoutQty(''); loadItems(); showToast(r.message || '领出成功', 'success');
+    } catch (e: any) { showToast(e.message || '领出失败', 'error'); }
   };
 
   const loadItems = () => {
@@ -161,7 +162,7 @@ export default function StoreInventoryPage() {
     try {
       const url = await uploadImage(file, api, 'inventory');
       setAddForm((f) => ({ ...f, photo: url }));
-    } catch (err: any) { alert(err.message || '上传失败'); }
+    } catch (err: any) { showToast(err.message || '上传失败', 'error'); }
   };
 
   const handleAddItem = async () => {
@@ -177,7 +178,7 @@ export default function StoreInventoryPage() {
       setAddForm({ name: '', quantity: '', photo: '' });
       loadItems();
     } catch (e: any) {
-      alert(e.message || '添加失败');
+      showToast(e.message || '添加失败', 'error');
     }
   };
 
@@ -193,7 +194,7 @@ export default function StoreInventoryPage() {
     try {
       const url = await uploadImage(file, api, 'inventory');
       setEditForm((f) => ({ ...f, photo: url }));
-    } catch (err: any) { alert(err.message || '上传失败'); }
+    } catch (err: any) { showToast(err.message || '上传失败', 'error'); }
   };
 
   const handleSaveEdit = async () => {
@@ -210,7 +211,7 @@ export default function StoreInventoryPage() {
       setShowEditItem(null);
       loadItems();
     } catch (e: any) {
-      alert(e.message || '保存失败');
+      showToast(e.message || '保存失败', 'error');
     }
   };
 
@@ -220,14 +221,14 @@ export default function StoreInventoryPage() {
       await api.del('/stores/' + storeId + '/inventory/items/' + id);
       loadItems();
     } catch (e: any) {
-      alert(e.message || '删除失败');
+      showToast(e.message || '删除失败', 'error');
     }
   };
 
   // --- Reorder ---
   const startCheck = () => {
     if (items.length === 0) {
-      alert('请先添加物品');
+      showToast('请先添加物品', 'error');
       return;
     }
     setCheckActive(true);
@@ -328,7 +329,7 @@ export default function StoreInventoryPage() {
       setCheckResults({});
       loadItems();
     } catch (e: any) {
-      alert(e.message || '提交失败');
+      showToast(e.message || '提交失败', 'error');
     } finally {
       setSavingCheck(false);
     }

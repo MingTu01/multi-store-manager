@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { uploadImage } from '../../lib/image';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
@@ -14,7 +15,7 @@ import { getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 export default function AdminSettingsPage() {
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // msg state removed - using showToast
   const [showPwd, setShowPwd] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [pwdForm, setPwdForm] = useState({ oldPassword: '', newPassword: '', confirm: '' });
@@ -23,12 +24,12 @@ export default function AdminSettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
-  const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 3000); };
+  const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { alert('手机号格式不正确'); return; }
+      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { showToast('手机号格式不正确', 'error'); return; }
       const d: any = await api.put('/auth/me', profileForm);
       if (d.user) {
         useStore.setState({ user: { ...user!, ...d.user } });
@@ -69,7 +70,6 @@ export default function AdminSettingsPage() {
     <div className="space-y-4">
       <PageHeader title="账户信息" subtitle="管理您的个人资料" action={<PushSettingsButton />} />
 
-      {msg && <div className={'rounded-xl p-3 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>{msg.text}</div>}
 
       {/* Avatar + Name card */}
       <GlassCard className="p-5">

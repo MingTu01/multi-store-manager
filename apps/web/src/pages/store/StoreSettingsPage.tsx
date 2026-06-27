@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -101,11 +102,8 @@ export default function StoreSettingsPage() {
   const [savingCat, setSavingCat] = useState(false);
 
   /* message */
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const showMsg = (ok: boolean, text: string) => {
-    setMsg({ ok, text });
-    setTimeout(() => setMsg(null), 3000);
-  };
+  // msg state removed - using showToast
+  const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   /* load data */
   const load = () => {
@@ -315,16 +313,7 @@ export default function StoreSettingsPage() {
     <div className="space-y-4">
       <PageHeader title="门店设置" subtitle={store?.name || ''} />
 
-      {msg && (
-        <div
-          className={
-            'rounded-xl p-3 text-sm ' +
-            (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')
-          }
-        >
-          {msg.text}
-        </div>
-      )}
+      
 
       {/* === 1. basic info === */}
       <CollapseCard

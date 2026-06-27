@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { getRoleLabel } from '../../lib/role';
 import { useState } from 'react';
 import { api } from '../../lib/api';
@@ -13,21 +14,19 @@ export default function PasswordPage() {
   const nav = useNavigate();
   const [form, setForm] = useState({ old: '', pwd: '', confirm: '' });
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // msg state removed - using showToast
 
   const handleSubmit = async () => {
-    setMsg(null);
-    if (!form.old || !form.pwd) { setMsg({ ok: false, text: '请填写完整' }); return; }
-    if (form.pwd !== form.confirm) { setMsg({ ok: false, text: '两次密码不一致' }); return; }
-    if (form.pwd.length < 6) { setMsg({ ok: false, text: '新密码至少6位' }); return; }
+    
+    if (!form.old || !form.pwd) {  return; }
+    if (form.pwd !== form.confirm) {  return; }
+    if (form.pwd.length < 6) {  return; }
     setSaving(true);
     try {
       const d = await api.put('/auth/password', { oldPassword: form.old, newPassword: form.pwd });
-      setMsg({ ok: true, text: d.message || '密码修改成功' });
-      setForm({ old: '', pwd: '', confirm: '' });
+            setForm({ old: '', pwd: '', confirm: '' });
     } catch (e: any) {
-      setMsg({ ok: false, text: e.message || '修改失败' });
-    } finally { setSaving(false); }
+          } finally { setSaving(false); }
   };
 
   return (
@@ -47,7 +46,7 @@ export default function PasswordPage() {
       </GlassCard>
 
       <GlassCard className="p-4">
-        <button onClick={() => setMsg(null)} className="flex w-full items-center justify-between">
+        <button className="flex w-full items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Key className="h-4 w-4 text-indigo-500" />修改密码
           </div>
@@ -68,11 +67,7 @@ export default function PasswordPage() {
           <button onClick={handleSubmit} disabled={saving} className="btn w-full py-2.5 text-sm disabled:opacity-50">
             {saving ? '提交中...' : '确认修改'}
           </button>
-          {msg && (
-            <div className={'flex items-center gap-2 rounded-xl p-2.5 text-sm ' + (msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700')}>
-              {msg.ok ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}{msg.text}
-            </div>
-          )}
+          
         </div>
       </GlassCard>
 

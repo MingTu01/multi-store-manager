@@ -1,4 +1,4 @@
-import { localDate } from '../lib/utils.js';
+import { localDate, calculateFundBalance } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
@@ -80,13 +80,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const expenseByCategory = current.categories.filter((c: any) => c.type === '支出' || c.type === 'expense').map((c: any) => ({ category: c.category || '未分类', amount: c.amount }));
 
 
-    // Fund balance for this store
-    const storeInfo = db.prepare('SELECT initial_capital FROM stores WHERE id = ?').get(storeId) as any;
-    const initCap = storeInfo?.initial_capital || 0;
-    const allInc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u6536\u5165','income')").get(storeId) as any).t || 0;
-    const allExp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE store_id=? AND type IN ('\u652f\u51fa','expense')").get(storeId) as any).t || 0;
-    // payroll/dividends already recorded as entries
-    const fundBalance = initCap + allInc - allExp;
+    // Fund balance: extracted to calculateFundBalance()
+    const fundBalance = calculateFundBalance(db, storeId);
 
     res.json({
       income: current.income,

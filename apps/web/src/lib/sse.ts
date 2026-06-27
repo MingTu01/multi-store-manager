@@ -86,6 +86,8 @@ function globalConnect() {
 }
 
 function handleEvent(eventName: string, data: any) {
+  if (data && data.type === 'heartbeat') return;
+
   if (eventName === 'system') {
     if (data.action === 'server-ready') {
       window.dispatchEvent(new CustomEvent('server-ready', { detail: data }));

@@ -6,11 +6,16 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
 import { isManagerOrAbove } from '../lib/roles.js';
+
+// STAFF can perform: add items, takeout, inventory checks
+function canOperateInventory(role: string): boolean {
+  return ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF'].includes(role);
+}
 import { sanitizeText, sanitizeNote } from '../sanitize.js';
 
 const router = Router({ mergeParams: true });
 
-function autoStatus(qty) {
+function autoStatus(qty: number): string {
   if (qty <= 0) return 'pending'; // ???
   return 'normal';
 }
@@ -37,7 +42,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 // POST /items - add master item
 router.post('/items', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const storeId = req.params.storeId;
     const { name, quantity, photo, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '请输入物品名称' });
@@ -52,7 +57,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
 // PUT /items/:id - update master item
 router.put('/items/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const { name, quantity, photo, status, sort_order } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -77,11 +82,25 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 });
 
 // DELETE /items/:id - delete master item
+router.delete('/items/:id', (req: AuthRequest, res: Response) => {
+  try {
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
+    const itemId = req.params.id;
+    const item = db.prepare('SELECT * FROM inventory_master WHERE id = ?').get(itemId) as any;
+    if (!item) return res.status(404).json({ error: '物品不存在' });
+    // Delete related check items first
+    db.prepare('DELETE FROM inventory_check_items WHERE master_id = ?').run(itemId);
+    // Delete the master item
+    db.prepare('DELETE FROM inventory_master WHERE id = ?').run(itemId);
+    opLog(req.user.id, item.store_id, '删除盘点物品', item.name);
+    res.json({ message: '删除成功' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
 
 // 领出物品
 router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const { storeId } = req.params;
     const { quantity } = req.body;
     if (!quantity || quantity <= 0) return res.status(400).json({ error: '请输入领出数量' });
@@ -121,11 +140,10 @@ router.post('/items/reorder', (req: AuthRequest, res: Response) => {
 // POST /checks - start a new inventory check
 router.post('/checks', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const storeId = req.params.storeId;
     const items = db.prepare('SELECT * FROM inventory_master WHERE store_id = ? ORDER BY sort_order ASC').all(storeId) as any[];
     if (items.length === 0) return res.status(400).json({ error: '请先添加物品' });
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const result = db.prepare('INSERT INTO inventory_checks (store_id, status, checked_by) VALUES (?,?,?)').run(storeId, 'in_progress', req.user.id);
     const checkId = result.lastInsertRowid;
     const stmt = db.prepare('INSERT INTO inventory_check_items (check_id, master_id, name, expected_qty, consumption, actual_qty, status) VALUES (?,?,?,?,?,?,?)');
@@ -150,7 +168,7 @@ router.get('/checks/:id', (req: AuthRequest, res: Response) => {
 // PUT /checks/:id/items/:itemId - update check item
 router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const { consumption, actual_qty, status } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -168,7 +186,7 @@ router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
 // POST /checks/:id/complete - complete check, update master quantities
 router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ?').get(req.params.id) as any;
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ?').all(check.id) as any[];
@@ -192,7 +210,7 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
 // POST /checks/batch-complete - create check, save results, complete, update master
 router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const storeId = req.params.storeId;
     const { results } = req.body;
     if (!Array.isArray(results) || results.length === 0) return res.status(400).json({ error: '无盘点数据' });

@@ -1,3 +1,4 @@
+import { showToast } from '../../components/Toast';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
@@ -49,14 +50,14 @@ export default function StoreDividendsPage() {
       setShowCreate(false);
       setForm({ total_amount: '', note: '' });
       load();
-    } catch (e: any) { alert(e.message || '创建失败'); }
+    } catch (e: any) { showToast(e.message || '创建失败', 'error'); }
     finally { setSaving(false); }
   };
 
 
   const handleDelete = async (id: number) => {
     if (!confirm('确认删除该分红记录？')) return;
-    try { await api.del('/stores/' + storeId + '/dividends/' + id); load(); } catch (e: any) { alert(e.message || '删除失败'); }
+    try { await api.del('/stores/' + storeId + '/dividends/' + id); load(); } catch (e: any) { showToast(e.message || '删除失败', 'error'); }
   };
 
   const openEditDividend = (d: any) => {
@@ -70,7 +71,7 @@ export default function StoreDividendsPage() {
       await api.put('/stores/' + storeId + '/dividends/' + showEdit.id, { total_amount: parseFloat(editForm.total_amount), note: editForm.note });
       setShowEdit(null);
       load();
-    } catch (e: any) { alert(e.message || '保存失败'); }
+    } catch (e: any) { showToast(e.message || '保存失败', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -79,7 +80,7 @@ export default function StoreDividendsPage() {
     try {
       await api.put('/stores/' + storeId + '/dividends/' + id + '/archive', {});
       load();
-    } catch (e: any) { alert(e.message || '归档失败'); }
+    } catch (e: any) { showToast(e.message || '归档失败', 'error'); }
   };
 
   const calcAmount = (total: number, ratio: number) => totalRatio > 0 ? (total * ratio / totalRatio) : 0;

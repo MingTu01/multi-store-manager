@@ -29,7 +29,9 @@ router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) 
   try {
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请选择文件' });
-    const ext = file.originalname.split('.').pop() || 'jpg';
+    // Determine extension from MIME type for security
+    const mimeExtMap: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+    const ext = mimeExtMap[file.mimetype] || file.originalname.split('.').pop() || 'jpg';
     const newName = 'health_' + req.user.id + '_' + Date.now() + '.' + ext;
     const destDir = join(BASE_DIR, 'uploads');
     if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });

@@ -59,7 +59,7 @@ export function setAuthCookie(res: Response, token: string) {
   res.cookie('auth_token', token, {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false' && (process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'),
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 4 * 60 * 60 * 1000, // 4h, matches TOKEN_EXPIRY
     path: '/',
   });

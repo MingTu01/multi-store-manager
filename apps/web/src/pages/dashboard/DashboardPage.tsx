@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const nav = useNavigate();
   const dataVersion = useDataVersion('global');
 
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
   useEffect(() => {
     api.get('/dashboard?period=' + period + '&date=' + dateStr).then(setStats).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});

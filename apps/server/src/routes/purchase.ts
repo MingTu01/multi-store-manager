@@ -5,6 +5,7 @@ import { opLog } from '../oplog.js';
 import { isManagerOrAbove, isReadonly } from '../lib/roles.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
+import { localDate } from '../lib/utils.js';
 
 const router = Router({ mergeParams: true });
 
@@ -12,7 +13,7 @@ const router = Router({ mergeParams: true });
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
-    const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+    const date = (req.query.date as string) || localDate();
     const items = db.prepare('SELECT * FROM purchase_items WHERE store_id = ? ORDER BY sort_order ASC, id ASC').all(storeId);
     const records = db.prepare('SELECT * FROM purchase_records WHERE store_id = ? AND date = ?').all(storeId, date);
     const recordMap: Record<number, any> = {};
@@ -75,7 +76,7 @@ router.put('/records', (req: AuthRequest, res: Response) => {
     if (!date || !Array.isArray(records)) return res.status(400).json({ error: '参数不完整' });
 
     // Only allow editing today
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDate();
     if (date !== today) return res.status(403).json({ error: '只能编辑今天的进货数据' });
 
     const upsert = db.prepare(`
@@ -112,8 +113,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(endDate.getDate() - days + 1);
-    const start = startDate.toISOString().slice(0, 10);
-    const end = endDate.toISOString().slice(0, 10);
+    const start = localDate(startDate);
+    const end = localDate(endDate);
 
     const allRows = db.prepare(`
       SELECT r.date, i.id as item_id, i.name as item_name, i.sort_order,
@@ -141,8 +142,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     const analysisEnd = new Date();
     const analysisStart = new Date();
     analysisStart.setDate(analysisEnd.getDate() - 59);
-    const analysisStartStr = analysisStart.toISOString().slice(0, 10);
-    const analysisEndStr = analysisEnd.toISOString().slice(0, 10);
+    const analysisStartStr = localDate(analysisStart);
+    const analysisEndStr = localDate(analysisEnd);
 
     const analysisRows = db.prepare(`
       SELECT r.date, i.id as item_id, i.name as item_name, i.sort_order,
@@ -169,7 +170,7 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     const d = new Date(analysisEnd);
     while (sameWeekdayDates.length < 8) {
       if ((d.getDay() + 6) % 7 === tomorrowDayIdx) {
-        sameWeekdayDates.push(d.toISOString().slice(0, 10));
+        sameWeekdayDates.push(localDate(d));
       }
       d.setDate(d.getDate() - 1);
     }

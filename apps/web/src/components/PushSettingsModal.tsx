@@ -1,10 +1,11 @@
+import { showToast } from './Toast';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
 import { Modal } from './Modal';
 import { GlassCard } from './GlassCard';
 import {
-  Send, Check, Edit2, Eye, EyeOff, Loader2, AlertCircle,
+  Send, Check, Edit2, Plus, Eye, EyeOff, Loader2, AlertCircle,
   Bell, Settings2, Clock, ExternalLink, Smartphone,
 } from 'lucide-react';
 
@@ -23,12 +24,7 @@ const CHANNELS: ChannelDef[] = [
     label: 'PushPlus',
     fields: [{ f: 'pushplus_token', label: 'Token', secret: true }],
   },
-  {
-    key: 'serverchan',
-    label: 'Server酱',
-    fields: [{ f: 'serverchan_key', label: 'Key', secret: true }],
-  },
-  {
+    {
     key: 'wecom',
     label: '企业微信自建应用',
     adminOnly: true,
@@ -50,33 +46,47 @@ const CHANNELS: ChannelDef[] = [
 /** 渠道教程链接 */
 const CHANNEL_TUTORIALS: Record<string, { url: string; desc: string }> = {
   pushplus: { url: 'https://www.pushplus.plus/push1.html', desc: '注册后获取Token' },
-  serverchan: { url: 'https://sct.ftqq.com/forward', desc: '微信扫码登录获取SendKey' },
-  wecom: { url: 'https://developer.work.weixin.qq.com/document/path/90236', desc: '创建自建应用获取配置' },
+    wecom: { url: 'https://developer.work.weixin.qq.com/document/path/90236', desc: '创建自建应用获取配置' },
   iyuu: { url: 'https://iyuu.cn/', desc: '关注公众号获取Token' },
 };
 
 interface PushOption {
   key: string;
   label: string;
+  category: string;
   roles: string[];
+  priority: 'high' | 'medium' | 'low';
+  defaultSelected: boolean;
 }
 
+const CATEGORY_COLORS: Record<string, { bg: string; bgOff: string; text: string; dot: string }> = {
+  '经营报表': { bg: 'bg-blue-50 border-blue-200 text-blue-700', bgOff: 'bg-slate-50 text-slate-400', text: 'text-blue-700', dot: 'bg-blue-500' },
+  '异常审核': { bg: 'bg-rose-50 border-rose-200 text-rose-700', bgOff: 'bg-slate-50 text-slate-400', text: 'text-rose-700', dot: 'bg-rose-500' },
+  '门店运营': { bg: 'bg-emerald-50 border-emerald-200 text-emerald-700', bgOff: 'bg-slate-50 text-slate-400', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  '人事财务': { bg: 'bg-amber-50 border-amber-200 text-amber-700', bgOff: 'bg-slate-50 text-slate-400', text: 'text-amber-700', dot: 'bg-amber-500' },
+};
+
 const PUSH_OPTIONS: PushOption[] = [
-  // 管理员 / 店铺管理员
-  { key: 'push_daily_report', label: '每日简报', roles: ['ADMIN', 'STORE_ADMIN'] },
-  { key: 'push_weekly_report', label: '每周报告', roles: ['ADMIN', 'STORE_ADMIN'] },
-  { key: 'push_monthly_report', label: '月度报告', roles: ['ADMIN', 'STORE_ADMIN'] },
-  { key: 'push_review_reminder', label: '审核提醒', roles: ['ADMIN', 'STORE_ADMIN'] },
-  { key: 'push_alert', label: '异常警告', roles: ['ADMIN', 'STORE_ADMIN'] },
-  // 店长
-  { key: 'push_bookkeeping_notify', label: '记账通知', roles: ['MANAGER'] },
-  { key: 'push_inventory_notify', label: '盘点通知', roles: ['MANAGER'] },
-  { key: 'push_openclose_notify', label: '开闭店通知', roles: ['MANAGER'] },
-  { key: 'push_purchase_notify', label: '进货通知', roles: ['MANAGER'] },
-  // 员工
-  { key: 'push_salary_notify', label: '工资通知', roles: ['STAFF'] },
-  // 股东
-  { key: 'push_dividend_notify', label: '分红通知', roles: ['SHAREHOLDER'] },
+  // 经营报表
+  { key: 'push_daily_report', label: '每日经营简报', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: true },
+  { key: 'push_weekly_report', label: '每周经营报告', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'low', defaultSelected: false },
+  { key: 'push_monthly_report', label: '月度经营报告', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'low', defaultSelected: false },
+  // 异常与审核
+  { key: 'push_alert', label: '异常警告', category: '异常审核', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'high', defaultSelected: true },
+  { key: 'push_review_reminder', label: '审核提醒', category: '异常审核', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: false },
+  { key: 'push_inventory_alert', label: '库存异常', category: '异常审核', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'high', defaultSelected: true },
+  { key: 'push_store_alert', label: '门店异常', category: '异常审核', roles: ['ADMIN'], priority: 'high', defaultSelected: true },
+  // 门店运营
+  { key: 'push_openclose_notify', label: '开闭店通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'medium', defaultSelected: true },
+  { key: 'push_bookkeeping_notify', label: '记账通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
+  { key: 'push_inventory_notify', label: '盘点通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
+  { key: 'push_purchase_notify', label: '进货通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
+  // 人事与财务
+  { key: 'push_salary_confirm', label: '工资确认通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: true },
+  { key: 'push_salary_notify', label: '工资发放通知', category: '人事财务', roles: ['STAFF'], priority: 'medium', defaultSelected: true },
+  { key: 'push_dividend_notify', label: '分红发放通知', category: '人事财务', roles: ['SHAREHOLDER', 'ADMIN'], priority: 'medium', defaultSelected: true },
+  { key: 'push_health_cert', label: '健康证到期提醒', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'high', defaultSelected: true },
+  { key: 'push_staff_change', label: '员工变动通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: false },
 ];
 
 const INPUT_CLS =
@@ -98,13 +108,16 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [testCooldown, setTestCooldown] = useState(0);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [channelTested, setChannelTested] = useState<Record<string, boolean>>({});
+  const [showPushPicker, setShowPushPicker] = useState(false);
+  // msg state removed - using showToast instead
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* ---- PWA 浏览器推送通知状态 ---- */
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [isIOS, setIsIOS] = useState(false);
   const [hasPushSub, setHasPushSub] = useState(false);
+  
 
   /* ---- 可见渠道 & 推送选项 ---- */
   const visibleChannels = CHANNELS.filter(
@@ -114,8 +127,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
   /* ---- 提示 ---- */
   const showMsg = useCallback((ok: boolean, text: string) => {
-    setMsg({ ok, text });
-    setTimeout(() => setMsg(null), 4000);
+    showToast(text, ok ? 'success' : 'error');
   }, []);
 
   /* ---- 检查浏览器推送通知权限 + 订阅状态 ---- */
@@ -128,6 +140,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
         const sub = await reg.pushManager.getSubscription();
         setHasPushSub(!!sub);
         setNotifPermission(Notification.permission);
+        
       }).catch(() => {
         setNotifPermission(Notification.permission);
       });
@@ -226,11 +239,14 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
     setEditingChannel(null);
     setTestResult(null);
     setTestCooldown(0);
-    setMsg(null);
     api
       .get('/system/user-notification-settings')
       .then((d: any) => {
-        setSettings(d);
+        const defaults: Record<string, any> = {};
+        visiblePushOptions.forEach(o => {
+          if (d[o.key] === undefined) defaults[o.key] = o.defaultSelected;
+        });
+        setSettings({ ...defaults, ...d });
         const status: Record<string, boolean> = {};
         visibleChannels.forEach((ch) => {
           status[ch.key] = ch.fields.every((f) => !!d[f.f]);
@@ -261,10 +277,15 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
     setChannelForm(ch.fields.reduce((a, f) => ({ ...a, [f.f]: settings[f.f] || '' }), {}));
     setShowSecret({});
     setTestResult(null);
+    setChannelTested((s) => ({ ...s, [ch.key]: false }));
   };
 
   /* ---- 渠道表单中保存配置到本地 ---- */
   const handleChannelSave = () => {
+    if (!channelTested[editingChannel!]) {
+      showMsg(false, '请先测试成功后再保存');
+      return;
+    }
     setSettings((s) => ({ ...s, ...channelForm }));
     const ch = visibleChannels.find((c) => c.key === editingChannel);
     const hasConfig = ch?.fields.every((f) => !!channelForm[f.f]) ?? false;
@@ -289,10 +310,10 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
         { config: channelForm },
       );
       if (res.results && res.results.length > 0) {
-        setChannelStatus((s) => ({ ...s, [editingChannel!]: true }));
+        setChannelTested((s) => ({ ...s, [editingChannel!]: true }));
         setTestResult({
           ok: true,
-          text: '测试成功，' + res.results.join('+') + ' 推送已发送。',
+          text: '测试成功！请点击"确定"保存配置。',
         });
       } else {
         setTestResult({
@@ -326,20 +347,10 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
   /* ---------- 渲染 ---------- */
   return (
+    <>
     <Modal open={open} onClose={onClose} title="推送设置" wide>
       <div className="space-y-5">
-        {/* 全局提示 */}
-        {msg && (
-          <div
-            className={`rounded-xl px-4 py-3 text-sm backdrop-blur-sm ${
-              msg.ok
-                ? 'bg-emerald-100/80 text-emerald-700'
-                : 'bg-red-100/80 text-red-700'
-            }`}
-          >
-            {msg.text}
-          </div>
-        )}
+        {/* Toast 提示由全局 ToastContainer 处理 */}
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
@@ -506,28 +517,23 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                   <Bell className="h-4 w-4 text-indigo-500" />
                   推送内容
                 </h3>
-                <div className="space-y-2">
-                  {visiblePushOptions.map((opt) => (
-                    <label
-                      key={opt.key}
-                      className="flex cursor-pointer items-center justify-between rounded-xl bg-white/40 p-3 transition-all hover:bg-white/60"
-                    >
-                      <span className="text-sm text-slate-700">{opt.label}</span>
-                      <div
-                        className={`relative h-6 w-11 rounded-full transition-colors ${
-                          settings[opt.key] ? 'bg-indigo-500' : 'bg-slate-300'
-                        }`}
-                        onClick={() => handleToggle(opt.key)}
-                      >
-                        <div
-                          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${
-                            settings[opt.key] ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </div>
-                    </label>
+                <div className="flex flex-wrap gap-2">
+                  {visiblePushOptions.filter(o => settings[o.key]).map(o => (
+                    <span key={o.key} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${(CATEGORY_COLORS[o.category] || CATEGORY_COLORS['经营报表']).bg}`}>
+                      {o.label}
+                      <button onClick={() => handleToggle(o.key)} className="ml-0.5 hover:text-indigo-900">&times;</button>
+                    </span>
                   ))}
+                  <button
+                    onClick={() => setShowPushPicker(true)}
+                    className="inline-flex items-center gap-1 rounded-full border-2 border-dashed border-slate-300 px-3 py-1 text-xs font-medium text-slate-500 hover:border-indigo-300 hover:text-indigo-500"
+                  >
+                    <Plus className="h-3 w-3" /> 添加推送内容
+                  </button>
                 </div>
+                {visiblePushOptions.filter(o => settings[o.key]).length === 0 && (
+                  <p className="mt-2 text-xs text-slate-400">未选择任何推送内容</p>
+                )}
               </GlassCard>
             )}
 
@@ -552,7 +558,27 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       {/* ===== 渠道编辑弹窗 ===== */}
       <Modal
         open={!!editingChannel}
-        onClose={() => setEditingChannel(null)}
+        onClose={() => {
+          const ch = visibleChannels.find((c) => c.key === editingChannel);
+          if (ch && channelStatus[ch.key] && !channelTested[ch.key]) {
+            if (window.confirm('测试未完成，当前配置将被清除。确认关闭？')) {
+              setChannelForm((s) => {
+                const n = { ...s };
+                ch.fields.forEach((f) => delete n[f.f]);
+                return n;
+              });
+              setSettings((s) => {
+                const n = { ...s };
+                ch.fields.forEach((f) => delete n[f.f]);
+                return n;
+              });
+              setChannelStatus((s) => ({ ...s, [ch.key]: false }));
+              setEditingChannel(null);
+            }
+          } else {
+            setEditingChannel(null);
+          }
+        }}
         title={'配置 ' + (visibleChannels.find((c) => c.key === editingChannel)?.label || '')}
       >
         <div className="space-y-4">
@@ -659,6 +685,61 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
           </div>
         </div>
       </Modal>
+
+      
+{/* push picker modal */}
     </Modal>
+
+
+
+      <Modal open={showPushPicker} onClose={() => setShowPushPicker(false)} title="选择推送内容" wide>
+        <div className="space-y-5">
+          {(() => {
+            const categories = [...new Set(visiblePushOptions.map(o => o.category))];
+            return categories.map(cat => {
+              const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS['经营报表'];
+              return (
+                <div key={cat}>
+                  <div className="mb-2.5 flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${colors.dot}`} />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{cat}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {visiblePushOptions.filter(o => o.category === cat).map(o => {
+                      const selected = !!settings[o.key];
+                      return (
+                        <button
+                          key={o.key}
+                          onClick={() => handleToggle(o.key)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-medium transition-all ${
+                            selected
+                              ? colors.bg
+                              : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                          }`}
+                        >
+                          <div className={`h-1.5 w-1.5 rounded-full ${selected ? colors.dot : 'bg-slate-300'}`} />
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            });
+          })()}
+          <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+            <span className="text-xs text-slate-400">
+              已选 {visiblePushOptions.filter(o => settings[o.key]).length} / {visiblePushOptions.length} 项
+            </span>
+            <button
+              onClick={() => setShowPushPicker(false)}
+              className="rounded-xl bg-indigo-500 px-6 py-2 text-sm font-medium text-white hover:bg-indigo-600"
+            >
+              完成
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }

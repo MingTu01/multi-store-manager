@@ -4,7 +4,7 @@ import { sendNotification } from './notify.js';
 import { sendPushNotification } from './push-notify.js';
 import { eventBus } from './event-bus.js';
 
-type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase';
+type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'staff_change' | 'inventory_alert' | 'store_alert';
 
 interface NotifyParams {
   type: NotifyType;
@@ -41,10 +41,7 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
       const managers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.MANAGER) as any[];
       managers.forEach((u: any) => userIds.push(u.id));
     }
-    if (type === 'payroll') {
-      const staff = db.prepare("SELECT id FROM users WHERE store_id = ?").all(storeId) as any[];
-      staff.forEach((u: any) => userIds.push(u.id));
-    }
+
     if (type === 'dividend') {
       const shareholders = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.SHAREHOLDER) as any[];
       shareholders.forEach((u: any) => userIds.push(u.id));
@@ -74,6 +71,10 @@ export function triggerNotification(params: NotifyParams): void {
       staff: storeId ? '/store/' + storeId + '/staff' : '/staff',
       store: '/stores',
       purchase: storeId ? '/store/' + storeId + '/purchase' : '/purchase',
+      salary_confirm: storeId ? '/store/' + storeId + '/payroll' : '/payroll',
+      staff_change: storeId ? '/store/' + storeId + '/staff' : '/staff',
+      inventory_alert: storeId ? '/store/' + storeId + '/inventory' : '/inventory',
+      store_alert: '/stores',
     };
     const link = linkMap[type] || '/notifications';
 

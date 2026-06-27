@@ -5,7 +5,7 @@ import { buildDailyReport, buildWeeklyReport, buildMonthlyReport, sendNotificati
 function getBeijingDate() {
   const now = new Date();
   const local = new Date(now.getTime() + (8 * 60 + now.getTimezoneOffset()) * 60000);
-  return { hour: local.getHours(), day: local.getDate(), weekday: local.getDay(), dateStr: local.toISOString().slice(0, 10) };
+  return { hour: local.getHours(), day: local.getDate(), weekday: local.getDay(), dateStr: local.getFullYear() + '-' + String(local.getMonth() + 1).padStart(2, '0') + '-' + String(local.getDate()).padStart(2, '0') };
 }
 
 let lastDaily = '', lastWeekly = '', lastMonthly = '';

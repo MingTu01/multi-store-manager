@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { sanitizeText } from '../sanitize.js';
 
 import { AuthRequest } from '../auth.js';
+import { userCache } from '../cache.js';
 
 const router = Router();
 
@@ -94,11 +95,20 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     let sql = 'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), role = COALESCE(?, role), store_id = COALESCE(?, store_id), avatar = COALESCE(?, avatar), salary = COALESCE(?, salary), status = COALESCE(?, status), job_title = COALESCE(?, job_title), address = COALESCE(?, address), updated_at = datetime(?,?)';
     const params: any[] = [sanitizeText(name), phone, role ? role.toUpperCase() : role, store_id, avatar, salary, status, sanitizeText(job_title), sanitizeText(address), 'now', 'localtime'];
     if (username) { sql += ', username = ?'; params.push(username); }
-    if (password) { sql += ', password_hash = ?'; params.push(bcrypt.hashSync(password, 10)); }
+    if (password) {
+      // Non-ADMIN must provide old password to change password
+      if (!isAdmin(req.user.role)) {
+        const { oldPassword } = body;
+        if (!oldPassword) return res.status(400).json({ error: '非管理员修改密码需提供旧密码' });
+        if (!bcrypt.compareSync(oldPassword, targetUser.password_hash)) return res.status(401).json({ error: '旧密码错误' });
+      }
+      sql += ', password_hash = ?'; params.push(bcrypt.hashSync(password, 10));
+    }
     sql += ' WHERE id = ?';
     params.push(req.params.id);
     db.prepare(sql).run(...params);
     opLog(req.user?.id || 0, store_id || 0, '员工', '更新员工 ' + (name || username));
+    userCache.invalidate('user_' + req.params.id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -115,6 +125,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
     opLog(req.user?.id || 0, 0, '员工', '删除员工 ' + (user.name || user.username));
+    userCache.invalidate('user_' + req.params.id);
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

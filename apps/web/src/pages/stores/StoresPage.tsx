@@ -1,7 +1,7 @@
+import { showToast } from '../../components/Toast';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
-import { showToast } from '../../components/Toast';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 import { GlassCard } from '../../components/GlassCard';
 import { ImagePreview } from '../../components/ImagePreview';
@@ -20,10 +20,10 @@ export default function StoresPage() {
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deletePwd, setDeletePwd] = useState('');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // msg state removed - using showToast
   const nav = useNavigate();
 
-  const showMsg = (ok: boolean, text: string) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 3000); };
+  const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   const load = () => {
     api.get('/stores').then((d: any) => {
@@ -109,7 +109,6 @@ export default function StoresPage() {
     <div className="space-y-4">
       <PageHeader title="门店管理" subtitle={'共 ' + stores.length + ' 家门店'} action={<button onClick={openCreate} className="btn text-sm"><Plus className="mr-1 h-4 w-4" />新建门店</button>} />
 
-      {msg && <div className={`rounded-xl p-3 text-sm ${msg.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{msg.text}</div>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stores.map((s) => {

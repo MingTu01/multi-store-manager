@@ -51,7 +51,7 @@ export default function StoreEntriesPage() {
   const { storeId } = useParams();
   const dataVersion = useDataVersion('store', storeId);
   const myRole = useStore((s) => s.user?.role);
-  const isReadonly = myRole === 'SHAREHOLDER' || myRole === 'STAFF';
+  const isReadonly = myRole === 'SHAREHOLDER';
   const location = useLocation();
   const navigate = useNavigate();
   const [entries, setEntries] = useState<any[]>([]);

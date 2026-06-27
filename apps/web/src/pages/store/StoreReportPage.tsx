@@ -51,7 +51,7 @@ export default function StoreReportPage() {
   const [trendDays, setTrendDays] = useState(7);
   const hideYearAll = role === 'MANAGER' || role === 'STAFF';
 
-  const dateStr = date.toISOString();
+  const dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') + 'T00:00:00';
   useEffect(() => {
     if (!storeId) return;
     const d = dateStr.split('T')[0];
