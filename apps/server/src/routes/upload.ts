@@ -12,6 +12,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..', '..');
 
+
+// Magic bytes validation
+const MAGIC_BYTES: Record<string, Buffer[]> = {
+  'image/jpeg': [Buffer.from([0xFF, 0xD8, 0xFF])],
+  'image/png': [Buffer.from([0x89, 0x50, 0x4E, 0x47])],
+  'image/gif': [Buffer.from([0x47, 0x49, 0x46])],
+  'image/webp': [Buffer.from([0x52, 0x49, 0x46, 0x46])], // RIFF header
+};
+
+function validateMagicBytes(buffer: Buffer, mimetype: string): boolean {
+  const signatures = MAGIC_BYTES[mimetype];
+  if (!signatures) return false;
+  return signatures.some(sig => buffer.subarray(0, sig.length).equals(sig));
+}
+
 const router = Router();
 
 const UPLOAD_DIRS = ['avatars', 'stores', 'shifts', 'inventory', 'health'];
@@ -32,6 +47,10 @@ router.post('/:type', upload.single('file'), (req: AuthRequest, res: Response) =
     if (!UPLOAD_DIRS.includes(type)) return res.status(400).json({ error: '\u4e0d\u652f\u6301\u7684\u4e0a\u4f20\u7c7b\u578b' });
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '\u8bf7\u9009\u62e9\u6587\u4ef6' });
+    // Validate magic bytes
+    if (!validateMagicBytes(file.buffer, file.mimetype)) {
+      return res.status(400).json({ error: '\u6587\u4ef6\u5185\u5bb9\u4e0e\u58f0\u660e\u7684\u7c7b\u578b\u4e0d\u7b26' });
+    }
     const ext = file.mimetype === 'image/webp' ? 'webp' : file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const filename = crypto.randomUUID() + '.' + ext;
     const uploadDir = join(BASE_DIR, 'uploads', type);

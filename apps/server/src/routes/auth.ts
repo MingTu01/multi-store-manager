@@ -2,7 +2,8 @@ import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import db from '../db.js';
-import { signToken, setAuthCookie, clearAuthCookie, authMiddleware, AuthRequest } from '../auth.js';
+import { signToken, setAuthCookie, clearAuthCookie, authMiddleware, AuthRequest, getCookie } from '../auth.js';
+import { blacklistToken, hashToken } from '../token-blacklist.js';
 import { opLog } from '../oplog.js';
 
 const router = Router();
@@ -91,6 +92,21 @@ router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     res.json({ message: '密码修改成功' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+
+router.post('/logout', authMiddleware, (req: AuthRequest, res: Response) => {
+  try {
+    // Blacklist current token
+    const token = getCookie(req, 'auth_token') || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : '');
+    if (token) {
+      const tokenHash = hashToken(token);
+      const expiresAt = Date.now() + 4 * 60 * 60 * 1000; // 4h
+      blacklistToken(tokenHash, expiresAt);
+    }
+    clearAuthCookie(res);
+    res.json({ message: '\u5df2\u9000\u51fa\u767b\u5f55' });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 

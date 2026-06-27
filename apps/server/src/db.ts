@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import { mkdirSync } from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -374,7 +375,6 @@ for (const sql of indexes) {
 // Seed default admin user
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
-  import crypto from 'crypto';
   const randomPassword = crypto.randomBytes(8).toString('hex');
   const hash = bcrypt.hashSync(randomPassword, 10);
   db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")

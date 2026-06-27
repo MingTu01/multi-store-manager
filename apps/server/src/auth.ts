@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import db from './db.js';
 import { join } from 'path';
 import crypto from 'crypto';
+import { isTokenBlacklisted, hashToken } from './token-blacklist.js';
 
 // 安全的 JWT Secret 管理：优先使用环境变量，否则从文件读取或生成随机 secret
 function getJwtSecret(): string {
@@ -88,6 +89,12 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
       return res.status(401).json({ error: '未提供认证令牌' });
     }
     const decoded = jwt.verify(token, SECRET) as any;
+
+    // Check token blacklist
+    const tokenHash = hashToken(token);
+    if (isTokenBlacklisted(tokenHash)) {
+      return res.status(401).json({ error: '\u8ba4\u8bc1\u4ee4\u724c\u5df2\u6ce8\u9500' });
+    }
     req.user = decoded;
 
     // 校验密码修改时间：JWT的iat必须晚于用户的updated_at
