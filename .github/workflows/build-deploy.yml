@@ -1,4 +1,4 @@
-﻿name: Build and Deploy
+name: Build and Deploy
 
 on:
   push:
@@ -64,7 +64,7 @@ jobs:
           cd deploy
 
           # Preserve Docker/deploy-specific files
-          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
+          for f in entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "$f" ]; then
               cp "$f" "/tmp/deploy-preserve-$f" 2>/dev/null || true
             fi
@@ -75,6 +75,13 @@ jobs:
 
           # Copy server source
           cp -r ../apps/server/src/ src/
+
+          # Copy container management tools
+          cp ../apps/server/msl.js . 2>/dev/null || true
+          cp ../.npmrc . 2>/dev/null || true
+          cp ../apps/server/startup-check.js . 2>/dev/null || true
+          cp ../apps/server/startup.sh . 2>/dev/null || true
+          cp ../deploy/Dockerfile . 2>/dev/null || true
 
           # Copy frontend build
           mkdir -p public/web-dist
@@ -97,7 +104,7 @@ jobs:
           cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
 
           # Restore preserved Docker files
-          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
+          for f in entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "/tmp/deploy-preserve-$f" ]; then
               cp "/tmp/deploy-preserve-$f" "$f"
             fi
