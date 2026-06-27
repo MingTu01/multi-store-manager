@@ -68,7 +68,7 @@ export const useStore = create<AppState>((set) => ({
         }
         const d = await res.json();
         if (d.user) {
-          set({ user: d.user, token: 'cookie', loading: false });
+          set({ user: d.user || null, token: 'cookie', loading: false });
           return;
         }
         set({ user: null, token: null, loading: false });

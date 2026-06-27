@@ -41,7 +41,7 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
   const loading = useStore((s) => s.loading);
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (!canAccess(perm, user.role as any)) {
+  if (!canAccess(perm, (user as any)?.role)) {
     if (user.store_id) {
       return <Navigate to={'/store/' + user.store_id} replace />;
     }

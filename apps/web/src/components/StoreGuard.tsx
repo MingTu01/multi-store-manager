@@ -67,7 +67,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
       break;
     }
   }
-  if (user && !canAccess(permKey, user.role)) {
+  if (user && !canAccess(permKey, user.role as any)) {
     return <Navigate to="/" replace />;
   }
 
