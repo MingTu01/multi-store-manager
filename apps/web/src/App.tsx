@@ -52,16 +52,21 @@ function Guard({ perm, children }: { perm: string; children: React.ReactNode }) 
 
 async function clearSWCachesAndReload() {
   try {
-    if ('caches' in window) {
+    // 1. Clear all caches FIRST
+    if ("caches" in window) {
       const names = await caches.keys();
       await Promise.all(names.map(n => caches.delete(n)));
     }
-    if ('serviceWorker' in navigator) {
+    // 2. Unregister ALL service workers and WAIT for completion
+    if ("serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.unregister()));
+      // 3. Re-register fresh SW
+      await navigator.serviceWorker.register("/msl-sw.js", { scope: "/" });
     }
   } catch (e) {}
-  window.location.reload();
+  // 4. Force reload with cache-busting
+  window.location.replace(window.location.pathname + "?_v=" + Date.now());
 }
 
 export default function App() {

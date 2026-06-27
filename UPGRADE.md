@@ -273,7 +273,36 @@ docker restart multi-shop-link
 
 ---
 
-## 九、关键文件说明
+## 九、依赖管理规范
+
+### 9.1 核心原则
+
+**所有 import 引用的第三方包必须在 package.json 的 dependencies 中声明。**
+
+本地环境手动安装的包（如 
+pm install pino）如果未提交到 package.json，CI 构建时不会安装，导致生产环境崩溃。
+
+### 9.2 检查方法
+
+`ash
+# 列出所有外部 import
+grep -rh "from '" apps/server/src/ | grep -v "from '\." | grep -v "from 'node:" | sort -u
+
+# 对比 package.json dependencies
+node -p "Object.keys(require('./apps/server/package.json').dependencies).join('\n')"
+`
+
+### 9.3 常见陷阱
+
+| 场景 | 问题 | 解决 |
+|------|------|------|
+| 本地 npm install 但未 --save | package.json 不更新 | 使用 npm install --save |
+| CI 构建成功但生产崩溃 | 本地有 node_modules 但 package.json 缺声明 | 检查并补充依赖 |
+| TypeScript 类型包 | @types/xxx 只需 devDependencies | 但运行时包必须在 dependencies |
+
+---
+
+## 十、关键文件说明
 
 | 文件 | 位置 | 说明 |
 |------|------|------|

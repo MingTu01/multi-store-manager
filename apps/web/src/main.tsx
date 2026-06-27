@@ -52,24 +52,21 @@
     navigator.serviceWorker.getRegistrations().then(function(regs) {
       var promises = [];
       for (var i = 0; i < regs.length; i++) {
-
         promises.push(regs[i].unregister());
       }
       return Promise.all(promises);
     }).then(function() {
       return caches.keys().then(function(names) {
         return Promise.all(names.map(function(n) {
-
           return caches.delete(n);
         }));
       });
     }).then(function() {
       return navigator.serviceWorker.register('/msl-sw.js', { scope: '/' });
     }).then(function(reg) {
-
-    }).catch(function(err) {
-
-    });
+      // Ensure new SW activates immediately
+      if (reg.installing) { reg.installing.postMessage({ type: 'SKIP_WAITING' }); }
+    }).catch(function() {});
   }
 
   // =====================================================

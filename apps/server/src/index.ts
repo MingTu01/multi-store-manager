@@ -282,6 +282,8 @@ setupCron();
 
 app.get('{*splat}', (req, res) => {
   if (req.path.startsWith('/assets/') || req.path.startsWith('/api/')) return res.status(404).send('Not found');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
   res.sendFile(join(WEB_DIST_PATH, 'index.html'));
 });
 
