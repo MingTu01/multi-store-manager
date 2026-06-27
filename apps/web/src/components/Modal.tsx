@@ -10,10 +10,17 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto px-4 py-8" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" style={{minHeight: '100vh'}} />
+    /*
+     * 修复 Chrome 点击穿透问题：
+     * 不再使用单独的 fixed backdrop div，改为在 overlay 容器上用 ::before 伪元素实现遮罩。
+     * 避免 Chrome 的 fixed div elementFromPoint hit-testing 抢占点击事件。
+     */
+    <div
+      className="msl-modal-overlay fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto px-4 py-8"
+      onClick={onClose}
+    >
       <div
-        className={'relative z-10 pointer-events-auto max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white/95 shadow-2xl backdrop-blur-xl my-auto ' + (wide ? 'max-w-2xl' : 'max-w-lg')}
+        className={'msl-modal-content relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white/95 shadow-2xl backdrop-blur-xl my-auto ' + (wide ? 'max-w-2xl' : 'max-w-lg')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/80 px-5 py-3 backdrop-blur-lg rounded-t-2xl">

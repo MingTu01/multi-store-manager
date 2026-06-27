@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @layer base {
   * { -webkit-tap-highlight-color: transparent; }
@@ -149,4 +149,16 @@
 @media (min-width: 1024px) {
   .hidden-desktop { display: flex !important; }
   .show-mobile { display: none !important; }
+}
+
+/* ===== Modal backdrop (Chrome-compatible) ===== */
+.msl-modal-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  z-index: 0;
+  pointer-events: none;
 }
