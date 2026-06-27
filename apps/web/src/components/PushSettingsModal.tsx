@@ -136,7 +136,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
   /* ---- 请求浏览器推送通知权限并订阅 ---- */
   /** 检测是否为 Chrome（非 Edge、非 Opera） */
-  const isChromeBrowser = () => {
+  const isFCMBrowser = () => {
     const ua = navigator.userAgent;
     return /Chrome\//.test(ua) && !/Edg/.test(ua) && !/OPR\//.test(ua) && !/Brave/.test(ua);
   };

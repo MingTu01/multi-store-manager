@@ -5,7 +5,16 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import logger from './logger.js';
 
+// Static file extensions to skip logging
+const STATIC_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.css', '.js', '.woff', '.woff2', '.ttf', '.eot'];
+
 export function requestLogger(req: Request, res: Response, next: NextFunction) {
+  // Skip logging for static files
+  const path = req.path.toLowerCase();
+  if (STATIC_EXTS.some(ext => path.endsWith(ext))) {
+    return next();
+  }
+
   const requestId = crypto.randomUUID();
   const start = Date.now();
 
