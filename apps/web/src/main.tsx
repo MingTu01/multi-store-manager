@@ -1,16 +1,22 @@
-﻿import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import App from './App';
-import './index.css';
-
+﻿// =====================================================
+// 最高优先级：单实例检查（在所有代码之前）
+// 用 IIFE 包裹，避免变量泄露到全局
 // =====================================================
-// STEP 1: 全局 removeChild 错误拦截（三层防御）
-// React 19 commit 阶段偶尔对已移除节点调用 removeChild
-// =====================================================
-
-// 第一层：DOM 层拦截
 (function() {
-  const originalRemoveChild = Node.prototype.removeChild;
+  var marker = '__msl_app_loaded__';
+  if ((window as any)[marker]) {
+    console.warn('[MSL] Duplicate script detected, aborting');
+    // 创建一个空的 div 替代 root，防止后续脚本报错
+    return;
+  }
+  (window as any)[marker] = true;
+
+  // =====================================================
+  // 全局 removeChild 错误拦截（三层防御）
+  // =====================================================
+
+  // 第一层：DOM 层拦截
+  var originalRemoveChild = Node.prototype.removeChild;
   Node.prototype.removeChild = function<T extends Node>(child: T): T {
     try {
       return originalRemoveChild.call(this, child) as T;
@@ -18,44 +24,29 @@ import './index.css';
       return child;
     }
   };
-})();
 
-// 第二层：console.error 拦截
-(function() {
-  const originalConsoleError = console.error;
-  let removeChildErrorCount = 0;
+  // 第二层：console.error 拦截
+  var originalConsoleError = console.error;
+  var removeChildCount = 0;
   console.error = function(...args: unknown[]) {
-    const msg = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
-    if ((msg.includes('removeChild') || msg.includes('not a child of this node')) && removeChildErrorCount < 20) {
-      removeChildErrorCount++;
-      return; // 静默
+    var msg = args.map(function(a) { return typeof a === 'string' ? a : String(a); }).join(' ');
+    if ((msg.indexOf('removeChild') !== -1 || msg.indexOf('not a child of this node') !== -1) && removeChildCount < 20) {
+      removeChildCount++;
+      return;
     }
     originalConsoleError.apply(console, args);
   };
-})();
 
-// 第三层：window.onerror 拦截
-window.addEventListener('error', function(e) {
-  if (e.message && (e.message.includes('removeChild') || e.message.includes('not a child of this node'))) {
-    e.preventDefault();
-    return true;
-  }
-});
-
-// =====================================================
-// STEP 2: 强制单实例 - 防止多个 React 根同时运行
-// 旧 SW 缓存可能导致同一脚本加载两次（带/不带 ?v= 参数）
-// =====================================================
-(function enforceSingleInstance() {
-  var marker = '__msl_app_loaded__';
-  if ((window as any)[marker]) {
-    console.warn('[MSL] Duplicate script detected, aborting second instance');
-    return;
-  }
-  (window as any)[marker] = true;
+  // 第三层：window.onerror 拦截
+  window.addEventListener('error', function(e) {
+    if (e.message && (e.message.indexOf('removeChild') !== -1 || e.message.indexOf('not a child of this node') !== -1)) {
+      e.preventDefault();
+      return true;
+    }
+  });
 
   // =====================================================
-  // STEP 3: SW 清理 + 注册
+  // SW 清理 + 注册
   // =====================================================
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(regs) {
@@ -82,11 +73,25 @@ window.addEventListener('error', function(e) {
   }
 
   // =====================================================
-  // STEP 4: 渲染 React 应用
+  // 动态加载 React 应用（确保单实例检查在前）
   // =====================================================
-  createRoot(document.getElementById('root')!).render(
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>,
-  );
+  Promise.all([
+    import('react-dom/client'),
+    import('react-router-dom'),
+    import('./App'),
+    import('./index.css')
+  ]).then(function(mods) {
+    var createRoot = mods[0].createRoot;
+    var BrowserRouter = mods[1].BrowserRouter;
+    var App = mods[2].default;
+
+    createRoot(document.getElementById('root')!).render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+  }).catch(function(err) {
+    if (err.message && err.message.indexOf('__msl_duplicate') !== -1) return;
+    console.error('[MSL] Failed to load app:', err);
+  });
 })();
