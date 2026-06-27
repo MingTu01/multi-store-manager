@@ -118,11 +118,11 @@ NODE_OPTIONS="--max-old-space-size=512" node --import tsx src/index.ts
 
 ```powershell
 # 1. 构建前端
-cd "D:\文档\DDDOR\multi-store-manager\apps\web"
+cd "D:\文档\MSL\multi-store-manager\apps\web"
 npx vite build
 
 # 2. 复制到容器
-docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+docker cp "D:\文档\MSL\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
 
 # 3. 浏览器强制刷新 (Ctrl+Shift+R) 即可看到最新前端
 ```
@@ -133,7 +133,7 @@ docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:
 
 ```powershell
 # 1. 复制修改后的后端文件到容器（按需替换具体文件）
-docker cp "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+docker cp "D:\文档\MSL\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
 
 # 2. 重启容器使后端代码生效
 docker restart multi-shop-link
@@ -143,11 +143,11 @@ docker restart multi-shop-link
 
 ```powershell
 # 前端
-cd "D:\文档\DDDOR\multi-store-manager\apps\web"; npx vite build
-docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+cd "D:\文档\MSL\multi-store-manager\apps\web"; npx vite build
+docker cp "D:\文档\MSL\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
 
 # 后端
-docker cp "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+docker cp "D:\文档\MSL\multi-shop-link-deploy\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
 
 # 重启
 docker restart multi-shop-link
@@ -159,11 +159,11 @@ docker restart multi-shop-link
 
 ```powershell
 # 同步前端
-Remove-Item -Recurse -Force "D:\文档\DDDOR\multi-shop-link-deploy\public\web-dist" -ErrorAction SilentlyContinue
-Copy-Item -Recurse -Force "D:\文档\DDDOR\multi-store-manager\apps\web\dist" "D:\文档\DDDOR\multi-shop-link-deploy\public\web-dist"
+Remove-Item -Recurse -Force "D:\文档\MSL\multi-shop-link-deploy\public\web-dist" -ErrorAction SilentlyContinue
+Copy-Item -Recurse -Force "D:\文档\MSL\multi-store-manager\apps\web\dist" "D:\文档\MSL\multi-shop-link-deploy\public\web-dist"
 
 # 同步后端（源码直接从 monorepo 复制）
-Copy-Item -Force "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\system.ts" "D:\文档\DDDOR\multi-shop-link-deploy\src\routes\system.ts"
+Copy-Item -Force "D:\文档\MSL\multi-store-manager\apps\server\src\routes\system.ts" "D:\文档\MSL\multi-shop-link-deploy\src\routes\system.ts"
 ```
 ---
 
@@ -175,11 +175,11 @@ Copy-Item -Force "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\sys
 
 ```powershell
 # 构建前端
-cd "D:\文档\DDDOR\multi-store-manager\apps\web"
+cd "D:\文档\MSL\multi-store-manager\apps\web"
 npx vite build
 
 # 复制到容器
-docker cp "D:\文档\DDDOR\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
+docker cp "D:\文档\MSL\multi-store-manager\apps\web\dist\." multi-shop-link:/app/public/web-dist/
 
 # 重启容器
 docker restart multi-shop-link
@@ -189,7 +189,7 @@ docker restart multi-shop-link
 
 ```powershell
 # 复制单个文件
-docker cp "D:\文档\DDDOR\multi-store-manager\apps\server\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
+docker cp "D:\文档\MSL\multi-store-manager\apps\server\src\routes\system.ts" multi-shop-link:/app/src/routes/system.ts
 docker restart multi-shop-link
 ```
 
