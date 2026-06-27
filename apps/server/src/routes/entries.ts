@@ -83,7 +83,9 @@ router.post('/', (req: AuthRequest, res: Response) => {
       detail: user.name + ' 在门店新增' + nt + ': ' + categoryName + ' ¥' + amount
     , operatorName: req.user.name || req.user.username});
 
+    console.log('[ENTRY] About to broadcast entry create, storeId=' + storeId + ' clients=' + eventBus.getClientCount());
     eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid } });
+    console.log('[ENTRY] Broadcast done');
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

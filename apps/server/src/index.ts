@@ -57,7 +57,15 @@ const corsOptions: cors.CorsOptions = {
   credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
 app.use(requestLogger);
-app.use(compression({ level: 6, threshold: 1024 }));
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    // Skip compression for SSE connections to prevent buffering
+    if (req.headers.accept === 'text/event-stream') return false;
+    return compression.filter(req, res);
+  }
+}));
 // 安全HTTP头
 app.use((req, res, next) => {
   // 防止点击劫持
