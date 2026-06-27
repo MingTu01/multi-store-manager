@@ -63,15 +63,29 @@ export function triggerNotification(params: NotifyParams): void {
     const targets = getTargetUsers(type, storeId, targetUserId);
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ').slice(0, 19);
 
+    // Generate link based on notification type
+    const linkMap: Record<string, string> = {
+      entry: storeId ? '/store/' + storeId + '/entries' : '/entries',
+      payroll: storeId ? '/store/' + storeId + '/payroll' : '/payroll',
+      dividend: storeId ? '/store/' + storeId + '/dividends' : '/dividends',
+      inventory: storeId ? '/store/' + storeId + '/inventory' : '/inventory',
+      shift: storeId ? '/store/' + storeId + '/open-close' : '/open-close',
+      health_cert: storeId ? '/store/' + storeId + '/staff' : '/staff',
+      staff: storeId ? '/store/' + storeId + '/staff' : '/staff',
+      store: '/stores',
+      purchase: storeId ? '/store/' + storeId + '/purchase' : '/purchase',
+    };
+    const link = linkMap[type] || '/notifications';
+
     const stmt = db.prepare('INSERT INTO notifications (user_id, title, content, type, store_id, link, read, created_at) VALUES (?,?,?,?,?,?,0,?)');
     for (const uid of targets) {
-      stmt.run(uid, title, content, type, storeId || '', '/notifications', now);
+      stmt.run(uid, title, content, type, storeId || '', link, now);
     }
     // External push (fire and forget)
     sendNotification(title, content, type).catch(() => {});
     // Browser Web Push (fire and forget)
     for (const uid of targets) {
-      sendPushNotification(uid, title, content).catch(() => {});
+      sendPushNotification(uid, title, content, link).catch(() => {});
     }
     // SSE: broadcast notification update event for real-time badge refresh
     if (targets.length > 0) {
