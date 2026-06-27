@@ -5,6 +5,7 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
 import { isManagerOrAbove } from '../lib/roles.js';
+import { sanitizeText, sanitizeNote } from './sanitize.js';
 
 const router = Router({ mergeParams: true });
 
@@ -40,7 +41,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     const { name, quantity, photo, sort_order } = req.body;
     if (!name) return res.status(400).json({ error: '请输入物品名称' });
     const maxOrder = (db.prepare('SELECT MAX(sort_order) as m FROM inventory_master WHERE store_id = ?').get(storeId) as any)?.m || 0;
-    const result = db.prepare('INSERT INTO inventory_master (store_id, name, quantity, photo, status, sort_order) VALUES (?,?,?,?,?,?)').run(storeId, name, quantity || 0, photo || '', 'normal', sort_order ?? maxOrder + 1);
+    const result = db.prepare('INSERT INTO inventory_master (store_id, name, quantity, photo, status, sort_order) VALUES (?,?,?,?,?,?)').run(storeId, sanitizeText(name), quantity || 0, photo || '', 'normal', sort_order ?? maxOrder + 1);
     opLog(req.user.id, storeId, '盘点', '添加物品: ' + name);
     triggerNotification({ type: 'inventory', action: '新增盘点条目', storeId, detail: name , operatorName: req.user.name || req.user.username});
     res.json({ id: result.lastInsertRowid, message: '物品添加成功' });
@@ -54,7 +55,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
     const { name, quantity, photo, status, sort_order } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
-    if (name !== undefined) { fields.push('name=?'); vals.push(name); }
+    if (name !== undefined) { fields.push('name=?'); vals.push(sanitizeText(name)); }
     if (quantity !== undefined) { fields.push('quantity=?'); vals.push(quantity); }
     if (photo !== undefined) { fields.push('photo=?'); vals.push(photo); }
     if (status !== undefined) { fields.push('status=?'); vals.push(status); }

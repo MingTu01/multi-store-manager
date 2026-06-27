@@ -3,6 +3,7 @@ import db from '../db.js';
 import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import bcrypt from 'bcryptjs';
+import { sanitizeText } from './sanitize.js';
 
 import { AuthRequest } from '../auth.js';
 
@@ -58,7 +59,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     // 角色大小写统一为大写（S19）
     const safeRole = (role || 'STAFF').toUpperCase();
     const hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(username, hash, name || '', phone || '', safeRole, store_id || null, avatar || '', salary || 0, status || 'active', job_title || '', address || '');
+    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(username, hash, sanitizeText(name || ''), phone || '', safeRole, store_id || null, avatar || '', salary || 0, status || 'active', sanitizeText(job_title || ''), sanitizeText(address || ''));
     opLog(req.user?.id || 0, store_id || 0, '员工', '创建员工 ' + (name || username));
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) {
@@ -90,7 +91,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: '无权修改角色' });
     }
     let sql = 'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), role = COALESCE(?, role), store_id = COALESCE(?, store_id), avatar = COALESCE(?, avatar), salary = COALESCE(?, salary), status = COALESCE(?, status), job_title = COALESCE(?, job_title), address = COALESCE(?, address), updated_at = datetime(?,?)';
-    const params: any[] = [name, phone, role ? role.toUpperCase() : role, store_id, avatar, salary, status, job_title, address, 'now', 'localtime'];
+    const params: any[] = [sanitizeText(name), phone, role ? role.toUpperCase() : role, store_id, avatar, salary, status, sanitizeText(job_title), sanitizeText(address), 'now', 'localtime'];
     if (username) { sql += ', username = ?'; params.push(username); }
     if (password) { sql += ', password_hash = ?'; params.push(bcrypt.hashSync(password, 10)); }
     sql += ' WHERE id = ?';

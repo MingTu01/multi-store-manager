@@ -14,6 +14,7 @@ const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+db.pragma('busy_timeout = 5000');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
@@ -373,7 +374,7 @@ for (const sql of indexes) {
 // Seed default admin user
 const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
 if (!adminExists) {
-  const crypto = require('crypto');
+  import crypto from 'crypto';
   const randomPassword = crypto.randomBytes(8).toString('hex');
   const hash = bcrypt.hashSync(randomPassword, 10);
   db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")
@@ -406,17 +407,13 @@ try {
 } catch (e) { /* categories table may not exist yet */ }
 
 // SQLite 写重试辅助函数 - 用于关键写操作时处理 SQLITE_BUSY
-export function dbRunWithRetry(fn: () => any, maxRetries = 3, delayMs = 50): any {
+export function dbRunWithRetry(fn: () => any, maxRetries = 3): any {
   for (let i = 0; i < maxRetries; i++) {
     try {
       return fn();
     } catch (err: any) {
       if (err.code === 'SQLITE_BUSY' && i < maxRetries - 1) {
-        const wait = delayMs * Math.pow(2, i);
-        console.warn(`[DB] SQLITE_BUSY, retry ${i + 1}/${maxRetries} after ${wait}ms`);
-        // 同步等待 (better-sqlite3 是同步的)
-        const end = Date.now() + wait;
-        while (Date.now() < end) {}
+        // busy_timeout pragma handles the wait, just retry
         continue;
       }
       throw err;

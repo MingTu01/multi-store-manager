@@ -5,6 +5,7 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
+import { sanitizeText } from './sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification } from '../notify.js';
 
@@ -71,7 +72,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const storeId = id || 'store_' + Date.now();
     const photos = JSON.stringify(req.body.photos || []);
     const tx = db.transaction(() => {
-      db.prepare('INSERT INTO stores (id, name, address, initial_capital, photos) VALUES (?,?,?,?,?)').run(storeId, name, address || '', initial_capital || 0, photos);
+      db.prepare('INSERT INTO stores (id, name, address, initial_capital, photos) VALUES (?,?,?,?,?)').run(storeId, sanitizeText(name), sanitizeText(address || ''), initial_capital || 0, photos);
       const shBody = req.body.shareholders;
       if (Array.isArray(shBody) && shBody.length > 0) {
         const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
@@ -100,7 +101,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
     const { name, address, initial_capital } = req.body;
     const now = localDateTime();
     const tx = db.transaction(() => {
-      db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(name, address, initial_capital, now, req.params.storeId);
+      db.prepare('UPDATE stores SET name = COALESCE(?, name), address = COALESCE(?, address), initial_capital = COALESCE(?, initial_capital), updated_at = ? WHERE id = ?').run(sanitizeText(name), sanitizeText(address), initial_capital, now, req.params.storeId);
       const photos = req.body.photos;
       if (Array.isArray(photos)) {
         db.prepare('UPDATE stores SET photos = ? WHERE id = ?').run(JSON.stringify(photos), req.params.storeId);

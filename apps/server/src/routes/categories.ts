@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin } from '../lib/roles.js';
+import { sanitizeText } from './sanitize.js';
 
 const router = Router({ mergeParams: true });
 
@@ -23,7 +24,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const { storeId } = req.params;
     const { name, type } = req.body;
     if (!name || !type) return res.status(400).json({ error: '请输入分类名和类型' });
-    const result = db.prepare('INSERT INTO categories (name, type, store_id) VALUES (?,?,?)').run(name, type, storeId);
+    const result = db.prepare('INSERT INTO categories (name, type, store_id) VALUES (?,?,?)').run(sanitizeText(name), type, storeId);
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -41,7 +42,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     if (cat.store_id && String(cat.store_id) !== String(storeId)) {
       return res.status(403).json({ error: '无权修改其他门店分类' });
     }
-    db.prepare('UPDATE categories SET name = COALESCE(?, name), type = COALESCE(?, type) WHERE id = ?').run(name, type, req.params.id);
+    db.prepare('UPDATE categories SET name = COALESCE(?, name), type = COALESCE(?, type) WHERE id = ?').run(sanitizeText(name), type, req.params.id);
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });

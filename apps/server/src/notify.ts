@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';
+import { validateWebhookUrl } from './lib/network.js';
 
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
@@ -102,6 +103,8 @@ export async function sendServerChan(title: string, content: string, s: any): Pr
 export async function sendWeCom(title: string, content: string, s: any): Promise<void> {
   if (!s.wecom_corpid || !s.wecom_agentid || !s.wecom_secret) throw new Error('企业微信配置不完整');
   const proxyUrl = (s.wecom_proxy_url || 'https://wx.908521.xyz/').replace(/\/?$/, '/');
+  const urlCheck = validateWebhookUrl(proxyUrl);
+  if (!urlCheck.valid) throw new Error('代理URL不安全: ' + urlCheck.error);
   const tokenRes = await fetch(proxyUrl + 'cgi-bin/gettoken?corpid=' + s.wecom_corpid + '&corpsecret=' + s.wecom_secret);
   const tokenData = await tokenRes.json() as any;
   if (!tokenData.access_token) throw new Error('企业微信获取token失败: ' + (tokenData.errmsg || '请检查配置'));

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { invalidateCache } from './api';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
@@ -9,6 +9,10 @@ let globalSource: EventSource | null = null;
 let globalStatus: ConnectionStatus = 'disconnected';
 let globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let globalStopped = false;
+let reconnectDelay = 3000;
+const MAX_RECONNECT_DELAY = 60000;
+const MAX_RECONNECT_ATTEMPTS = 50;
+let reconnectAttempts = 0;
 const listeners = new Set<(s: ConnectionStatus) => void>();
 
 function notifyListeners(s: ConnectionStatus) {
@@ -30,9 +34,10 @@ function globalConnect() {
   source.onopen = function() {
     console.log('[SSE] Connected');
     notifyListeners('connected');
+    reconnectDelay = 3000;
+    reconnectAttempts = 0;
   };
 
-  // Default message handler (events without explicit event type)
   source.onmessage = function(e) {
     try {
       var data = JSON.parse(e.data);
@@ -40,7 +45,6 @@ function globalConnect() {
     } catch {}
   };
 
-  // data-change events (badge + cache invalidation)
   source.addEventListener('data-change', function(e: MessageEvent) {
     try {
       var data = JSON.parse(e.data);
@@ -49,7 +53,6 @@ function globalConnect() {
     } catch {}
   });
 
-  // system events (server-ready, etc.)
   source.addEventListener('system', function(e: MessageEvent) {
     try {
       var data = JSON.parse(e.data);
@@ -63,9 +66,16 @@ function globalConnect() {
     source.close();
     globalSource = null;
     notifyListeners('disconnected');
+
     if (!globalStopped) {
-      console.log('[SSE] Reconnecting in 3s...');
-      globalReconnectTimer = setTimeout(globalConnect, 3000);
+      reconnectAttempts++;
+      if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+        console.error('[SSE] Max reconnect attempts reached, stopping');
+        return;
+      }
+      console.log('[SSE] Reconnecting in ' + (reconnectDelay / 1000) + 's (attempt ' + reconnectAttempts + ')...');
+      globalReconnectTimer = setTimeout(globalConnect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
     }
   };
 }
@@ -82,7 +92,6 @@ function handleEvent(eventName: string, data: any) {
     try {
       const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
       if (typeof data.unreadCount === 'number') {
-        console.log('[SSE] Badge update: ' + data.unreadCount);
         useNotificationStore.setState({ unreadCount: data.unreadCount });
       }
       if (data.storeId) {
@@ -112,6 +121,8 @@ export function disconnectSSE() {
 
 export function reconnectSSE() {
   globalStopped = false;
+  reconnectDelay = 3000;
+  reconnectAttempts = 0;
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
   globalConnect();
 }

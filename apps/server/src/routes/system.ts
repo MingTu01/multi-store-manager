@@ -16,6 +16,7 @@ import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 import { AuthRequest } from '../auth.js';
 import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
+import { validateWebhookUrl } from '../lib/network.js';
 
 
 // 安全校验：cleanup.json 路径白名单（CRITICAL安全加固）
@@ -514,6 +515,11 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
       if (req.body[key] !== undefined) safeBody[key] = req.body[key];
     }
     Object.assign(s, safeBody);
+    // SSRF 防护：校验 webhook/proxy URL
+    if (s.wecom_proxy_url) {
+      const urlCheck = validateWebhookUrl(s.wecom_proxy_url);
+      if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
+    }
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
@@ -879,6 +885,11 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
     const role = req.user.role;
     const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
+    // SSRF 防护：校验 webhook/proxy URL
+    if (wecom_proxy_url) {
+      const urlCheck = validateWebhookUrl(wecom_proxy_url);
+      if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
+    }
     if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {
       return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
     }

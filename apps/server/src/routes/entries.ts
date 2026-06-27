@@ -6,6 +6,7 @@ import { isAdmin, isReadonly } from '../lib/roles.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
+import { sanitizeNote } from './sanitize.js';
 
 function normalizeType(type: string): string {
   if (type === 'income') return '收入';
@@ -71,7 +72,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     let catId = category_id || null;
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
     const nt = normalizeType(type);
-    const result = db.prepare('INSERT INTO entries (store_id,type,category,category_id,amount,note,date,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(storeId, nt, categoryName, catId, amount, note||'', date||localDate(), user.id, localDateTime());
+    const result = db.prepare('INSERT INTO entries (store_id,type,category,category_id,amount,note,date,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(storeId, nt, categoryName, catId, amount, sanitizeNote(note||''), date||localDate(), user.id, localDateTime());
     opLog(user.id, storeId, '记账', '新增' + nt + ' ' + categoryName + ' ¥' + amount, req.ip);
 
     triggerNotification({
@@ -102,7 +103,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     let catId = category_id || null;
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
     const nt = normalizeType(type);
-    db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=? WHERE id=?').run(nt, categoryName, catId, amount, note||'', date, req.params.id);
+    db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=? WHERE id=?').run(nt, categoryName, catId, amount, sanitizeNote(note||''), date, req.params.id);
     const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
     const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
     opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }), req.ip);
