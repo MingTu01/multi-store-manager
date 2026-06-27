@@ -138,7 +138,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   /** 检测是否为 Chrome（非 Edge、非 Opera） */
   const isFCMBrowser = () => {
     const ua = navigator.userAgent;
-    return /Chrome\//.test(ua) && !/Edg/.test(ua) && !/OPR\//.test(ua) && !/Brave/.test(ua);
+    return /Chrome\//.test(ua) && !/Edg/.test(ua) && !/OPR\//.test(ua) && !/Brave/.test(ua) && !/SamsungBrowser/i.test(ua);
   };
 
   /** 快速测试 Google FCM 连通性 */

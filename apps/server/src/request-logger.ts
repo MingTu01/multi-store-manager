@@ -33,15 +33,17 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       ip: req.ip,
     };
 
+    // Only log errors and slow requests, skip successful requests
+    // Skip 401 for auth endpoints (expected during login check)
+    const isAuthEndpoint = req.path.includes('/auth/') || req.path.includes('/unread-count');
     if (res.statusCode >= 500) {
       logger.error(logData, 'request error');
-    } else if (res.statusCode >= 400) {
+    } else if (res.statusCode >= 400 && !(res.statusCode === 401 && isAuthEndpoint)) {
       logger.warn(logData, 'request client error');
     } else if (duration > 3000) {
       logger.warn(logData, 'slow request');
-    } else {
-      logger.info(logData, 'request completed');
     }
+    // Skip logging successful requests (2xx, 3xx)
   });
 
   next();

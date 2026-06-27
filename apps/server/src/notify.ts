@@ -126,13 +126,18 @@ export async function sendWeCom(title: string, content: string, s: any): Promise
 
 export async function sendIyuu(title: string, content: string, s: any): Promise<void> {
   if (!s.iyuu_token) throw new Error('爱语飞飞 Token 未配置');
-  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ title, desp: content }).toString(),
+  const params = new URLSearchParams({ text: title, desp: content });
+  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send?' + params.toString(), {
+    method: 'GET',
   });
-  const data = await res.json() as any;
-  if (data.code !== 0) throw new Error(data.msg || '发送失败');
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (data.errcode !== 0) throw new Error(data.errmsg || '发送失败');
+  } catch (e: any) {
+    if (e.message.includes('发送失败')) throw e;
+    throw new Error('爱语飞飞返回: ' + text.substring(0, 200));
+  }
 }
 
 // ── 旧接口兼容（全局设置发送） ──
