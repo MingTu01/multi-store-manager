@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 interface Props {
   children: React.ReactNode;
@@ -13,17 +13,48 @@ interface State {
 
 export class ErrorBoundary extends React.Component<Props, State> {
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
+  private removeChildInterceptCount = 0;
+  private originalConsoleError: typeof console.error | null = null;
 
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorCount: 0, isRemoveChildError: false };
+    this.setupConsoleErrorInterceptor();
+  }
+
+  /**
+   * 拦截 console.error，过滤掉包含 "removeChild" 的错误消息。
+   * 使用计数器限制最多拦截 10 次，防止无限循环。
+   */
+  private setupConsoleErrorInterceptor() {
+    this.originalConsoleError = console.error.bind(console);
+    const self = this;
+
+    console.error = function (...args: unknown[]) {
+      const message = args
+        .map((a) => (typeof a === 'string' ? a : String(a)))
+        .join(' ');
+
+      if (message.includes('removeChild') || message.includes('not a child of this node')) {
+        if (self.removeChildInterceptCount < 10) {
+          self.removeChildInterceptCount++;
+          // 静默吞掉，不再输出到控制台
+          return;
+        }
+        // 超过 10 次，放行原始输出，避免隐藏真正的问题
+      }
+
+      if (self.originalConsoleError) {
+        self.originalConsoleError(...args);
+      }
+    };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    const isRemoveChild = error.message?.includes('removeChild') || 
+    const isRemoveChild = error.message?.includes('removeChild') ||
                           error.message?.includes('not a child of this node');
-    return { 
-      hasError: !isRemoveChild, // Don't show error UI for removeChild
+    return {
+      hasError: !isRemoveChild, // removeChild 错误不显示错误 UI
       error,
       isRemoveChildError: isRemoveChild
     };
@@ -31,23 +62,25 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     if (this.state.isRemoveChildError) {
-      // Auto-recover from React 19 removeChild bug
-      console.warn('[ErrorBoundary] React 19 removeChild bug, auto-recovering');
-      this.setState({ hasError: false, error: null, isRemoveChildError: false });
+      // 静默处理 removeChild 错误，不 setState hasError，不显示错误页面
       return;
     }
 
     this.setState(prev => ({ errorCount: prev.errorCount + 1 }));
-    console.error('[ErrorBoundary]', error.message);
+    this.originalConsoleError?.('[ErrorBoundary]', error.message);
 
     if (this.state.errorCount > 5) {
-      console.error('[ErrorBoundary] Too many errors, forcing reload');
+      this.originalConsoleError?.('[ErrorBoundary] Too many errors, forcing reload');
       window.location.reload();
     }
   }
 
   componentWillUnmount() {
     if (this.resetTimer) clearTimeout(this.resetTimer);
+    // 恢复原始 console.error
+    if (this.originalConsoleError) {
+      console.error = this.originalConsoleError;
+    }
   }
 
   handleReset = () => {

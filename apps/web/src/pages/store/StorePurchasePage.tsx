@@ -141,10 +141,13 @@ export default function StorePurchasePage() {
       const link = document.createElement('a');
       link.download = '进货登记_' + dateStr + '.png';
       link.href = url;
-      document.body.appendChild(link);
+      // 使用临时容器代替直接操作 document.body，避免 React 19 removeChild 错误
+      const tmpContainer = document.createElement("div");
+      tmpContainer.style.cssText = "position:absolute;left:-9999px;top:-9999px;";
+      document.body.appendChild(tmpContainer);
+      tmpContainer.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      showToast('导出成功', 'success');
+      setTimeout(() => { try { document.body.removeChild(tmpContainer); } catch {} }, 100);
     } catch (err: any) {
       showToast('导出失败: ' + (err.message || '未知错误'), 'error');
     }

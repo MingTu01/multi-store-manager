@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { invalidateCache } from './api';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
@@ -13,6 +13,7 @@ let reconnectDelay = 3000;
 const MAX_RECONNECT_DELAY = 60000;
 const MAX_RECONNECT_ATTEMPTS = 50;
 let reconnectAttempts = 0;
+let isConnecting = false; // 防止重复连接
 const listeners = new Set<(s: ConnectionStatus) => void>();
 
 function notifyListeners(s: ConnectionStatus) {
@@ -22,9 +23,11 @@ function notifyListeners(s: ConnectionStatus) {
 
 function globalConnect() {
   if (globalStopped) return;
-  if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
+  if (isConnecting) return; // 已在连接中，跳过
   if (globalSource) { globalSource.close(); globalSource = null; }
+  if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
 
+  isConnecting = true;
   notifyListeners('connecting');
   console.log('[SSE] Connecting...');
 
@@ -33,6 +36,7 @@ function globalConnect() {
 
   source.onopen = function() {
     console.log('[SSE] Connected');
+    isConnecting = false;
     notifyListeners('connected');
     reconnectDelay = 3000;
     reconnectAttempts = 0;
@@ -63,6 +67,7 @@ function globalConnect() {
 
   source.onerror = function() {
     console.warn('[SSE] Connection error');
+    isConnecting = false;
     source.close();
     globalSource = null;
     notifyListeners('disconnected');
@@ -114,6 +119,7 @@ function handleEvent(eventName: string, data: any) {
 
 export function disconnectSSE() {
   globalStopped = true;
+  isConnecting = false;
   if (globalSource) { globalSource.close(); globalSource = null; }
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
   notifyListeners('disconnected');
@@ -121,9 +127,11 @@ export function disconnectSSE() {
 
 export function reconnectSSE() {
   globalStopped = false;
+  isConnecting = false;
   reconnectDelay = 3000;
   reconnectAttempts = 0;
   if (globalReconnectTimer) { clearTimeout(globalReconnectTimer); globalReconnectTimer = null; }
+  if (globalSource) { globalSource.close(); globalSource = null; }
   globalConnect();
 }
 
@@ -132,7 +140,7 @@ export function useSSE(): ConnectionStatus {
 
   useEffect(() => {
     listeners.add(setStatus);
-    if (!globalStopped && !globalSource && globalStatus === 'disconnected') {
+    if (!globalStopped && !globalSource && !isConnecting && globalStatus === 'disconnected') {
       globalConnect();
     }
     return () => { listeners.delete(setStatus); };

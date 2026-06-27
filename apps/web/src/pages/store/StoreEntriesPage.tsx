@@ -12,6 +12,19 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { Pagination } from '../../components/Pagination';
 import { Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { showToast } from '../../components/Toast';
+
+// React 19 安全的 portal 容器
+let portalContainer: HTMLDivElement | null = null;
+function getPortalContainer(): HTMLDivElement {
+  if (!portalContainer) {
+    portalContainer = document.createElement('div');
+    portalContainer.id = 'msl-portal-entries';
+    portalContainer.style.cssText = 'position:relative;z-index:9999;';
+    document.body.appendChild(portalContainer);
+  }
+  return portalContainer;
+}
+
 // 获取本地日期
 function getLocalDate(): string {
   const now = new Date();
@@ -227,7 +240,7 @@ export default function StoreEntriesPage() {
                   </button>
                 </div>
               </div>,
-              document.body
+              getPortalContainer()
             )}
           </div>
         ))}

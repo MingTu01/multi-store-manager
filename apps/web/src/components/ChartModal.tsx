@@ -1,6 +1,18 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+﻿import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+
+// React 19 安全的 portal 容器
+let chartPortalContainer: HTMLDivElement | null = null;
+function getChartPortalContainer(): HTMLDivElement {
+  if (!chartPortalContainer) {
+    chartPortalContainer = document.createElement('div');
+    chartPortalContainer.id = 'msl-portal-chart';
+    chartPortalContainer.style.cssText = 'position:relative;z-index:9999;';
+    document.body.appendChild(chartPortalContainer);
+  }
+  return chartPortalContainer;
+}
 
 interface ChartModalProps {
   children: React.ReactNode;
@@ -71,7 +83,7 @@ export function ChartModal({ children, title, extra }: ChartModalProps) {
         </div>
       </div>
     </div>,
-    document.body
+    getChartPortalContainer()
   ) : null;
 
   return (

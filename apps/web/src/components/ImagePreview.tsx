@@ -1,6 +1,18 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+﻿import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+
+// React 19 安全的 portal 容器
+let imagePortalContainer: HTMLDivElement | null = null;
+function getImagePortalContainer(): HTMLDivElement {
+  if (!imagePortalContainer) {
+    imagePortalContainer = document.createElement('div');
+    imagePortalContainer.id = 'msl-portal-image';
+    imagePortalContainer.style.cssText = 'position:relative;z-index:9999;';
+    document.body.appendChild(imagePortalContainer);
+  }
+  return imagePortalContainer;
+}
 
 interface ImagePreviewProps {
   src: string;
@@ -201,7 +213,7 @@ export function ImagePreview({ src, alt = '', children, className = '' }: ImageP
         双击缩放 · 双指捏合 · 滚轮缩放 · 拖动平移
       </div>
     </div>,
-    document.body
+    getImagePortalContainer()
   ) : null;
 
   return (
