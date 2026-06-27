@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       const user = useStore.getState().user;
-      if (user?.store_id && user.role !== 'ADMIN') {
+      if (user?.store_id && user?.role !== 'ADMIN') {
         nav('/store/' + user.store_id, { replace: true });
       } else {
         nav('/', { replace: true });

@@ -8,8 +8,8 @@ export function AppShell() {
   const user = useStore((s: any) => s.user);
   const { storeId } = useParams();
   
-  if (user && user.role !== "ADMIN" && !storeId && user.store_id) {
-    return <Navigate to={"/store/" + user.store_id} replace />;
+  if (user && (user as any).role !== "ADMIN" && !storeId && (user as any).store_id) {
+    return <Navigate to={"/store/" + (user as any).store_id} replace />;
   }
   
   const showAdminNav = !storeId || user?.role === "ADMIN";

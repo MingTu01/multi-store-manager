@@ -56,7 +56,7 @@ export function BottomNav() {
 
   // Admin page nav
   if (!storeId) {
-    const filtered = ADMIN_TABS.filter(t => canAccess(t.key as any, role));
+    const filtered = ADMIN_TABS.filter(t => canAccess(t.key as any, role as any));
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-end justify-around">
