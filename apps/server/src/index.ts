@@ -297,15 +297,37 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 
-// 处理 SIGTERM/SIGINT 信号以支持 Docker 重启
-process.on('SIGTERM', () => {
-  console.log('[Signal] Received SIGTERM, shutting down...');
+// Graceful shutdown
+function gracefulShutdown(signal: string) {
+  console.log('[Signal] Received ' + signal + ', starting graceful shutdown...');
+
+  // 1. Notify SSE clients
+  try {
+    eventBus.broadcastSystem('server-shutdown');
+  } catch {}
+
+  // 2. Force exit after timeout
+  const forceExit = setTimeout(() => {
+    console.log('[Shutdown] Force exit after 10s timeout');
+    process.exit(1);
+  }, 10000);
+  forceExit.unref();
+
+  // 3. Close database
+  try {
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+    console.log('[Shutdown] Database closed');
+  } catch (e) {
+    console.error('[Shutdown] DB close error:', (e as Error).message);
+  }
+
+  console.log('[Shutdown] Cleanup complete');
   process.exit(0);
-});
-process.on('SIGINT', () => {
-  console.log('[Signal] Received SIGINT, shutting down...');
-  process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 initPush();
 app.listen(PORT, '0.0.0.0', () => {
