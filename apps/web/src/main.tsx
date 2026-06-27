@@ -1,7 +1,22 @@
-﻿import { createRoot } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
+
+// Fix React 19 removeChild bug: monkey-patch Node.prototype.removeChild
+// React 19's DOM reconciler sometimes tries to remove nodes that are already removed
+(function() {
+  const originalRemoveChild = Node.prototype.removeChild;
+  Node.prototype.removeChild = function<T extends Node>(child: T): T {
+    try {
+      return originalRemoveChild.call(this, child) as T;
+    } catch (e) {
+      // If the node is not a child, return it silently instead of throwing
+      console.warn('[React19 fix] removeChild: node not a child, ignoring');
+      return child;
+    }
+  };
+})();
 
 // Nuclear SW cleanup: unregister ALL old service workers, clear ALL caches
 if ('serviceWorker' in navigator) {
