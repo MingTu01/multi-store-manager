@@ -136,24 +136,50 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
 
   /* ---- 请求浏览器推送通知权限并订阅 ---- */
   const handleRequestNotifPermission = async () => {
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    console.log("[Push] Button clicked!");
+    if (!("Notification" in window)) {
+      console.log("[Push] Notification API not available");
+      showMsg(false, "当前浏览器不支持推送通知");
+      return;
+    }
+    if (!("serviceWorker" in navigator)) {
+      console.log("[Push] ServiceWorker not available");
+      showMsg(false, "当前浏览器不支持 Service Worker");
+      return;
+    }
+    console.log("[Push] Current permission:", Notification.permission);
     try {
+      if (Notification.permission === "denied") {
+        console.log("[Push] Permission denied, showing guidance");
+        showMsg(false, "通知权限已被拒绝，请在浏览器地址栏左侧的🔒图标中重置通知权限为\"允许\"，然后刷新页面");
+        return;
+      }
       const result = await Notification.requestPermission();
+      console.log("[Push] Permission result:", result);
       setNotifPermission(result);
-      if (result === 'granted') {
+      if (result === "granted") {
+        console.log("[Push] Getting service worker...");
         const reg = await navigator.serviceWorker.ready;
-        const vapidRes = await api.get('/system/push/vapid-key') as any;
+        console.log("[Push] SW ready, fetching VAPID key...");
+        const vapidRes = await api.get("/system/push/vapid-key") as any;
+        console.log("[Push] VAPID key received");
         const vapidKey = vapidRes.publicKey;
-        const base64 = vapidKey.replace(/-/g, '+').replace(/_/g, '/');
-        const applicationServerKey = Uint8Array.from(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=')), c => c.charCodeAt(0));
+        const base64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
+        const applicationServerKey = Uint8Array.from(atob(base64.padEnd(base64.length + (4 - base64.length % 4) % 4, "=")), c => c.charCodeAt(0));
+        console.log("[Push] Subscribing to push...");
         const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+        console.log("[Push] Push subscribed, sending to server...");
         const subJson = sub.toJSON();
-        await api.post('/system/push/subscribe', { endpoint: subJson.endpoint, keys: subJson.keys });
+        await api.post("/system/push/subscribe", { endpoint: subJson.endpoint, keys: subJson.keys });
+        console.log("[Push] Done! Push enabled.");
         setHasPushSub(true);
-        showMsg(true, '浏览器推送已开启');
+        showMsg(true, "浏览器推送已开启");
+      } else if (result === "denied") {
+        showMsg(false, "通知权限被拒绝，请在浏览器设置中允许本站通知");
       }
     } catch (e: any) {
-      showMsg(false, '开启推送失败: ' + (e.message || '未知错误'));
+      console.log("[Push] ERROR:", e.message, e.stack);
+      showMsg(false, "开启推送失败: " + (e.message || "未知错误"));
     }
   };
 
