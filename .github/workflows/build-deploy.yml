@@ -62,7 +62,7 @@ jobs:
           cd deploy
 
           # Preserve deploy-specific files (not in source repo)
-          for f in entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
+          for f in docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "$f" ]; then
               cp "$f" "/tmp/deploy-preserve-$f" 2>/dev/null || true
             fi
@@ -107,7 +107,7 @@ jobs:
           cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
 
           # Restore preserved deploy-specific files
-          for f in entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
+          for f in docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "/tmp/deploy-preserve-$f" ]; then
               cp "/tmp/deploy-preserve-$f" "$f"
             fi
