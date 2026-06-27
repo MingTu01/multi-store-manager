@@ -135,12 +135,40 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   }, [open]);
 
   /* ---- 请求浏览器推送通知权限并订阅 ---- */
+  /** 检测是否为 Chrome（非 Edge、非 Opera） */
+  const isChromeBrowser = () => {
+    const ua = navigator.userAgent;
+    return /Chrome\//.test(ua) && !/Edg\//.test(ua) && !/OPR\//.test(ua) && !/Brave/.test(ua);
+  };
+
+  /** 快速测试 Google FCM 连通性 */
+  const testFCMConnectivity = (): Promise<boolean> => {
+    return Promise.race([
+      fetch("https://fcmregistrations.googleapis.com/", { method: "HEAD", mode: "no-cors" })
+        .then(() => true)
+        .catch(() => false),
+      new Promise<boolean>((r) => setTimeout(() => r(false), 5000))
+    ]);
+  };
+
   const handleRequestNotifPermission = async () => {
     console.log("[Push] Button clicked!");
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       showMsg(false, "当前浏览器不支持推送通知");
       return;
     }
+
+    // Chrome 特殊检测：测试 FCM 连通性
+    if (isChromeBrowser()) {
+      console.log("[Push] Chrome detected, testing FCM connectivity...");
+      const fcmOk = await testFCMConnectivity();
+      if (!fcmOk) {
+        console.log("[Push] FCM unreachable in Chrome");
+        showMsg(false, "Chrome 无法连接 Google 推送服务（国内网络限制）。请使用 Edge、Firefox 或 Safari 浏览器开启推送通知。");
+        return;
+      }
+    }
+
     console.log("[Push] Permission:", Notification.permission);
     try {
       if (Notification.permission === "denied") {
@@ -178,36 +206,31 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
       console.log("[Push] VAPID decoded,", appKey.length, "bytes");
 
-      // Chrome bug workaround: subscribe() promise 可能卡死
-      // 用 fire-and-forget + 轮询 getSubscription() 来检测
-      console.log("[Push] Starting subscribe (fire-and-forget)...");
-      let subscribeStarted = false;
+      // Chrome bug workaround: fire-and-forget + polling
+      console.log("[Push] Subscribing...");
       reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey })
-        .then(() => { subscribeStarted = true; console.log("[Push] subscribe() resolved naturally"); })
-        .catch((e) => { subscribeStarted = true; console.log("[Push] subscribe() rejected:", e.message); });
+        .then(() => console.log("[Push] subscribe() resolved"))
+        .catch((e: any) => console.log("[Push] subscribe() rejected:", e.message));
 
-      // 轮询检测订阅是否创建成功
-      console.log("[Push] Polling for subscription (20s)...");
       let sub: PushSubscription | null = null;
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 500));
         sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          console.log("[Push] Subscription found after", (i + 1) * 500, "ms!");
-          break;
-        }
+        if (sub) { console.log("[Push] Subscribed after", (i+1)*500, "ms"); break; }
       }
 
       if (!sub) {
-        console.log("[Push] No subscription after 20s");
-        showMsg(false, "推送订阅失败，Chrome 可能阻止了推送。请检查: chrome://settings/content/notifications");
+        console.log("[Push] No subscription after 15s");
+        const hint = isChromeBrowser()
+          ? "Chrome 在当前网络下无法使用推送，请使用 Edge、Firefox 或 Safari"
+          : "推送订阅失败，请检查浏览器通知设置";
+        showMsg(false, hint);
         return;
       }
 
-      console.log("[Push] Saving to server...");
       const subJson = sub.toJSON();
       await api.post("/system/push/subscribe", { endpoint: subJson.endpoint, keys: subJson.keys });
-      console.log("[Push] DONE! Push enabled.");
+      console.log("[Push] DONE!");
       setHasPushSub(true);
       showMsg(true, "浏览器推送已开启");
     } catch (e: any) {
@@ -483,6 +506,14 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                   <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
                     iOS Safari 需要将本站添加到主屏幕（PWA 模式）才能使用浏览器推送通知。
+                  </span>
+                </div>
+              )}
+              {isChromeBrowser() && (
+                <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50/80 px-3 py-2 text-xs text-amber-700">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Chrome 在国内网络下可能无法使用推送通知（需连接 Google 服务）。如遇问题，请使用 <strong>Edge</strong>、<strong>Firefox</strong> 或 <strong>Safari</strong>。
                   </span>
                 </div>
               )}
