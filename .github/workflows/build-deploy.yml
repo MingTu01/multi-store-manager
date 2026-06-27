@@ -69,7 +69,7 @@ jobs:
           done
 
           # Clean old source and build files
-          rm -rf src/ public/ package.json package-lock.json tsconfig.json seed.ts *.traineddata 2>/dev/null || true
+          rm -rf src/ public/ package.json package-lock.json tsconfig.json seed.ts entrypoint.sh *.traineddata 2>/dev/null || true
 
           # Copy server source
           cp -r ../apps/server/src/ src/
