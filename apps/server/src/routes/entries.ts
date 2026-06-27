@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { opLog } from '../oplog.js';
 import { AuthRequest } from '../auth.js';
@@ -6,7 +6,7 @@ import { isAdmin, isReadonly } from '../lib/roles.js';
 import { localDate, localDateTime } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
-import { sanitizeNote } from './sanitize.js';
+import { sanitizeNote } from '../sanitize.js';
 
 function normalizeType(type: string): string {
   if (type === 'income') return '收入';

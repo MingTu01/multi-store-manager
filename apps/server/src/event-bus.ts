@@ -59,10 +59,7 @@ class EventBus {
       if (event.excludeUserId && client.userId === event.excludeUserId) continue;
       try {
         const enriched = JSON.stringify({ ...event, unreadCount: unreadMap.get(client.userId) || 0 });
-        client.res.write('event: data-change
-data: ' + enriched + '
-
-');
+        client.res.write('event: data-change\ndata: ' + enriched + '\n\n');
       } catch {
         dead.push(id);
       }
@@ -77,10 +74,7 @@ data: ' + enriched + '
     const dead: string[] = [];
     for (const [id, client] of this.clients) {
       try {
-        client.res.write('event: system
-data: ' + message + '
-
-');
+        client.res.write('event: system\ndata: ' + message + '\n\n');
       } catch {
         dead.push(id);
       }

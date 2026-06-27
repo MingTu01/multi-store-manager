@@ -1,11 +1,11 @@
-import { triggerNotification } from '../notify-trigger.js';
+﻿import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { opLog } from '../oplog.js';
 import { isManagerOrAbove } from '../lib/roles.js';
-import { sanitizeText, sanitizeNote } from './sanitize.js';
+import { sanitizeText, sanitizeNote } from '../sanitize.js';
 
 const router = Router({ mergeParams: true });
 

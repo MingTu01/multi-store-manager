@@ -5,7 +5,7 @@ import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
-import { sanitizeText } from './sanitize.js';
+import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification } from '../notify.js';
 

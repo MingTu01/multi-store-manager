@@ -1,9 +1,9 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import bcrypt from 'bcryptjs';
-import { sanitizeText } from './sanitize.js';
+import { sanitizeText } from '../sanitize.js';
 
 import { AuthRequest } from '../auth.js';
 

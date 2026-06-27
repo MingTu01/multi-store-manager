@@ -1,8 +1,8 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin } from '../lib/roles.js';
-import { sanitizeText } from './sanitize.js';
+import { sanitizeText } from '../sanitize.js';
 
 const router = Router({ mergeParams: true });
 
