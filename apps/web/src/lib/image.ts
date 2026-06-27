@@ -1,4 +1,4 @@
-﻿// 图片压缩、上传工具 - WebP 格式
+// 图片压缩、上传工具 - WebP 格式
 
 /** 验证文件是否为图片 */
 export function isImageFile(file: File): boolean {

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { api } from '../lib/api';
 import { PushSettingsModal } from './PushSettingsModal';

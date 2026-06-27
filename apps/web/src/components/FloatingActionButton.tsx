@@ -1,4 +1,4 @@
-﻿import { Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export function FloatingActionButton({ onClick, icon: Icon, label }: { onClick: () => void; icon?: any; label?: string }) {
   return (

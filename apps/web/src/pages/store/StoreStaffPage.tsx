@@ -1,4 +1,4 @@
-﻿import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
+import { ROLE_CONFIG, getRoleLabel, getRoleBg, getRoleColor } from '../../lib/role';
 import { formatMoney } from '../../lib/format';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';

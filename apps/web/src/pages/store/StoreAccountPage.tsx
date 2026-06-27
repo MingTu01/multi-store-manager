@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 import { ImagePreview } from '../../components/ImagePreview';

@@ -1,4 +1,4 @@
-﻿import { uploadImage } from '../../lib/image';
+import { uploadImage } from '../../lib/image';
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';

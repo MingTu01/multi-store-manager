@@ -1,4 +1,4 @@
-﻿import webpush from 'web-push';
+import webpush from 'web-push';
 import db from './db.js';
 import crypto from 'crypto';
 

@@ -1,4 +1,4 @@
-﻿import db from './db.js';
+import db from './db.js';
 import { ROLES } from './lib/roles.js';
 import { buildDailyReport, buildWeeklyReport, buildMonthlyReport, sendNotification } from './notify.js';
 

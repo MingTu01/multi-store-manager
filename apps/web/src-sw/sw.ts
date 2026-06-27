@@ -1,4 +1,4 @@
-﻿import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkOnly, NetworkFirst } from 'workbox-strategies';
 

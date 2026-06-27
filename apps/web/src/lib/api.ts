@@ -1,4 +1,4 @@
-﻿let isRedirectingToLogin = false;
+let isRedirectingToLogin = false;
 
 const headers = () => ({ 'Content-Type': 'application/json' });
 

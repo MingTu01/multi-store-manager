@@ -1,4 +1,4 @@
-﻿export interface StoreInfo {
+export interface StoreInfo {
   id: string;
   name: string;
   address?: string;

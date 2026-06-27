@@ -1,4 +1,4 @@
-﻿import Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';

@@ -1,4 +1,4 @@
-﻿// Server-Side Event Bus for real-time data push
+// Server-Side Event Bus for real-time data push
 import db from './db.js';
 import { Response } from 'express';
 
