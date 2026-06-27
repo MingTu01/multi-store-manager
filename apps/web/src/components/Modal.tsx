@@ -11,7 +11,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto px-4 py-8" onClick={onClose}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" style={{minHeight: '100vh'}} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-none" style={{minHeight: '100vh'}} />
       <div
         className={'relative max-h-[85vh] w-full overflow-y-auto rounded-2xl bg-white/95 shadow-2xl backdrop-blur-xl my-auto ' + (wide ? 'max-w-2xl' : 'max-w-lg')}
         onClick={(e) => e.stopPropagation()}
