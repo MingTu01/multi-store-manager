@@ -1,4 +1,4 @@
-﻿#!/bin/sh
+#!/bin/sh
 # MSL Container Startup Script
 
 echo ""
@@ -9,6 +9,14 @@ echo "  TZ: ${TZ:-not set}"
 echo "  Node: $(node -v)"
 echo "========================================"
 echo ""
+
+# Ensure msl command exists (for online updates that don't rebuild image)
+if [ ! -f /usr/local/bin/msl ]; then
+  echo '#!/bin/sh' > /usr/local/bin/msl
+  echo 'node /app/msl.js' >> /usr/local/bin/msl
+  chmod +x /usr/local/bin/msl
+  echo "[Startup] Created msl command"
+fi
 
 # Run startup diagnostic
 echo "[Startup] Running diagnostic checks..."
