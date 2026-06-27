@@ -5,7 +5,7 @@
 (function() {
   var marker = '__msl_app_loaded__';
   if ((window as any)[marker]) {
-    console.warn('[MSL] Duplicate script detected, aborting');
+
     // 创建一个空的 div 替代 root，防止后续脚本报错
     return;
   }
@@ -52,23 +52,23 @@
     navigator.serviceWorker.getRegistrations().then(function(regs) {
       var promises = [];
       for (var i = 0; i < regs.length; i++) {
-        console.log('[SW] Unregistering old SW:', regs[i].scope);
+
         promises.push(regs[i].unregister());
       }
       return Promise.all(promises);
     }).then(function() {
       return caches.keys().then(function(names) {
         return Promise.all(names.map(function(n) {
-          console.log('[SW] Deleting cache:', n);
+
           return caches.delete(n);
         }));
       });
     }).then(function() {
       return navigator.serviceWorker.register('/msl-sw.js', { scope: '/' });
     }).then(function(reg) {
-      console.log('[SW] Registered push-only SW:', reg.scope);
+
     }).catch(function(err) {
-      console.warn('[SW] Error:', err.message);
+
     });
   }
 
@@ -92,6 +92,6 @@
     );
   }).catch(function(err) {
     if (err.message && err.message.indexOf('__msl_duplicate') !== -1) return;
-    console.error('[MSL] Failed to load app:', err);
+
   });
 })();

@@ -29,13 +29,13 @@ function globalConnect() {
 
   isConnecting = true;
   notifyListeners('connecting');
-  console.log('[SSE] Connecting...');
+
 
   const source = new EventSource('/api/sse', { withCredentials: true });
   globalSource = source;
 
   source.onopen = function() {
-    console.log('[SSE] Connected');
+
     isConnecting = false;
     notifyListeners('connected');
     reconnectDelay = 3000;
@@ -52,7 +52,7 @@ function globalConnect() {
   source.addEventListener('data-change', function(e: MessageEvent) {
     try {
       var data = JSON.parse(e.data);
-      console.log('[SSE] data-change:', data.type, 'unreadCount:', data.unreadCount);
+
       handleEvent('data-change', data);
     } catch {}
   });
@@ -60,13 +60,13 @@ function globalConnect() {
   source.addEventListener('system', function(e: MessageEvent) {
     try {
       var data = JSON.parse(e.data);
-      console.log('[SSE] system:', data.action);
+
       handleEvent('system', data);
     } catch {}
   });
 
   source.onerror = function() {
-    console.warn('[SSE] Connection error');
+
     isConnecting = false;
     source.close();
     globalSource = null;
@@ -78,7 +78,7 @@ function globalConnect() {
         console.error('[SSE] Max reconnect attempts reached, stopping');
         return;
       }
-      console.log('[SSE] Reconnecting in ' + (reconnectDelay / 1000) + 's (attempt ' + reconnectAttempts + ')...');
+
       globalReconnectTimer = setTimeout(globalConnect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
     }

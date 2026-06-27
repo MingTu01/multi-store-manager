@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+﻿import { useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
@@ -60,7 +60,7 @@ async function clearSWCachesAndReload() {
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map(r => r.unregister()));
     }
-  } catch (e) { console.warn('[App] Cache clear failed:', e); }
+  } catch (e) {}
   window.location.reload();
 }
 
@@ -76,17 +76,17 @@ export default function App() {
     const handleServerReady = () => {
       // Skip auto-reload during upgrade (upgrade handler manages its own flow)
       if ((window as any).__upgradeInProgress) {
-        console.log('[App] server-ready ignored (upgrade in progress)');
+
         return;
       }
       // Guard: don't reload if we just reloaded within 15s
       const lastReload = sessionStorage.getItem('app-server-ready-reload');
       if (lastReload && Date.now() - parseInt(lastReload) < 15000) {
-        console.log('[App] server-ready ignored (recent reload)');
+
         return;
       }
       if (debounceTimer) return;
-      console.log('[App] server-ready received, will reload in 3s');
+
       debounceTimer = setTimeout(() => {
         sessionStorage.setItem('app-server-ready-reload', String(Date.now()));
         clearSWCachesAndReload();

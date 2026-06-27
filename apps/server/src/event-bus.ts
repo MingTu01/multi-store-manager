@@ -36,7 +36,6 @@ class EventBus {
 
   /** Broadcast a data change event to all connected clients */
   broadcast(event: { type: string; action: string; storeId?: string; data?: any; excludeUserId?: number }) {
-    console.log('[SSE] broadcast called: type=' + event.type + ' action=' + event.action + ' clients=' + this.clients.size);
     if (this.clients.size === 0) return;
 
     // Batch query unread counts for all connected users
@@ -52,8 +51,8 @@ class EventBus {
         }
       }
     } catch (e) {
-      console.error('[SSE] Batch query error:', (e as Error).message);
-      console.warn('[SSE] Failed to batch query unread counts:', (e as Error).message);
+
+
     }
 
     const dead: string[] = [];
@@ -62,7 +61,7 @@ class EventBus {
       try {
         const enriched = JSON.stringify({ ...event, unreadCount: unreadMap.get(client.userId) || 0 });
         client.res.write('event: data-change\ndata: ' + enriched + '\n\n');
-        console.log('[SSE] Sent to ' + id + ': ' + enriched.substring(0, 100));
+
       } catch {
         dead.push(id);
       }
