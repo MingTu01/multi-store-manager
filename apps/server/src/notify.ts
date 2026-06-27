@@ -126,42 +126,13 @@ export async function sendWeCom(title: string, content: string, s: any): Promise
 
 export async function sendIyuu(title: string, content: string, s: any): Promise<void> {
   if (!s.iyuu_token) throw new Error('爱语飞飞 Token 未配置');
-  const params = new URLSearchParams({ title, desp: content });
-  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send?' + params.toString(), {
-    method: 'GET',
+  const res = await fetch('https://iyuu.cn/' + s.iyuu_token + '.send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ title, desp: content }).toString(),
   });
-  const text = await res.text();
-  // 爱语飞飞返回 JSON: {"code":0,"msg":"success",...}
-  try {
-    const data = JSON.parse(text);
-    if (data.code !== 0) throw new Error(data.msg || '发送失败');
-  } catch (e: any) {
-    if (e.message.includes('发送失败')) throw e;
-    // 如果返回的不是JSON，可能是成功页面HTML
-  }
-}
-// ── 统一发送：根据用户设置推送 ──
-export async function sendToUser(userId: number, title: string, content: string, htmlContent?: string): Promise<{results: string[], errors: string[]}> {
-  const s = getUserPushSettings(userId);
-  if (!s || s.method === 'none') return { results: [], errors: [] };
-  const results: string[] = [];
-  const errors: string[] = [];
-  const sendOne = async (key: string, fn: () => Promise<void>) => {
-    try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
-  };
-  const method = s.method;
-  if (method && method !== 'none') {
-    if (method === 'pushplus') await sendOne('PushPlus', () => sendPushPlus(title, content, htmlContent || '', s));
-    else if (method === 'serverchan') await sendOne('Server酱', () => sendServerChan(title, content, s));
-    else if (method === 'wecom' && s.wecom_corpid) await sendOne('企业微信', () => sendWeCom(title, content, s));
-  } else {
-    if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content, htmlContent || '', s));
-    if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content, s));
-    if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content, s));
-    if (s.iyuu_token) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
-  }
-  if (errors.length > 0) console.warn('[推送] 用户' + userId + '部分推送失败:', errors.join('; '));
-  return { results, errors };
+  const data = await res.json() as any;
+  if (data.code !== 0) throw new Error(data.msg || '发送失败');
 }
 
 // ── 旧接口兼容（全局设置发送） ──

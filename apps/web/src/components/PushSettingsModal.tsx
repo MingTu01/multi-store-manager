@@ -158,7 +158,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
     }
 
     // Chrome 特殊检测：测试 FCM 连通性
-    if (isChromeBrowser()) {
+    if (isFCMBrowser()) {
       const fcmOk = await testFCMConnectivity();
       if (!fcmOk) {
         showMsg(false, "Chrome 无法连接 Google 推送服务（国内网络限制）。请使用 Edge、Firefox 或 Safari 浏览器开启推送通知。");
@@ -203,7 +203,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       }
 
       if (!sub) {
-        const hint = isChromeBrowser()
+        const hint = isFCMBrowser()
           ? "Chrome 在当前网络下无法使用推送，请使用 Edge、Firefox 或 Safari"
           : "推送订阅失败，请检查浏览器通知设置";
         showMsg(false, hint);
@@ -489,7 +489,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                   </span>
                 </div>
               )}
-              {isChromeBrowser() && (
+              {isFCMBrowser() && (
                 <div className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50/80 px-3 py-2 text-xs text-amber-700">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
