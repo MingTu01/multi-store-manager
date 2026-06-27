@@ -15,8 +15,8 @@ self.addEventListener('push', function(event) {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || '/logo-192.png',
-      badge: data.badge || '/logo-64.png',
+      icon: data.icon || '/logo.png',
+      badge: data.badge || '/logo.png',
       data: { url: data.url || '/' },
       tag: data.tag || 'msl-push',
       renotify: true,

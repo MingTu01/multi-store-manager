@@ -49,23 +49,15 @@
   // SW 清理 + 注册
   // =====================================================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-      var promises = [];
-      for (var i = 0; i < regs.length; i++) {
-        promises.push(regs[i].unregister());
-      }
-      return Promise.all(promises);
-    }).then(function() {
-      return caches.keys().then(function(names) {
-        return Promise.all(names.map(function(n) {
-          return caches.delete(n);
-        }));
-      });
+    // Clean old caches but keep SW registration (preserves push subscriptions)
+    caches.keys().then(function(names) {
+      return Promise.all(names.map(function(n) { return caches.delete(n); }));
     }).then(function() {
       return navigator.serviceWorker.register('/msl-sw.js', { scope: '/' });
     }).then(function(reg) {
-      // Ensure new SW activates immediately
+      reg.update();
       if (reg.installing) { reg.installing.postMessage({ type: 'SKIP_WAITING' }); }
+      if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
     }).catch(function() {});
   }
 

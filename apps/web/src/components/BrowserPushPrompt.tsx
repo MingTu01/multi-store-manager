@@ -51,13 +51,21 @@ export function BrowserPushPrompt() {
       const raw = atob(padded);
       const appKey = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
-      await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey });
-      // Poll for subscription
+      // Subscribe with timeout fallback for mobile browsers
       let sub = null;
-      for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        sub = await reg.pushManager.getSubscription();
-        if (sub) break;
+      try {
+        sub = await Promise.race([
+          reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey }),
+          new Promise((r) => setTimeout(() => r(null), 10000))
+        ]);
+      } catch (_) {}
+      // Polling fallback
+      if (!sub) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          sub = await reg.pushManager.getSubscription();
+          if (sub) break;
+        }
       }
       if (sub) {
         const subJson = sub.toJSON();

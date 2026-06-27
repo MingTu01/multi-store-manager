@@ -206,13 +206,23 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       const raw = atob(padded);
       const appKey = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
-      // Chrome bug workaround: fire-and-forget + polling
-      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey })
-
+      // Subscribe with timeout fallback for mobile browsers
       let sub: PushSubscription | null = null;
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        sub = await reg.pushManager.getSubscription();
+      try {
+        sub = await Promise.race([
+          reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey }),
+          new Promise<null>((r) => setTimeout(() => r(null), 10000))
+        ]);
+      } catch (subErr) {
+        // Some mobile browsers need polling fallback
+      }
+      // Polling fallback if subscribe didn't resolve
+      if (!sub) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          sub = await reg.pushManager.getSubscription();
+          if (sub) break;
+        }
       }
 
       if (!sub) {

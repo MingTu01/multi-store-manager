@@ -2,7 +2,7 @@
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.4.2**
+**当前版本：v1.4.3**
 
 ## 技术栈
 
@@ -11,6 +11,18 @@
 - **端口：** 3001（可通过 PORT 环境变量修改）
 
 ## 更新日志
+
+### v1.4.3 (2026-06-28)
+
+**PWA 推送修复：**
+- 修复移动端推送订阅失败：不再每次加载销毁 SW 注册，保留 push subscription
+- 优化订阅逻辑：先用 Promise.race 带超时尝试，失败再轮询
+- 修复 BrowserPushPrompt 同样的订阅问题
+
+**PWA 图标修复：**
+- manifest.json 图标统一使用 logo.png
+- msl-sw.js 推送通知图标改为 logo.png
+- index.html favicon 改为 logo.png
 
 ### v1.4.2 (2026-06-28)
 
