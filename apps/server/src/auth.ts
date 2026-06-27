@@ -5,6 +5,7 @@ import db from './db.js';
 import { join } from 'path';
 import crypto from 'crypto';
 import { isTokenBlacklisted, hashToken } from './token-blacklist.js';
+import { userCache } from './cache.js';
 
 // 安全的 JWT Secret 管理：优先使用环境变量，否则从文件读取或生成随机 secret
 function getJwtSecret(): string {
@@ -98,7 +99,13 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
     req.user = decoded;
 
     // 校验密码修改时间：JWT的iat必须晚于用户的updated_at
-    const freshUser = db.prepare('SELECT updated_at, username, name FROM users WHERE id = ?').get(decoded.id) as any;
+    // Check cache first
+    const cacheKey = 'user_' + decoded.id;
+    let freshUser = userCache.get<any>(cacheKey);
+    if (!freshUser) {
+      freshUser = db.prepare('SELECT updated_at, username, name FROM users WHERE id = ?').get(decoded.id) as any;
+      if (freshUser) userCache.set(cacheKey, freshUser);
+    }
     if (!freshUser) {
       return res.status(401).json({ error: '用户不存在' });
     }

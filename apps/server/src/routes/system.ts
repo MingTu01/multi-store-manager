@@ -1,3 +1,4 @@
+import { requireAdmin } from '../middleware/require-role.js';
 ﻿import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';

@@ -34,6 +34,8 @@ import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';
 
 import { eventBus } from './event-bus.js';
+import { requestLogger } from './request-logger.js';
+import { AppError } from './error-handler.js';
 
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -54,6 +56,7 @@ const corsOptions: cors.CorsOptions = {
     : true,
   credentials: !!corsOrigin  // Only set credentials when specific origins are configured
 };
+app.use(requestLogger);
 app.use(compression({ level: 6, threshold: 1024 }));
 // 安全HTTP头
 app.use((req, res, next) => {
@@ -288,12 +291,23 @@ process.on('unhandledRejection', (reason) => {
 
 // Global error handler
 app.use((err: any, req: any, res: any, next: any) => {
-  console.error(`[${new Date().toISOString()}] ERROR ${req.method} ${req.path}:`, err.message);
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ error: '文件大小超过限制 (最大 5MB)' });
-  }
+  const requestId = (req as any).requestId || '-';
   const isProd = process.env.NODE_ENV === 'production';
-  res.status(500).json({ error: isProd ? '服务器内部错误' : (err.message || '服务器内部错误') });
+
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ error: '\u6587\u4ef6\u5927\u5c0f\u8d85\u8fc7\u9650\u5236 (\u6700\u5927 5MB)' });
+  }
+
+  if (err instanceof AppError) {
+    console.error(`[${requestId}] AppError ${err.errorCode}: ${err.message}`);
+    return res.status(err.httpStatus).json(err.toJSON(isProd));
+  }
+
+  console.error(`[${requestId}] ERROR ${req.method} ${req.path}:`, err.message);
+  res.status(err.status || 500).json({
+    error: isProd ? '\u670d\u52a1\u5668\u5185\u90e8\u9519\u8bef' : (err.message || '\u670d\u52a1\u5668\u5185\u90e8\u9519\u8bef'),
+    code: 'SRV_001'
+  });
 });
 
 

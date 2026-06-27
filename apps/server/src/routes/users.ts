@@ -1,3 +1,4 @@
+import { requireManagerOrAbove, requireAdmin } from '../middleware/require-role.js';
 ﻿import { Router, Response } from 'express';
 import db from '../db.js';
 import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
