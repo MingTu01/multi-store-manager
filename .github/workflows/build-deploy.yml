@@ -1,4 +1,4 @@
-name: Build and Deploy
+﻿name: Build and Deploy
 
 on:
   push:
@@ -49,12 +49,22 @@ jobs:
           token: ${{ secrets.DEPLOY_TOKEN }}
           path: deploy
 
+      - name: Generate cleanup.json
+        run: |
+          cd deploy
+
+          # 记录旧文件列表（仅 src/ 和 public/web-dist/ 中的代码文件）
+          echo "[cleanup] Recording old file list..."
+          find src/ public/web-dist/ -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.ts' \) 2>/dev/null | sort > /tmp/old-files.txt || true
+          OLD_COUNT=$(wc -l < /tmp/old-files.txt)
+          echo "[cleanup] Old files: $OLD_COUNT"
+
       - name: Update deploy repo
         run: |
           cd deploy
 
           # Preserve Docker/deploy-specific files
-          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore cleanup.json post-upgrade.cjs; do
+          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "$f" ]; then
               cp "$f" "/tmp/deploy-preserve-$f" 2>/dev/null || true
             fi
@@ -66,7 +76,7 @@ jobs:
           # Copy server source
           cp -r ../apps/server/src/ src/
 
-          # Copy frontend build (clean first)
+          # Copy frontend build
           mkdir -p public/web-dist
           cp -r ../apps/web/dist/* public/web-dist/
 
@@ -83,16 +93,19 @@ jobs:
           cp ../apps/server/tsconfig.json .
           cp ../apps/server/seed.ts . 2>/dev/null || true
 
-          # Copy upgrade support files
-          cp ../apps/server/cleanup.json . 2>/dev/null || true
+          # Copy post-upgrade script
           cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
 
           # Restore preserved Docker files
-          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore cleanup.json post-upgrade.cjs; do
+          for f in Dockerfile entrypoint.sh docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do
             if [ -f "/tmp/deploy-preserve-$f" ]; then
               cp "/tmp/deploy-preserve-$f" "$f"
             fi
           done
+
+          # Generate cleanup.json
+          echo "[cleanup] Generating cleanup.json..."
+          node ../scripts/generate-cleanup.js /tmp/old-files.txt public/web-dist/src src/ . || true
 
           # Read version from source server package.json
           VERSION=$(node -p "require('./package.json').version")
