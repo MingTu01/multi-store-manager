@@ -137,15 +137,11 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
   /* ---- 请求浏览器推送通知权限并订阅 ---- */
   const handleRequestNotifPermission = async () => {
     console.log("[Push] Button clicked!");
-    if (!("Notification" in window)) {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       showMsg(false, "当前浏览器不支持推送通知");
       return;
     }
-    if (!("serviceWorker" in navigator)) {
-      showMsg(false, "当前浏览器不支持 Service Worker");
-      return;
-    }
-    console.log("[Push] Current permission:", Notification.permission);
+    console.log("[Push] Permission:", Notification.permission);
     try {
       if (Notification.permission === "denied") {
         showMsg(false, "通知权限已被拒绝，请在浏览器地址栏左侧设置中重置为允许");
@@ -154,53 +150,66 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       const result = await Notification.requestPermission();
       console.log("[Push] Permission result:", result);
       setNotifPermission(result);
-      if (result === "granted") {
-        console.log("[Push] Getting service worker...");
-        const reg = await navigator.serviceWorker.ready;
-        console.log("[Push] SW ready");
-
-        // 先取消旧订阅，避免 Chrome 卡死
-        try {
-          const oldSub = await reg.pushManager.getSubscription();
-          if (oldSub) {
-            console.log("[Push] Unsubscribing old subscription...");
-            await oldSub.unsubscribe();
-            console.log("[Push] Old subscription removed");
-          }
-        } catch (unsubErr) {
-          console.log("[Push] Unsubscribe error (non-fatal):", unsubErr);
-        }
-
-        console.log("[Push] Fetching VAPID key...");
-        const vapidRes = await api.get("/system/push/vapid-key") as any;
-        const vapidKey = vapidRes.publicKey;
-        console.log("[Push] VAPID key length:", vapidKey.length);
-        const base64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
-        const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
-        const raw = atob(padded);
-        const applicationServerKey = new Uint8Array(raw.length);
-        for (let i = 0; i < raw.length; i++) applicationServerKey[i] = raw.charCodeAt(i);
-        console.log("[Push] VAPID key decoded, length:", applicationServerKey.length);
-
-        console.log("[Push] Subscribing to push...");
-        // 设置 10 秒超时
-        const subscribePromise = reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey
-        });
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("subscribe() 超时 (10s)，请尝试重启浏览器")), 10000)
-        );
-        const sub = await Promise.race([subscribePromise, timeoutPromise]) as PushSubscription;
-        console.log("[Push] Subscribed! Sending to server...");
-        const subJson = sub.toJSON();
-        await api.post("/system/push/subscribe", { endpoint: subJson.endpoint, keys: subJson.keys });
-        console.log("[Push] Done! Push enabled.");
-        setHasPushSub(true);
-        showMsg(true, "浏览器推送已开启");
-      } else if (result === "denied") {
-        showMsg(false, "通知权限被拒绝，请在浏览器设置中允许本站通知");
+      if (result !== "granted") {
+        if (result === "denied") showMsg(false, "通知权限被拒绝");
+        return;
       }
+
+      console.log("[Push] Getting SW...");
+      const reg = await navigator.serviceWorker.ready;
+      console.log("[Push] SW ready");
+
+      // 取消旧订阅
+      try {
+        const old = await reg.pushManager.getSubscription();
+        if (old) {
+          console.log("[Push] Removing old sub...");
+          await old.unsubscribe();
+        }
+      } catch (_) {}
+
+      // 获取 VAPID key
+      const vapidRes = await api.get("/system/push/vapid-key") as any;
+      const vapidKey = vapidRes.publicKey;
+      const base64 = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+      const raw = atob(padded);
+      const appKey = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
+      console.log("[Push] VAPID decoded,", appKey.length, "bytes");
+
+      // Chrome bug workaround: subscribe() promise 可能卡死
+      // 用 fire-and-forget + 轮询 getSubscription() 来检测
+      console.log("[Push] Starting subscribe (fire-and-forget)...");
+      let subscribeStarted = false;
+      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey })
+        .then(() => { subscribeStarted = true; console.log("[Push] subscribe() resolved naturally"); })
+        .catch((e) => { subscribeStarted = true; console.log("[Push] subscribe() rejected:", e.message); });
+
+      // 轮询检测订阅是否创建成功
+      console.log("[Push] Polling for subscription (20s)...");
+      let sub: PushSubscription | null = null;
+      for (let i = 0; i < 40; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          console.log("[Push] Subscription found after", (i + 1) * 500, "ms!");
+          break;
+        }
+      }
+
+      if (!sub) {
+        console.log("[Push] No subscription after 20s");
+        showMsg(false, "推送订阅失败，Chrome 可能阻止了推送。请检查: chrome://settings/content/notifications");
+        return;
+      }
+
+      console.log("[Push] Saving to server...");
+      const subJson = sub.toJSON();
+      await api.post("/system/push/subscribe", { endpoint: subJson.endpoint, keys: subJson.keys });
+      console.log("[Push] DONE! Push enabled.");
+      setHasPushSub(true);
+      showMsg(true, "浏览器推送已开启");
     } catch (e: any) {
       console.log("[Push] ERROR:", e.message);
       showMsg(false, "开启推送失败: " + (e.message || "未知错误"));
