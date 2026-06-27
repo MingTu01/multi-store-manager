@@ -81,7 +81,7 @@ jobs:
           cp ../.npmrc . 2>/dev/null || true
           cp ../apps/server/startup-check.js . 2>/dev/null || true
           cp ../apps/server/startup.sh . 2>/dev/null || true
-          cp ../deploy/Dockerfile . 2>/dev/null || true
+          cp ../scripts/deploy/Dockerfile . 2>/dev/null || true
 
           # Copy frontend build
           mkdir -p public/web-dist
