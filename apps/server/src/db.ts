@@ -5,6 +5,7 @@ import { mkdirSync } from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import logger from './logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..');
@@ -382,7 +383,7 @@ for (const migration of versionedMigrations) {
       db.prepare("INSERT OR REPLACE INTO schema_version (version, name, success, error_msg) VALUES (?, ?, 1, 'already applied')")
         .run(migration.version, migration.name);
     } else {
-      console.error(`[迁移失败] v${migration.version}: ${migration.name}`, e);
+      logger.error(`[迁移失败] v${migration.version}: ${migration.name}`, e);
       db.prepare('INSERT OR REPLACE INTO schema_version (version, name, success, error_msg) VALUES (?, ?, 0, ?)')
         .run(migration.version, migration.name, errMsg);
     }
@@ -423,12 +424,12 @@ if (!adminExists) {
   const hash = bcrypt.hashSync(randomPassword, 10);
   db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")
     .run('admin', hash, '管理员', 'ADMIN');
-  console.log('========================================');
-  console.log('管理员账号已创建:');
-  console.log('用户名: admin');
-  console.log('密码: ' + randomPassword);
-  console.log('请立即登录并修改密码！');
-  console.log('========================================');
+  logger.info('========================================');
+  logger.info('管理员账号已创建:');
+  logger.info('用户名: admin');
+  logger.info('密码: ' + randomPassword);
+  logger.info('请立即登录并修改密码！');
+  logger.info('========================================');
 }
 
 // Seed default notification settings

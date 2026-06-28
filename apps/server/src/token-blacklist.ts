@@ -3,6 +3,7 @@
 
 import crypto from 'crypto';
 import db from './db.js';
+import logger from './logger.js';
 
 // Create table if not exists
 db.exec(`
@@ -21,7 +22,7 @@ for (const row of rows) {
   blacklist.add(row.token_hash);
   expiryMap.set(row.token_hash, row.expires_at);
 }
-console.log('[TOKEN-BLACKLIST] Loaded ' + rows.length + ' entries from DB');
+logger.info('[TOKEN-BLACKLIST] Loaded ' + rows.length + ' entries from DB');
 
 /**
  * Add a token to the blacklist
@@ -34,7 +35,7 @@ export function blacklistToken(tokenHash: string, expiresAt: number): void {
   try {
     db.prepare('INSERT OR REPLACE INTO token_blacklist (token_hash, expires_at) VALUES (?, ?)').run(tokenHash, expiresAt);
   } catch (e) {
-    console.error('[TOKEN-BLACKLIST] Failed to persist token:', e);
+    logger.error('[TOKEN-BLACKLIST] Failed to persist token:', e);
   }
 }
 
@@ -72,7 +73,7 @@ export function cleanupBlacklist(): void {
       const stmt = db.prepare('DELETE FROM token_blacklist WHERE token_hash = ?');
       for (const hash of toDelete) stmt.run(hash);
     } catch (e) {
-      console.error('[TOKEN-BLACKLIST] Failed to cleanup DB entries:', e);
+      logger.error('[TOKEN-BLACKLIST] Failed to cleanup DB entries:', e);
     }
   }
 }

@@ -3,6 +3,7 @@ import { AuthRequest } from '../auth.js';
 import { isManagerOrAbove } from '../lib/roles.js';
 import db from '../db.js';
 import { localDate, calculateFundBalance } from '../lib/utils.js';
+import logger from '../../logger.js';
 
 
 
@@ -56,7 +57,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const q = (type: string, cond: string, params: any[]) => {
       const isIncome = type === '收入' || type === 'income';
       const typeFilter = isIncome ? `AND type IN ('收入','income')` : `AND type IN ('支出','expense')`;
-      try { return (db.prepare(`SELECT COALESCE(SUM(amount),0) as t ${base} ${typeFilter} ${cond}`).get(...storeParams, ...params) as any).t || 0; } catch (e) { console.warn('[Dashboard] query error:', (e as Error).message); return 0; }
+      try { return (db.prepare(`SELECT COALESCE(SUM(amount),0) as t ${base} ${typeFilter} ${cond}`).get(...storeParams, ...params) as any).t || 0; } catch (e) { logger.warn('[Dashboard] query error:', (e as Error).message); return 0; }
     };
 
     const ci = q('收入', conds.cur, conds.curP);

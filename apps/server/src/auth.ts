@@ -6,6 +6,7 @@ import { join } from 'path';
 import crypto from 'crypto';
 import { isTokenBlacklisted, hashToken } from './token-blacklist.js';
 import { userCache } from './cache.js';
+import logger from './logger.js';
 
 // 安全的 JWT Secret 管理：优先使用环境变量，否则从文件读取或生成随机 secret
 function getJwtSecret(): string {
@@ -24,7 +25,7 @@ function getJwtSecret(): string {
     mkdirSync(dataDir, { recursive: true });
     try {
       writeFileSync(secretFile, secret, 'utf-8');
-      console.log('[AUTH] Generated new JWT secret and saved to', secretFile);
+      logger.info('[AUTH] Generated new JWT secret and saved to', secretFile);
     } catch (writeErr) {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('[AUTH] 生产环境错误: JWT_SECRET 环境变量未设置且无法写入 secret 文件，请设置 JWT_SECRET 环境变量');
@@ -32,7 +33,7 @@ function getJwtSecret(): string {
     }
     return secret;
   } catch (err) {
-    console.error('[AUTH] Failed to read/write JWT secret file:', err);
+    logger.error('[AUTH] Failed to read/write JWT secret file:', err);
     if (process.env.NODE_ENV === 'production') {
       throw new Error('[AUTH] 生产环境错误: JWT_SECRET 环境变量未设置且 secret 文件不可用，请设置 JWT_SECRET 环境变量');
     }

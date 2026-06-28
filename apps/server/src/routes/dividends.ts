@@ -35,7 +35,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       const items = _detailsMap.get(d.id) || [];
       return { ...d, items };
     });
-    res.json({ dividends: enriched, shareholders, balance });
+    res.json({ success: true, data: { dividends: enriched, shareholders, balance } });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -64,7 +64,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       detail: '新分红已创建, 总金额 ¥' + Number(total_amount).toFixed(2) + (note ? ', 备注: ' + note : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: dividendId, message: '分红创建成功' });
+    res.json({ success: true, data: { id: dividendId }, message: '分红创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -92,7 +92,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
               stmt.run(req.params.id, sh.name, sh.ratio, amount);
             }
           }
-          res.json({ message: '分红更新成功' });
+          res.json({ success: true, data: null, message: '分红更新成功' });
     });
     updateDividend();
   } catch (err: any) {
@@ -120,7 +120,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
       detail: '分红 #' + req.params.id + ' 已归档, 金额 ¥' + dividend.total_amount.toFixed(2)
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ message: '分红已归档' });
+    res.json({ success: true, data: null, message: '分红已归档' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -132,7 +132,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档的分红不能删除' });
     db.prepare('DELETE FROM dividend_details WHERE dividend_id = ?').run(req.params.id);
     db.prepare('DELETE FROM dividends WHERE id = ?').run(req.params.id);
-    res.json({ message: '分红已删除' });
+    res.json({ success: true, data: null, message: '分红已删除' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }

@@ -1,4 +1,4 @@
-import { showToast } from '../../components/Toast';
+﻿import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -56,7 +56,7 @@ export default function StorePayrollPage() {
     setLoading(true);
     api.get('/stores/' + storeId).then((d: any) => setStoreName(d.name || '')).catch(() => {});
     api.get('/stores/' + storeId + '/payrolls?month=' + month)
-      .then((d) => { setPayrolls(d.payrolls || []); setLoading(false); })
+      .then((d) => { setPayrolls(d.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   };
   useEffect(() => { load(); }, [storeId, month]);

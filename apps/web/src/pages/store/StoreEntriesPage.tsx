@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+﻿import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
@@ -80,8 +80,8 @@ export default function StoreEntriesPage() {
   const load = () => {
     if (!storeId) return;
     api.get('/stores/' + storeId + '/entries?page=' + page + '&pageSize=' + pageSize + '&dateFrom=' + dateFrom + '&dateTo=' + dateTo).then((d) => {
-      setEntries(d.entries || d.data || []);
-      setTotal(d.total || 0);
+      setEntries(d.data || []);
+      setTotal(d.pagination?.total || 0);
     }).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});
     api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d)).catch(() => {});

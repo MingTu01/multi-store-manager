@@ -1,4 +1,4 @@
-import { showToast } from '../../components/Toast';
+﻿import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
@@ -128,7 +128,7 @@ export default function StoreInventoryPage() {
     setLoading(true);
     api.get('/stores/' + storeId + '/inventory')
       .then((d) => {
-        const list = d.items || [];
+        const list = d.data || [];
         setItems(Array.isArray(list) ? list : []);
         // 加载最近一次盘点结果
         const checks = d.checks || [];

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
@@ -41,7 +41,7 @@ export default function StorePurchasePage() {
 
   const load = () => {
     api.get('/stores/' + storeId + '/purchase?date=' + dateStr).then((d) => {
-      setItems(d.items || []);
+      setItems(d.data || []);
     }).catch(() => {});
   };
 

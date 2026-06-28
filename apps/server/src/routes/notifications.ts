@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin } from '../lib/roles.js';
+import logger from '../../logger.js';
 
 
 
@@ -13,7 +14,7 @@ function cleanupReadNotifications() {
       "DELETE FROM notifications WHERE read = 1 AND created_at < datetime('now', '-30 days', 'localtime')"
     ).run();
     if (result.changes > 0) {
-      if (process.env.NODE_ENV !== 'production') console.log('[通知清理] 已清理 ' + result.changes + ' 条已读通知(超过30天)');
+      if (process.env.NODE_ENV !== 'production') logger.info('[通知清理] 已清理 ' + result.changes + ' 条已读通知(超过30天)');
     }
     // 限制每用户未读通知上限500条
     const users = db.prepare("SELECT DISTINCT user_id FROM notifications WHERE read = 0").all() as any[];
@@ -24,12 +25,12 @@ function cleanupReadNotifications() {
           "DELETE FROM notifications WHERE user_id = ? AND read = 0 AND id NOT IN (SELECT id FROM notifications WHERE user_id = ? AND read = 0 ORDER BY created_at DESC LIMIT 500)"
         ).run(u.user_id, u.user_id);
         if (excess.changes > 0) {
-          if (process.env.NODE_ENV !== 'production') console.log('[通知清理] 用户 ' + u.user_id + ' 未读通知超出限制，已删除 ' + excess.changes + ' 条');
+          if (process.env.NODE_ENV !== 'production') logger.info('[通知清理] 用户 ' + u.user_id + ' 未读通知超出限制，已删除 ' + excess.changes + ' 条');
         }
       }
     }
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') console.error('[通知清理] 清理失败:', err);
+    if (process.env.NODE_ENV !== 'production') logger.error('[通知清理] 清理失败:', err);
   }
 }
 

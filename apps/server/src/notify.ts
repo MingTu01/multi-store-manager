@@ -7,6 +7,7 @@ import { existsSync, readFileSync, writeFileSync as wf, mkdirSync as md } from '
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import logger from './logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..');
@@ -29,9 +30,9 @@ function getEncKey(): Buffer {
   try {
     md(join(BASE_DIR, 'data'), { recursive: true });
     wf(keyFile, newKey.toString('hex'), 'utf-8');
-    if (process.env.NODE_ENV !== 'production') console.log('[NOTIFY] Generated new notify encryption key');
+    if (process.env.NODE_ENV !== 'production') logger.info('[NOTIFY] Generated new notify encryption key');
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.error('[NOTIFY] Failed to save notify encryption key:', e);
+    if (process.env.NODE_ENV !== 'production') logger.error('[NOTIFY] Failed to save notify encryption key:', e);
   }
   return newKey;
 }
@@ -58,7 +59,7 @@ export function decryptToken(enc: string): string {
     const decipher = crypto.createDecipheriv(ENC_ALGO, key, iv);
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final('utf8');
-  } catch (e) { if (process.env.NODE_ENV !== 'production') console.warn('[NOTIFY] decryptToken failed:', (e as Error).message); return ''; }
+  } catch (e) { if (process.env.NODE_ENV !== 'production') logger.warn('[NOTIFY] decryptToken failed:', (e as Error).message); return ''; }
 }
 
 // ── 全局设置 ──

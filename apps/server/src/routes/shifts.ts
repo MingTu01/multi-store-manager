@@ -32,7 +32,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       return { ...s, photos: [], photo_count: photoCount };
     });
 
-    res.json({ shifts: enriched, total, page: p, pageSize: ps });
+    res.json({ success: true, data: enriched, pagination: { page: p, pageSize: ps, total } });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -44,7 +44,7 @@ router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
     const last = db.prepare("SELECT handover_content, created_at FROM store_opens WHERE store_id = ? AND type = 'close' AND handover_content != '' ORDER BY created_at DESC LIMIT 1").get(storeId) as any;
-    res.json({ handover: last?.handover_content || '', date: last?.created_at || '' });
+    res.json({ success: true, data: { handover: last?.handover_content || '', date: last?.created_at || '' } });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -55,7 +55,7 @@ router.get('/:shiftId', (req: AuthRequest, res: Response) => {
     if (!shift) return res.status(404).json({ error: '记录不存在' });
     let photos = [];
     try { photos = JSON.parse(shift.photos || '[]'); } catch {}
-    res.json({ ...shift, photos });
+    res.json({ success: true, data: { ...shift, photos } });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -85,7 +85,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       detail: (req.user.name || req.user.username) + ' 执行了' + action + '操作' + (note ? ': ' + note : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: result.lastInsertRowid, message: action + '成功' });
+    res.json({ success: true, data: { id: result.lastInsertRowid }, message: action + '成功' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -110,7 +110,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
       detail: (req.user.name || req.user.username) + ' 执行了开店操作' + (note ? ': ' + note : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: result.lastInsertRowid, message: '开店成功' });
+    res.json({ success: true, data: { id: result.lastInsertRowid }, message: '开店成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -131,7 +131,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
       detail: (req.user.name || req.user.username) + ' 执行了关店操作' + (note ? ': ' + note : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: result.lastInsertRowid, message: '关店成功' });
+    res.json({ success: true, data: { id: result.lastInsertRowid }, message: '关店成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 

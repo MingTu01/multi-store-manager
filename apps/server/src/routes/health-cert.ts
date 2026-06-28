@@ -13,6 +13,7 @@ import { isAdmin } from '../lib/roles.js';
 import { localDate } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { getAliyunOCRConfig, isAliyunOCRConfigured, saveAliyunCredentials, reloadAliyunOCRConfig } from '../lib/aliyun-ocr.js';
+import logger from '../../logger.js';
 
 const router = Router();
 const upload = multer({
@@ -98,7 +99,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
       if (errMsg.includes('AccessKey') || errMsg.includes('InvalidAccessKey')) {
         return res.status(500).json({ error: '阿里云认证失败，请检查 AccessKey 配置' });
       }
-      console.error("[OCR] API Error:", errMsg); return res.status(500).json({ error: 'OCR 识别失败: ' + (errMsg.length > 200 ? errMsg.slice(0, 200) + '...' : errMsg) });
+      logger.error("[OCR] API Error:", errMsg); return res.status(500).json({ error: 'OCR 识别失败: ' + (errMsg.length > 200 ? errMsg.slice(0, 200) + '...' : errMsg) });
     }
 
     // 解析 OCR 结果 — recognizeGeneralStructure 返回结构化 KV 数据
@@ -162,7 +163,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     }
     const realDaysLeft = realExpiryStr ? Math.ceil((new Date(realExpiryStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : -1;
 
-    console.log("[OCR] Parsed: name=[" + ocrName + "] expiry=[" + ocrExpiry + "] kvKeys=" + Object.keys(kvData).join(","));
+    logger.info("[OCR] Parsed: name=[" + ocrName + "] expiry=[" + ocrExpiry + "] kvKeys=" + Object.keys(kvData).join(","));
     res.json({
       ocrName,
       ocrExpiry,
@@ -174,7 +175,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
       provider: 'aliyun',
     });
   } catch (err: any) {
-    console.error('[OCR] Error:', err.message);
+    logger.error('[OCR] Error:', err.message);
     res.status(500).json({ error: 'OCR 识别异常，请稍后重试' });
   }
 });

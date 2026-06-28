@@ -1,8 +1,9 @@
-import db from './db.js';
+﻿import db from './db.js';
 import { ROLES } from './lib/roles.js';
 import { sendNotification } from './notify.js';
 import { sendPushNotification } from './push-notify.js';
 import { eventBus } from './event-bus.js';
+import logger from './logger.js';
 
 type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'staff_change' | 'inventory_alert' | 'store_alert';
 
@@ -14,19 +15,30 @@ interface NotifyParams {
   targetUserId?: number;
 }
 
+// 带指数退避的重试机制
+async function withRetry(fn: () => Promise<void>, name: string, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try { await fn(); return; } catch (e) {
+      logger.error(`[Notify] ${name} failed (attempt ${i + 1}/${maxRetries}):`, (e as Error).message);
+      if (i < maxRetries - 1) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+    }
+  }
+  logger.error(`[Notify] ${name} failed after ${maxRetries} attempts, giving up.`);
+}
+
 function getNotifyTitle(type: NotifyType): string {
   const titles: Record<string, string> = {
-    entry: '\u8bb0\u8d26\u901a\u77e5',
-    payroll: '\u5de5\u8d44\u901a\u77e5',
-    dividend: '\u5206\u7ea2\u901a\u77e5',
-    inventory: '\u76d8\u70b9\u901a\u77e5',
-    shift: '\u5f00\u95ed\u5e97\u901a\u77e5',
-    health_cert: '\u5065\u5eb7\u8bc1\u901a\u77e5',
-    staff: '\u5458\u5de5\u901a\u77e5',
-    store: '\u95e8\u5e97\u901a\u77e5',
-    purchase: '\u8fdb\u8d27\u901a\u77e5',
+    entry: '记账通知',
+    payroll: '工资通知',
+    dividend: '分红通知',
+    inventory: '盘点通知',
+    shift: '开闭店通知',
+    health_cert: '健康证通知',
+    staff: '员工通知',
+    store: '门店通知',
+    purchase: '进货通知',
   };
-  return titles[type] || '\u7cfb\u7edf\u901a\u77e5';
+  return titles[type] || '系统通知';
 }
 
 function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: number): number[] {
@@ -53,7 +65,7 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
 
 export function triggerNotification(params: NotifyParams): void {
   try {
-    const { type, action, storeId, detail, targetUserId, operatorName } = params;
+    const { type, action, storeId, detail, targetUserId, operatorName } = params as any;
     const title = getNotifyTitle(type);
     const operator = operatorName ? '[' + operatorName + '] ' : '';
     const content = operator + action + (detail ? ': ' + detail : '');
@@ -82,11 +94,11 @@ export function triggerNotification(params: NotifyParams): void {
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', link, now);
     }
-    // External push (fire and forget)
-    sendNotification(title, content, type).catch(() => {});
-    // Browser Web Push (fire and forget)
+    // External push (with retry)
+    withRetry(() => sendNotification(title, content, type), 'sendNotification');
+    // Browser Web Push (with retry)
     for (const uid of targets) {
-      sendPushNotification(uid, title, content, link).catch(() => {});
+      withRetry(() => sendPushNotification(uid, title, content, link), 'sendPushNotification-' + uid);
     }
     // SSE: broadcast notification update event for real-time badge refresh
     if (targets.length > 0) {
@@ -98,6 +110,6 @@ export function triggerNotification(params: NotifyParams): void {
       });
     }
   } catch (e) {
-    console.error('triggerNotification error:', e);
+    logger.error('triggerNotification error:', e);
   }
 }

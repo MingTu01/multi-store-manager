@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
@@ -21,12 +21,12 @@ export default function StoreOverviewPage() {
     if (!storeId) return;
     api.get('/stores/' + storeId).then(setStore).catch(() => {});
     api.get('/stores/' + storeId + '/entries?period=day').then((d: any) => {
-      const entries = d.entries || d.data || [];
+      const entries = d.data || [];
       const inc = entries.filter((e: any) => e.type === '收入' || e.type === 'income').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       const exp = entries.filter((e: any) => e.type === '支出' || e.type === 'expense').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       setToday({ income: inc, expense: exp, profit: inc - exp });
     }).catch(() => {});
-    api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.entries || d.data || (Array.isArray(d) ? d : []).slice(0, 5))).catch(() => {});
+    api.get('/stores/' + storeId + '/entries?limit=5').then((d: any) => setRecent(d.data || [])).catch(() => {});
   }, [storeId, dataVersion]);
 
   if (!store) return <div className="flex h-32 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;

@@ -12,6 +12,7 @@ import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js'
 import { AppError, ErrorCode } from '../error-handler.js';
 import { validateWebhookUrl } from '../lib/network.js';
 import { settingsCache } from '../cache.js';
+import logger from '../../logger.js';
 
 const router = Router();
 
@@ -407,7 +408,7 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
     const bodyConfig = req.body && req.body.config ? req.body.config : {};
     const settings = Object.assign({}, dbSettings || {}, bodyConfig);
     const channel = (req.query.channel as string) || '';
-    console.log('[Test] channel:', channel, 'settings keys:', Object.keys(settings).filter(k => settings[k] && k !== 'store_id' && k !== 'id' && k !== 'updated_at'));
+    logger.info('[Test] channel:', channel, 'settings keys:', Object.keys(settings).filter(k => settings[k] && k !== 'store_id' && k !== 'id' && k !== 'updated_at'));
     sendStoreNotification(storeId, '测试通知', '这是一条测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN'), settings, channel)
       .then((result) => {
         if (result.errors.length > 0 && result.results.length === 0) {

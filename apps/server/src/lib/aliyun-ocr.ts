@@ -3,6 +3,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { encryptToken, decryptToken } from '../notify.js';
+import logger from '../logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,9 +67,9 @@ function loadCredentials(): AliyunOCRConfig {
           if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
           const encrypted = encryptToken(JSON.stringify(parsed));
           writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), 'utf-8');
-          console.log('[OCR] 已自动将明文凭证迁移为加密存储');
+          logger.info('[OCR] 已自动将明文凭证迁移为加密存储');
         } catch (migErr) {
-          console.warn('[OCR] 凭证加密迁移失败，继续使用明文:', (migErr as Error).message);
+          logger.warn('[OCR] 凭证加密迁移失败，继续使用明文:', (migErr as Error).message);
         }
         return result;
       }
@@ -104,7 +105,7 @@ export function saveAliyunCredentials(accessKeyId: string, accessKeySecret: stri
   const encrypted = encryptToken(JSON.stringify(cred));
   writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), 'utf-8');
   _config = cred;
-  console.log('[OCR] Aliyun credentials saved (encrypted)');
+  logger.info('[OCR] Aliyun credentials saved (encrypted)');
 }
 
 export function reloadAliyunOCRConfig(): void {

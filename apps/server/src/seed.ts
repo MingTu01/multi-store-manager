@@ -1,11 +1,12 @@
 import db from './db.js';
 import bcrypt from 'bcryptjs';
+import logger from './logger.js';
 
 export function seedDatabase() {
-  if (process.env.NODE_ENV === 'production') { console.log('[Seed] Skipped in production'); return; }
+  if (process.env.NODE_ENV === 'production') { logger.info('[Seed] Skipped in production'); return; }
   const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
   if (existingUsers.count > 1) {
-    console.log('Database already seeded');
+    logger.info('Database already seeded');
     return;
   }
 
@@ -46,7 +47,7 @@ export function seedDatabase() {
     db.prepare('INSERT INTO entries (store_id, type, category, amount, note, date, created_by) VALUES (?,?,?,?,?,?,?)').run(2, '收入', categories[1], Math.round(Math.random() * 2000 + 800), '零售收入', d, 1);
   }
 
-  console.log('Database seeded with demo data');
+  logger.info('Database seeded with demo data');
 }
 
 seedDatabase();

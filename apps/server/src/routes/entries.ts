@@ -24,7 +24,7 @@ router.get('/stats', (req: AuthRequest, res: Response) => {
     const today = localDate();
     const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
-    res.json({ income, expense, profit: income - expense });
+    res.json({ success: true, data: { income, expense, profit: income - expense } });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -56,7 +56,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name, u.name AS creator_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN users u ON e.created_by = u.id' + whereClause + ' ORDER BY e.created_at DESC';
     if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
     const totalPages = Math.ceil(total / ps);
-    res.json({ data: db.prepare(sql).all(...qp), total, page: p, pageSize: ps, totalPages });
+    res.json({ success: true, data: db.prepare(sql).all(...qp), pagination: { page: p, pageSize: ps, total, totalPages } });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -85,7 +85,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid } });
-    res.json({ id: result.lastInsertRowid, success: true });
+    res.json({ success: true, data: { id: result.lastInsertRowid } });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -118,7 +118,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id } });
-    res.json({ success: true });
+    res.json({ success: true, data: null });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -147,7 +147,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'delete', storeId, data: { id: req.params.id } });
-    res.json({ success: true });
+    res.json({ success: true, data: null });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 

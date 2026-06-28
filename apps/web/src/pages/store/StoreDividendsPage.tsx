@@ -1,4 +1,4 @@
-import { showToast } from '../../components/Toast';
+﻿import { showToast } from '../../components/Toast';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
@@ -31,7 +31,7 @@ export default function StoreDividendsPage() {
     if (!storeId) return;
     setLoading(true);
     api.get('/stores/' + storeId + '/dividends').then((d) => {
-      setDividends(d.dividends || []);
+      setDividends(d.data || []);
       setBalance(d.balance || 0);
       setShareholders(d.shareholders || []);
       setLoading(false);

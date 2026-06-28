@@ -47,7 +47,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       }
       return payrollData;
     }).filter((pr: any) => canSeeAll || pr.items.length > 0);
-    res.json({ payrolls: enriched, total, page: p, pageSize: ps });
+    res.json({ success: true, data: enriched, pagination: { page: p, pageSize: ps, total } });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -77,7 +77,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       }
     });
     tx();
-    res.json({ id: payrollId, message: '工资单创建成功' });
+    res.json({ success: true, data: { id: payrollId }, message: '工资单创建成功' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -106,7 +106,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       }
     });
     tx();
-    res.json({ message: '工资单更新成功' });
+    res.json({ success: true, data: null, message: '工资单更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -174,7 +174,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
       operatorName: req.user.name || req.user.username
     });
 
-    res.json({ id: payrollId, message: '工资单生成成功' });
+    res.json({ success: true, data: { id: payrollId }, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
@@ -216,7 +216,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
       }
     }
 
-    res.json({ message: '工资单已确认' });
+    res.json({ success: true, data: null, message: '工资单已确认' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
@@ -234,7 +234,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       db.prepare('DELETE FROM payroll WHERE id = ?').run(req.params.id);
     });
     tx();
-    res.json({ message: '工资单已删除' });
+    res.json({ success: true, data: null, message: '工资单已删除' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }

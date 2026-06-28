@@ -111,7 +111,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
     mkdirSync(backupDir, { recursive: true });
     const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const filename = 'manual-' + now + '.zip';
-    console.log('[Update] Running WAL checkpoint...'); db.pragma('wal_checkpoint(TRUNCATE)'); console.log('[Update] WAL checkpoint done');
+    logger.info('[Update] Running WAL checkpoint...'); db.pragma('wal_checkpoint(TRUNCATE)'); logger.info('[Update] WAL checkpoint done');
     const dbDir = join(BASE_DIR, 'data');
     const zipPath = join(backupDir, filename);
     const zip = new AdmZip();
@@ -198,7 +198,7 @@ router.post('/backups/:filename/restore', async (req: AuthRequest, res: Response
     // Step 2: Checkpoint WAL and close DB connections gracefully
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch {}
     db.close();
-    console.log('[Restore] Database closed for safe restore');
+    logger.info('[Restore] Database closed for safe restore');
 
     // Step 3: Delete old DB files
     try { unlinkSync(join(dbDir, 'store.db')); } catch {}
@@ -228,9 +228,9 @@ router.post('/backups/:filename/restore', async (req: AuthRequest, res: Response
       const storeCount = testDb.prepare('SELECT count(*) as c FROM stores').get().c;
       const userCount = testDb.prepare('SELECT count(*) as c FROM users').get().c;
       testDb.close();
-      console.log('[Restore] Verified: ' + storeCount + ' stores, ' + userCount + ' users');
+      logger.info('[Restore] Verified: ' + storeCount + ' stores, ' + userCount + ' users');
     } catch (e: any) {
-      console.error('[Restore] DB verification failed:', e.message);
+      logger.error('[Restore] DB verification failed:', e.message);
       // Rollback
       try {
         const rollback = new AdmZip(join(dbDir, '_pre-restore-backup.zip'));
@@ -328,7 +328,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
       try {
         // Step 1: Backup database
         upgradeState = { step: 1, message: '正在备份数据', complete: false };
-        console.log('[Update] Step 1: Starting backup...'); broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
+        logger.info('[Update] Step 1: Starting backup...'); broadcastProgress('progress', { step: 1, total: 4, message: '正在备份数据' });
         const backupDir = join(BASE_DIR, 'backups');
         mkdirSync(backupDir, { recursive: true });
         const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -337,7 +337,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db'), '', 'store.db');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
-        console.log('[Update] Creating backup zip...'); preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip')); console.log('[Update] Backup zip created');
+        logger.info('[Update] Creating backup zip...'); preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip')); logger.info('[Update] Backup zip created');
         await new Promise(r => setTimeout(r, 500));
         // Step 2: Extract
         upgradeState = { step: 2, message: '正在解压', complete: false };
@@ -348,7 +348,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         if (!validateZipEntries(zip)) return res.status(400).json({ error: "ZIP contains unsafe paths" });
         zip.extractAllTo(extractDir, true);
         await new Promise(r => setTimeout(r, 500));
-        console.log('[Upgrade] Step 3: Starting file copy...');
+        logger.info('[Upgrade] Step 3: Starting file copy...');
         // Step 3: Update files
         upgradeState = { step: 3, message: '解压并更新', complete: false };
         broadcastProgress('progress', { step: 3, total: 4, message: '解压并更新' });
@@ -367,35 +367,35 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const ghDir = join(extractDir, 'multi-shop-link-deploy-main');
         if (existsSync(ghDir) && (existsSync(join(ghDir, 'src')) || existsSync(join(ghDir, 'public')))) {
           workDir = ghDir;
-          console.log('[Upgrade] Detected GitHub archive format');
+          logger.info('[Upgrade] Detected GitHub archive format');
         }
         // --- 清理清单机制 ---
         const cleanupJsonPath = join(workDir, 'cleanup.json');
         if (existsSync(cleanupJsonPath)) {
           try {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
-            console.log('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
+            logger.info('[Upgrade] Processing cleanup.json:', cleanup.description || 'no description');
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
-                if (!validateCleanupPath(f)) { console.warn('[Upgrade] BLOCKED unsafe deleteFiles path:', f); continue; }
+                if (!validateCleanupPath(f)) { logger.warn('[Upgrade] BLOCKED unsafe deleteFiles path:', f); continue; }
                 const target = join(BASE_DIR, f);
                 if (existsSync(target)) {
-                  try { unlinkSync(target); console.log('[Upgrade] Deleted file:', f); } catch (e) { console.warn('[Upgrade] Failed to delete', f, e.message); }
+                  try { unlinkSync(target); logger.info('[Upgrade] Deleted file:', f); } catch (e) { logger.warn('[Upgrade] Failed to delete', f, e.message); }
                 }
               }
             }
             if (Array.isArray(cleanup.deleteDirs)) {
               for (const d of cleanup.deleteDirs) {
-                if (!validateCleanupPath(d)) { console.warn('[Upgrade] BLOCKED unsafe deleteDirs path:', d); continue; }
+                if (!validateCleanupPath(d)) { logger.warn('[Upgrade] BLOCKED unsafe deleteDirs path:', d); continue; }
                 const target = join(BASE_DIR, d);
                 if (existsSync(target)) {
-                  try { rmSync(target, { recursive: true, force: true }); console.log('[Upgrade] Deleted dir:', d); } catch (e) { console.warn('[Upgrade] Failed to delete dir', d, e.message); }
+                  try { rmSync(target, { recursive: true, force: true }); logger.info('[Upgrade] Deleted dir:', d); } catch (e) { logger.warn('[Upgrade] Failed to delete dir', d, e.message); }
                 }
               }
             }
             broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件完成' });
           } catch (e) {
-            console.warn('[Upgrade] Failed to process cleanup.json:', e.message);
+            logger.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
         }
         // === 更新 web-dist ===
@@ -405,7 +405,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         if (webDistSrc) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
           copyDir(webDistSrc, webDest);
-          console.log('[Upgrade] web-dist updated');
+          logger.info('[Upgrade] web-dist updated');
           broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
@@ -421,22 +421,22 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         }
         const srcDest = join(BASE_DIR, 'src');
         copyDir(sSrc, srcDest);
-        console.log('[Upgrade] server code updated');
+        logger.info('[Upgrade] server code updated');
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         // === 更新 package.json ===
         const pkgFile = join(workDir, 'package.json');
         if (existsSync(pkgFile)) {
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
-          console.log('[Upgrade] package.json updated');
+          logger.info('[Upgrade] package.json updated');
         }
         // === npm install (失败必须中止升级) ===
         try {
-          console.log('[Upgrade] Running npm install...');
+          logger.info('[Upgrade] Running npm install...');
           broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
           execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
-          console.log('[Upgrade] npm install completed');
+          logger.info('[Upgrade] npm install completed');
         } catch (e) {
-          console.error('[Upgrade] npm install FAILED:', e.message);
+          logger.error('[Upgrade] npm install FAILED:', e.message);
           broadcastProgress('error', { message: '依赖安装失败，请检查服务器 npm 环境: ' + e.message });
           return;
         }
@@ -449,12 +449,12 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             if (!safePathRegex.test(postUpgradeScript)) {
               throw new Error('post-upgrade 脚本路径包含不安全字符');
             }
-            console.log('[Upgrade] Running post-upgrade script...');
+            logger.info('[Upgrade] Running post-upgrade script...');
             broadcastProgress('progress', { step: 3, total: 4, message: '正在执行后置脚本' });
             execFileSync('node', [postUpgradeScript], { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
-            console.log('[Upgrade] Post-upgrade script completed');
+            logger.info('[Upgrade] Post-upgrade script completed');
           } catch (e) {
-            console.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
+            logger.warn('[Upgrade] Post-upgrade script failed (non-fatal):', e.message);
           }
         }
         // === 更新版本号 ===
@@ -467,7 +467,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         } catch {}
         // 清理临时解压目录
         try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
-        console.log('[Upgrade] Step 3: File copy complete, starting step 4...');
+        logger.info('[Upgrade] Step 3: File copy complete, starting step 4...');
         await new Promise(r => setTimeout(r, 500));
         // Step 4: Restart
         upgradeState = { step: 4, message: '重启', complete: false };
@@ -475,7 +475,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         broadcastProgress('complete', { message: '升级完成' });
         // Auto-restart after upgrade
         setTimeout(() => {
-          console.log('[Upgrade] Sending SIGTERM for restart...');
+          logger.info('[Upgrade] Sending SIGTERM for restart...');
           process.kill(process.pid, 'SIGTERM');
         }, 3000);
       } catch (err: any) {
@@ -491,7 +491,7 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     res.json({ message: '正在重启...' });
     setTimeout(() => {
-      console.log('[Restart] Sending SIGTERM for restart...');
+      logger.info('[Restart] Sending SIGTERM for restart...');
       process.kill(process.pid, 'SIGTERM');
     }, 500);
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
@@ -583,8 +583,8 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
           const extractPath = join(uploadsDir, item);
           try {
             rmSync(extractPath, { recursive: true, force: true });
-            console.log('[Cleanup] Removed:', item);
-          } catch (e) { console.error('[Cleanup] Failed to remove:', item, e); }
+            logger.info('[Cleanup] Removed:', item);
+          } catch (e) { logger.error('[Cleanup] Failed to remove:', item, e); }
         }
       }
     }
@@ -713,8 +713,8 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
     
     (async () => {
       try {
-        console.log('[Update] Async function started');
-        console.log('[Update] BASE_DIR:', BASE_DIR);
+        logger.info('[Update] Async function started');
+        logger.info('[Update] BASE_DIR:', BASE_DIR);
         upgradeState = { step: 0, message: '', complete: false };
         
         // Step 1: Backup
@@ -729,7 +729,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
           if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
           preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip'));
-        } catch (backupErr) { console.error('[Update] Backup error:', backupErr.message); }
+        } catch (backupErr) { logger.error('[Update] Backup error:', backupErr.message); }
         broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 1000));
         
@@ -743,7 +743,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         await new Promise(r => setTimeout(r, 500));
         // Step 2.5: SHA256 integrity check
         const zipHash = crypto.createHash('sha256').update(zipBuffer).digest('hex');
-        console.log('[Update] ZIP SHA256:', zipHash);
+        logger.info('[Update] ZIP SHA256:', zipHash);
         broadcastProgress('progress', { step: 2, total: 4, message: '校验更新包完整性' });
         await new Promise(r => setTimeout(r, 500));
         
@@ -759,7 +759,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           const entries = readdirSync(extractDir, { withFileTypes: true }).filter(e => e.isDirectory());
           if (entries.length === 1) {
             extractedFolder = join(extractDir, entries[0].name);
-            console.log('[Update] Using extracted folder:', entries[0].name);
+            logger.info('[Update] Using extracted folder:', entries[0].name);
           } else {
             throw new Error('解压后找不到更新目录，可能更新包格式不正确');
           }
@@ -773,13 +773,13 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             if (ckData.sha256 && ckData.sha256 !== zipHash) {
               throw new Error('SHA256 mismatch');
             }
-            console.log('[Update] Checksum verified OK');
+            logger.info('[Update] Checksum verified OK');
           } catch (ckErr) {
             if (ckErr.message.includes('mismatch')) throw ckErr;
-            console.warn('[Update] checksum.json parse failed:', ckErr.message);
+            logger.warn('[Update] checksum.json parse failed:', ckErr.message);
           }
         } else {
-          console.warn('[Update] No checksum.json, skip hash check');
+          logger.warn('[Update] No checksum.json, skip hash check');
         }
 
         // --- cleanup.json 清理清单 ---
@@ -787,28 +787,28 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         if (existsSync(cleanupJsonPath)) {
           try {
             const cleanup = JSON.parse(readFileSync(cleanupJsonPath, 'utf-8'));
-            console.log('[Update] Processing cleanup.json:', cleanup.description || '');
+            logger.info('[Update] Processing cleanup.json:', cleanup.description || '');
           broadcastProgress('progress', { step: 3, total: 4, message: '清理旧文件' });
           await new Promise(r => setTimeout(r, 300));
             if (Array.isArray(cleanup.deleteFiles)) {
               for (const f of cleanup.deleteFiles) {
-                if (!validateCleanupPath(f)) { console.warn('[Update] BLOCKED unsafe deleteFiles path:', f); continue; }
+                if (!validateCleanupPath(f)) { logger.warn('[Update] BLOCKED unsafe deleteFiles path:', f); continue; }
                 const target = join(BASE_DIR, f);
                 if (existsSync(target)) {
-                  try { unlinkSync(target); console.log('[Update] Deleted:', f); } catch (e: any) { console.warn('[Update] Failed to delete', f, e.message); }
+                  try { unlinkSync(target); logger.info('[Update] Deleted:', f); } catch (e: any) { logger.warn('[Update] Failed to delete', f, e.message); }
                 }
               }
             }
             if (Array.isArray(cleanup.deleteDirs)) {
               for (const d of cleanup.deleteDirs) {
-                if (!validateCleanupPath(d)) { console.warn('[Update] BLOCKED unsafe deleteDirs path:', d); continue; }
+                if (!validateCleanupPath(d)) { logger.warn('[Update] BLOCKED unsafe deleteDirs path:', d); continue; }
                 const target = join(BASE_DIR, d);
                 if (existsSync(target)) {
-                  try { rmSync(target, { recursive: true, force: true }); console.log('[Update] Deleted dir:', d); } catch (e: any) { console.warn('[Update] Failed to delete dir', d, e.message); }
+                  try { rmSync(target, { recursive: true, force: true }); logger.info('[Update] Deleted dir:', d); } catch (e: any) { logger.warn('[Update] Failed to delete dir', d, e.message); }
                 }
               }
             }
-          } catch (e: any) { console.warn('[Update] Failed to process cleanup.json:', e.message); }
+          } catch (e: any) { logger.warn('[Update] Failed to process cleanup.json:', e.message); }
         }
         
         const publicDir = join(realExtractedFolder, 'public');
@@ -818,7 +818,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             const webDistDest = join(destPublic, 'web-dist');
             }
           cpSync(publicDir, destPublic, { recursive: true, force: true });
-          console.log('[Update] web-dist updated');
+          logger.info('[Update] web-dist updated');
           broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
           await new Promise(r => setTimeout(r, 300));
         }
@@ -829,18 +829,18 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         }
         const destSrc = join(BASE_DIR, 'src');
         cpSync(srcDir, destSrc, { recursive: true, force: true });
-        console.log('[Update] server-src updated');
+        logger.info('[Update] server-src updated');
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         await new Promise(r => setTimeout(r, 300));
         const pkgFile = join(realExtractedFolder, 'package.json');
         if (existsSync(pkgFile)) {
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
-          console.log('[Update] package.json updated');
+          logger.info('[Update] package.json updated');
         }
         const versionFile = join(realExtractedFolder, 'data', 'version.json');
         if (existsSync(versionFile)) {
           copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
-          console.log('[Update] version.json updated');
+          logger.info('[Update] version.json updated');
         }
         const postUpgradeScript = join(realExtractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
@@ -852,10 +852,10 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
             }
             broadcastProgress('progress', { step: 3, total: 4, message: '执行后置脚本' });
         await new Promise(r => setTimeout(r, 300));
-        console.log('[Update] Running post-upgrade script...');
+        logger.info('[Update] Running post-upgrade script...');
             execFileSync('node', [postUpgradeScript], { cwd: BASE_DIR, timeout: 120000, stdio: 'pipe' });
-            console.log('[Update] Post-upgrade completed');
-          } catch (e) { console.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
+            logger.info('[Update] Post-upgrade completed');
+          } catch (e) { logger.warn('[Update] Post-upgrade failed (non-fatal):', e.message); }
         }
         try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         broadcastProgress('progress', { step: 3, total: 4, message: '更新完成', done: true });
@@ -866,12 +866,12 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('complete', { message: '更新完成' });
         
         setTimeout(() => {
-          console.log('[Update] Restarting via process.exit...');
+          logger.info('[Update] Restarting via process.exit...');
           process.exit(0);
         }, 3000);
         
       } catch (err) {
-        console.error('[Update] FAILED:', err.message);
+        logger.error('[Update] FAILED:', err.message);
         broadcastProgress('error', { message: '更新失败: ' + err.message });
       }
     })();
@@ -882,6 +882,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 // ── 用户个人推送设置（改造版） ──
 import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
 import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification } from '../push-notify.js';
+import logger from '../../logger.js';
 
 // GET: 读取自己的设置（解密返回）
 router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {

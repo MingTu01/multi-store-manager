@@ -1,5 +1,6 @@
 import db from './db.js';
 import { triggerNotification } from './notify-trigger.js';
+import logger from './logger.js';
 
 // Check health certificate expiry every day
 // - 30 days before expiry: notify once per week (Monday)
@@ -36,7 +37,7 @@ export function startHealthCheckScheduler() {
         }
       }
     } catch (e) {
-      console.error('Health check scheduler error:', e);
+      logger.error('Health check scheduler error:', e);
     }
   };
 

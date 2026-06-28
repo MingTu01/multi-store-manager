@@ -1,4 +1,4 @@
-// VITE_BUILD_VERIFY_20260610_205500
+﻿// VITE_BUILD_VERIFY_20260610_205500
 import { showToast } from '../../components/Toast';
 import { useParams } from 'react-router-dom';
 import { uploadImage } from '../../lib/image';
@@ -37,7 +37,7 @@ export default function StoreShiftsPage() {
   const load = () => {
     if (!storeId) return;
     api.get('/stores/' + storeId).then((d) => setStore(d)).catch(() => {});
-    api.get('/stores/' + storeId + '/shifts?page=' + page + '&pageSize=10').then((d) => setShifts(d.shifts || [])).catch(() => {});
+    api.get('/stores/' + storeId + '/shifts?page=' + page + '&pageSize=10').then((d) => setShifts(d.data || [])).catch(() => {});
     api.get('/stores/' + storeId + '/shifts/last-close-handover').then((d: any) => setLastHandover(d.handover || '')).catch(() => {});
   };
   useEffect(() => { load(); }, [storeId, page]);

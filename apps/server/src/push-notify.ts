@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import db from './db.js';
 import crypto from 'crypto';
+import logger from './logger.js';
 
 // VAPID 密钥管理
 
@@ -20,7 +21,7 @@ function getOrCreateVapidKeys(): { publicKey: string; privateKey: string } {
   const keys = webpush.generateVAPIDKeys();
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('vapid_public_key', ?)").run(keys.publicKey);
   db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('vapid_private_key', ?)").run(keys.privateKey);
-  if (process.env.NODE_ENV !== 'production') console.log('[Push] Generated new VAPID keys');
+  if (process.env.NODE_ENV !== 'production') logger.info('[Push] Generated new VAPID keys');
   return keys;
 }
 
@@ -31,7 +32,7 @@ export function initPush(): void {
     vapidKeys = getOrCreateVapidKeys();
     webpush.setVapidDetails('mailto:admin@msl.908521.xyz', vapidKeys.publicKey, vapidKeys.privateKey);
   } catch (e) {
-    console.error('[Push] Failed to initialize VAPID:', e);
+    logger.error('[Push] Failed to initialize VAPID:', e);
   }
 }
 
@@ -69,7 +70,7 @@ export async function sendPushNotification(userId: number, title: string, body: 
         { TTL: 3600 }
       );
     } catch (e: any) {
-      if (process.env.NODE_ENV !== 'production') console.warn('[Push] Failed to send to user' + userId + ':', e.message);
+      if (process.env.NODE_ENV !== 'production') logger.warn('[Push] Failed to send to user' + userId + ':', e.message);
       // 如果订阅失效（410 Gone），删除它
       if (e.statusCode === 410) {
         removeSubscription(userId, sub.endpoint);
