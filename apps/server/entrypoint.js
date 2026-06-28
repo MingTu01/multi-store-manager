@@ -79,7 +79,7 @@ console.log('');
 let crashCount = 0;
 let crashTimes = [];
 
-function startApp() {
+async function startApp() {
   const child = spawn('node', ['--import', 'tsx', 'src/index.ts'], {
     cwd: BASE_DIR,
     stdio: 'inherit',
@@ -103,21 +103,15 @@ function startApp() {
       console.error('');
       console.error('========================================');
       console.error('  APPLICATION CRASHED ' + crashCount + ' TIMES');
-      console.error('  Entering recovery mode...');
-      console.error('  Type "msl" for management tools');
+      console.error('  Waiting 60s before retry...');
+      console.error('  Use "docker exec -it <container> node /app/msl.js" for recovery');
       console.error('========================================');
       console.error('');
-      // Enter recovery mode - start msl.js interactively
-      try {
-        const recovery = spawn('node', ['/app/msl.js'], {
-          stdio: 'inherit',
-          env: { ...process.env }
-        });
-        recovery.on('exit', (c) => process.exit(c || 0));
-      } catch (e) {
-        console.error('[Recovery] Failed to start msl.js:', e.message);
-        process.exit(1);
-      }
+      // Sleep 60s then retry (avoids tight crash loop)
+      await new Promise(r => setTimeout(r, 60000));
+      crashTimes = [];
+      crashCount = 0;
+      startApp();
     } else {
       console.log('[Startup] App exited unexpectedly (code: ' + code + '), restarting...');
       console.log('[Startup] Crash ' + crashCount + '/' + MAX_CRASHES + ' in window');

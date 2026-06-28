@@ -1080,14 +1080,14 @@ router.post('/push/jpush-register', (req: AuthRequest, res: Response) => {
 });
 
 // JPush config (admin only)
-router.get('/push/jpush-config', requireRole('ADMIN'), (req: AuthRequest, res: Response) => {
+router.get('/push/jpush-config', requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const cfg = getJPushConfig();
     res.json({ appKey: cfg.appKey, masterSecret: cfg.masterSecret ? '***' : '' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
-router.put('/push/jpush-config', requireRole('ADMIN'), (req: AuthRequest, res: Response) => {
+router.put('/push/jpush-config', requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { appKey, masterSecret } = req.body;
     if (!appKey || !masterSecret) return res.status(400).json({ error: '参数不完整' });
