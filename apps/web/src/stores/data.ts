@@ -66,16 +66,26 @@ export const useStore = create<AppState>((set) => ({
     window.location.replace('/login');
   },
   restore: async () => {
+    // Skip if already on login page
+    if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+      set({ user: null, token: null, loading: false });
+      return;
+    }
     // 尝试通过 API 调用验证会话（cookie 自动携带）
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch('/api/auth/me', {
-          credentials: 'include',
-          cache: 'no-store',
-          signal: controller.signal
-        });
+        let res: Response;
+        try {
+          res = await fetch('/api/auth/me', {
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal
+          });
+        } catch (_) {
+          res = new Response(null, { status: 0 });
+        }
         clearTimeout(timer);
         if (!res.ok) {
           set({ user: null, token: null, loading: false });

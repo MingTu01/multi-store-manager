@@ -8,14 +8,13 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Power, Camera, Upload, Clock, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { useStore } from '../../stores/data';
 import { ImagePreview } from '../../components/ImagePreview';
-import { useConfirm } from '../../components/useConfirm';
 
 export default function StoreShiftsPage() {
   const { storeId } = useParams();
   const [store, setStore] = useState<any>(null);
-  const { confirm, ConfirmDialog } = useConfirm();
-  const [shifts, setShifts] = useState<any[]>([]);
+    const [shifts, setShifts] = useState<any[]>([]);
   const [now, setNow] = useState(new Date());
   const [showOpen, setShowOpen] = useState(false);
   const [showClose, setShowClose] = useState(false);
@@ -142,7 +141,7 @@ export default function StoreShiftsPage() {
           <div className="mb-1 text-4xl font-mono font-bold text-slate-800">{timeStr}</div>
           <div className="mb-6 text-sm text-slate-500">{dateStr} {weekStr}</div>
           <p className="mb-6 text-sm text-slate-400">门店当前已关闭</p>
-          <button onClick={() => setShowOpen(true)} className="action-btn flex items-center gap-2 rounded-xl bg-indigo-500 px-8 py-3 text-sm font-medium text-white shadow-lg hover:bg-indigo-600 transition-all"><Power className="h-4 w-4" />开始营业</button>
+          {!isReadonly && <button onClick={() => setShowOpen(true)} className="action-btn flex items-center gap-2 rounded-xl bg-indigo-500 px-8 py-3 text-sm font-medium text-white shadow-lg hover:bg-indigo-600 transition-all"><Power className="h-4 w-4" />开始营业</button>}
         </div>
         
         {/* 确认开店弹窗 */}
@@ -155,10 +154,9 @@ export default function StoreShiftsPage() {
               </div>
             )}
             {renderCameraButtons()}
-            <button onClick={handleOpen} disabled={saving || photos.length === 0} className="action-btn w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? "提交中..." : "确认开店"}</button>
+            {!isReadonly && <button onClick={handleOpen} disabled={saving || photos.length === 0} className="action-btn w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? "提交中..." : "确认开店"}</button>}
           </div>
         </Modal>
-      <ConfirmDialog />
       </>
   );
   }
@@ -174,12 +172,12 @@ export default function StoreShiftsPage() {
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />营业中
         </div>
         <div className="flex justify-center">
-          <button onClick={() => setShowClose(true)} className="action-btn flex h-20 w-20 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg hover:bg-rose-600 transition-all">
+          {!isReadonly && <button onClick={() => setShowClose(true)} className="action-btn flex h-20 w-20 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg hover:bg-rose-600 transition-all">
             <div className="flex flex-col items-center gap-1">
               <Power className="h-6 w-6" />
               <span className="text-xs font-medium">闭店</span>
             </div>
-          </button>
+          </button>}
         </div>
       </GlassCard>
       {renderShifts()}
@@ -192,7 +190,7 @@ export default function StoreShiftsPage() {
             <textarea value={handover} onChange={(e) => setHandover(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 min-h-[80px]" placeholder={"闭店备注..."} />
           </div>
           {renderCameraButtons()}
-          <button onClick={handleClose} disabled={saving} className="action-btn w-full rounded-xl bg-rose-500 py-2.5 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-50">{saving ? '提交中...' : '确认闭店'}</button>
+          {!isReadonly && <button onClick={handleClose} disabled={saving} className="action-btn w-full rounded-xl bg-rose-500 py-2.5 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-50">{saving ? '提交中...' : '确认闭店'}</button>}
         </div>
       </Modal>
     </div>

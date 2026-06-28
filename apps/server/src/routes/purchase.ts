@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { sanitizeText } from '../sanitize.js';
 import { opLog } from '../oplog.js';
 import { isManagerOrAbove, isReadonly } from '../lib/roles.js';
 import { triggerNotification } from '../notify-trigger.js';
@@ -34,7 +35,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: '请输入商品名称' });
     const maxOrder = (db.prepare('SELECT MAX(sort_order) as m FROM purchase_items WHERE store_id = ?').get(storeId) as any)?.m || 0;
-    const result = db.prepare('INSERT INTO purchase_items (store_id, name, sort_order) VALUES (?,?,?)').run(storeId, name.trim(), maxOrder + 1);
+    const result = db.prepare('INSERT INTO purchase_items (store_id, name, sort_order) VALUES (?,?,?)').run(storeId, sanitizeText(name), maxOrder + 1);
     opLog(req.user.id, storeId, '进货', '添加商品: ' + name);
     res.json({ id: result.lastInsertRowid, message: '商品添加成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
@@ -47,7 +48,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
     const { name, sort_order } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
-    if (name !== undefined) { fields.push('name=?'); vals.push(name.trim()); }
+    if (name !== undefined) { fields.push('name=?'); vals.push(sanitizeText(name)); }
     if (sort_order !== undefined) { fields.push('sort_order=?'); vals.push(sort_order); }
     if (fields.length === 0) return res.status(400).json({ error: '无更新内容' });
     vals.push(req.params.id);

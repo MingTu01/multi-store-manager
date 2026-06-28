@@ -66,7 +66,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
 // PUT /items/:id - update master item
 router.put('/items/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const { name, quantity, photo, status, sort_order } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -93,7 +93,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
 // DELETE /items/:id - delete master item
 router.delete('/items/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
+    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const itemId = req.params.id;
     const item = db.prepare('SELECT * FROM inventory_master WHERE id = ?').get(itemId) as any;
     if (!item) return res.status(404).json({ error: '物品不存在' });

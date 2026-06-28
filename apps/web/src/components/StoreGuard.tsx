@@ -114,7 +114,8 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
             返回门店列表
           </button>
         )}
-        <Lock className="mb-4 h-16 w-16 text-slate-300" />\n        <Clock />
+        <Lock className="mb-4 h-16 w-16 text-slate-300" />
+        <Clock />
         <p className="mb-6 text-sm text-slate-400">门店当前已关闭</p>
         <button onClick={() => setShowOpen(true)} className="flex items-center gap-2 rounded-xl bg-indigo-500 px-8 py-3 text-sm font-medium text-white shadow-lg hover:bg-indigo-600 transition-all">
           <Power className="h-4 w-4" />开店

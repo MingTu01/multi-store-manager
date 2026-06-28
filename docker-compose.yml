@@ -11,6 +11,7 @@ services:
       - ./apps/server/public/web-dist:/app/public/web-dist
     environment:
       - NODE_ENV=production
+      - COOKIE_SECURE=false
       - PORT=3001
       - JWT_SECRET=${JWT_SECRET:?请在.env文件中设置JWT_SECRET}
       # 生产环境必须设置: 你的域名(含协议)，多个用逗号分隔

@@ -55,7 +55,7 @@ export default function StoreOverviewPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
             </button>
           )}
-          <h1 className="text-lg font-bold text-slate-900">{store.name}</h1>
+          <h1 className="text-lg font-bold text-slate-900">{(store.name || "").replace(/\\n/g, "\n").replace(/\n/g, " ")}</h1>
         </div>
         <span className={`rounded-full px-2 py-0.5 text-xs ${store.is_open === 1 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
           {store.is_open === 1 ? '营业中' : '已关闭'}

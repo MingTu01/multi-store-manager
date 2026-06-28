@@ -31,11 +31,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
       _itemsMap.get(item.payroll_id)!.push(item);
     }
     const enriched = payrolls.map((pr: any) => {
-      let items;
-      if (canSeeAll) {
-        items = _itemsMap.get(pr.id) || [];
-      } else {
-        items = _itemsMap.get(pr.id) || [];
+      let items = _itemsMap.get(pr.id) || [];
+      if (isStaff) {
+        items = items.filter((it: any) => it.user_id === req.user.id);
       }
       // For STAFF, override total_amount with their own sum only
       let payrollData: any = { ...pr, items };

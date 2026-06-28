@@ -2,7 +2,7 @@ import { localDate } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin } from '../lib/roles.js';
+import { isStoreAdmin } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import { triggerNotification } from '../notify-trigger.js';
 
@@ -11,6 +11,7 @@ const router = Router({ mergeParams: true });
 router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const storeId = req.params.storeId;
+    if (req.user.role === 'STAFF') return res.status(403).json({ error: '无权查看分红' });
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     const balance = (() => {
       const store = db.prepare('SELECT initial_capital FROM stores WHERE id = ?').get(storeId) as any;
@@ -43,7 +44,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { total_amount, note } = req.body;
     if (!total_amount) return res.status(400).json({ error: '请输入总金额' });
@@ -73,7 +74,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 // TODO: wrap in transaction for data consistency
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { total_amount, note } = req.body;
     if (!total_amount || isNaN(Number(total_amount)) || Number(total_amount) <= 0) return res.status(400).json({ error: '请输入有效分红金额' });
     if (Number(total_amount) > 9999999) return res.status(400).json({ error: '分红金额不能超过999万' });
@@ -92,9 +93,9 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
               stmt.run(req.params.id, sh.name, sh.ratio, amount);
             }
           }
-          res.json({ success: true, data: null, message: '分红更新成功' });
     });
     updateDividend();
+    res.json({ success: true, data: null, message: '分红更新成功' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
@@ -102,7 +103,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
 router.put('/:id/archive', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档' });
@@ -126,12 +127,15 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档的分红不能删除' });
+    const deleteDiv = db.transaction(() => {
     db.prepare('DELETE FROM dividend_details WHERE dividend_id = ?').run(req.params.id);
     db.prepare('DELETE FROM dividends WHERE id = ?').run(req.params.id);
+    });
+    deleteDiv();
     res.json({ success: true, data: null, message: '分红已删除' });
   } catch (err: any) {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });

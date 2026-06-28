@@ -1,6 +1,7 @@
 import { showToast } from '../../components/Toast';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { ImagePreview } from '../../components/ImagePreview';
@@ -33,8 +34,9 @@ function getMonths(count = 12) {
 export default function StorePayrollPage() {
 const { storeId } = useParams();
 
-  const [month, setMonth] = useState(() => {
   const { confirm, ConfirmDialog } = useConfirm();
+
+  const [month, setMonth] = useState(() => {
     const n = new Date();
     return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
   });
@@ -225,7 +227,7 @@ const { storeId } = useParams();
                   )}
                 </div>
               </div>
-              {p.status !== 'confirmed' && (
+              {p.status !== 'confirmed' && canManage && (
                 <div className="mt-3 flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="action-btn flex items-center gap-1 rounded-lg bg-rose-50 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-100"><Trash2 className="h-3 w-3" />删除</button>
                   <button onClick={(e) => { e.stopPropagation(); handleConfirm(p.id); }} className="action-btn flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-600 hover:bg-emerald-100"><Check className="h-3 w-3" />发放</button>

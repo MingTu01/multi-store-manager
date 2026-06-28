@@ -93,9 +93,9 @@ const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <PageHeader title="分红" />
-        <button onClick={() => setShowCreate(true)} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
+        {canManage && <button onClick={() => setShowCreate(true)} className="action-btn hidden lg:inline-flex items-center gap-1 rounded-xl bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-600">
           <Plus className="h-4 w-4" />创建分红
-        </button>
+        </button>}
       </div>
 
       <GlassCard className="p-4">
