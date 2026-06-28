@@ -12,8 +12,7 @@ import { getRoleLabel, getRoleBg, getRoleColor } from '../lib/role';
 
 export function Sidebar() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const fetchUnread = useNotificationStore((s) => s.fetchUnread);
-  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
+  useUnreadPolling();
   const user = useStore((s) => s.user);
   const logout = useStore((s) => s.logout);
   const navigate = useNavigate();

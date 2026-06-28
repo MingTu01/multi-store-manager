@@ -42,9 +42,7 @@ export function BottomNav() {
   const [showMore, setShowMore] = useState(false);
   const [storeOpen, setStoreOpen] = useState<boolean | null>(null);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  const fetchUnread = useNotificationStore((s) => s.fetchUnread);
-
-  useEffect(() => { fetchUnread(); const t = setInterval(fetchUnread, 30000); return () => clearInterval(t); }, [fetchUnread]);
+  useUnreadPolling();
   useEffect(() => {
     if (!storeId) { setStoreOpen(null); return; }
     api.get('/stores/' + storeId).then((d: any) => {

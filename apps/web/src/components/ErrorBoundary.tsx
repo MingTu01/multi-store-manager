@@ -13,21 +13,10 @@ interface State {
 
 export class ErrorBoundary extends React.Component<Props, State> {
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
-  private removeChildInterceptCount = 0;
-  private originalConsoleError: typeof console.error | null = null;
 
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorCount: 0, isRemoveChildError: false };
-    this.setupConsoleErrorInterceptor();
-  }
-
-  /**
-   * 拦截 console.error，过滤掉包含 "removeChild" 的错误消息。
-   * 使用计数器限制最多拦截 10 次，防止无限循环。
-   */
-  private setupConsoleErrorInterceptor() {
-    // No-op: removeChild errors handled by React 19.1+
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
@@ -47,20 +36,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
 
     this.setState(prev => ({ errorCount: prev.errorCount + 1 }));
-    this.originalConsoleError?.('[ErrorBoundary]', error.message);
+    console.error('[ErrorBoundary]', error.message);
 
     if (this.state.errorCount > 5) {
-      this.originalConsoleError?.('[ErrorBoundary] Too many errors, forcing reload');
+      console.error('[ErrorBoundary] Too many errors, forcing reload');
       window.location.reload();
     }
   }
 
   componentWillUnmount() {
     if (this.resetTimer) clearTimeout(this.resetTimer);
-    // 恢复原始 console.error
-    if (this.originalConsoleError) {
-      console.error = this.originalConsoleError;
-    }
   }
 
   handleReset = () => {
