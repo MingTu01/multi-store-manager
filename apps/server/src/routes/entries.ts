@@ -66,6 +66,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权新增记账' });
     const { storeId } = req.params;
     const { type, category, category_id, amount, note, date } = req.body;
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: '日期格式不正确' });
     if (amount === undefined || amount === null || isNaN(Number(amount))) return res.status(400).json({ error: '请输入有效金额' });
     if (Number(amount) < 0) return res.status(400).json({ error: '金额不能为负数' });
     if (Number(amount) > 9999999) return res.status(400).json({ error: '金额不能超过999万' });
