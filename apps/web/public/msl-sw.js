@@ -1,4 +1,4 @@
-﻿// MSL Service Worker - Push notifications only, NO caching
+// MSL Service Worker - Push notifications only, NO caching
 // This SW does NOT intercept any fetch requests - all network goes directly
 self.addEventListener('install', function() { self.skipWaiting(); });
 self.addEventListener('activate', function(event) {

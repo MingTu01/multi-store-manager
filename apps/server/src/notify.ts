@@ -1,4 +1,4 @@
-﻿import crypto from 'crypto';
+import crypto from 'crypto';
 import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';

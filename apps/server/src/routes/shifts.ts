@@ -34,7 +34,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: enriched, pagination: { page: p, pageSize: ps, total } });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -45,7 +45,7 @@ router.get('/last-close-handover', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const last = db.prepare("SELECT handover_content, created_at FROM store_opens WHERE store_id = ? AND type = 'close' AND handover_content != '' ORDER BY created_at DESC LIMIT 1").get(storeId) as any;
     res.json({ success: true, data: { handover: last?.handover_content || '', date: last?.created_at || '' } });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // GET /:shiftId - Get single shift with photos
@@ -57,7 +57,7 @@ router.get('/:shiftId', (req: AuthRequest, res: Response) => {
     try { photos = JSON.parse(shift.photos || '[]'); } catch {}
     res.json({ success: true, data: { ...shift, photos } });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -87,7 +87,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: action + '成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -111,7 +111,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: '开店成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // POST /close
@@ -132,7 +132,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: '关店成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 

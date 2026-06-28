@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';

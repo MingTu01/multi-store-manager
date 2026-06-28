@@ -1,4 +1,4 @@
-﻿# AGENTS.md instructions for C:\Users\Administrator\Documents\6666
+# AGENTS.md instructions for C:\Users\Administrator\Documents\6666
 
 <INSTRUCTIONS>
 九月工作规则 (AGENTS.md)

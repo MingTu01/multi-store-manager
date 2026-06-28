@@ -1,4 +1,4 @@
-﻿import { join } from 'path';
+import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import db from './db.js';
 import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';

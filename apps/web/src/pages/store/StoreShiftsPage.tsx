@@ -1,4 +1,4 @@
-﻿// VITE_BUILD_VERIFY_20260610_205500
+// VITE_BUILD_VERIFY_20260610_205500
 import { showToast } from '../../components/Toast';
 import { useParams } from 'react-router-dom';
 import { uploadImage } from '../../lib/image';

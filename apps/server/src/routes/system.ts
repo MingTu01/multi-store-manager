@@ -100,7 +100,7 @@ router.get('/info', (req: AuthRequest, res: Response) => {
     let version = '1.0.0';
     try { version = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
     res.json({ version, userCount, storeCount, entryCount, dbSize: (dbSize / 1024 / 1024).toFixed(2) + ' MB', uptime: process.uptime(), cpu: cpuUsage + '%', memory: Math.round(usedMem / 1048576) + ' / ' + Math.round(totalMem / 1048576) + ' MB', nodeVersion: process.version });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S9: 备份 — 仅 ADMIN
@@ -121,7 +121,7 @@ router.post('/backup', (req: AuthRequest, res: Response) => {
     zip.writeZip(zipPath);
     const size = statSync(zipPath).size;
     res.json({ filename, size: (size / 1024).toFixed(1) + ' KB', message: '备份成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S9+3: 备份信息 — ADMIN + 路径安全
@@ -132,7 +132,7 @@ router.get('/backup-info/:filename', (req: AuthRequest, res: Response) => {
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     const stats = statSync(filepath);
     res.json({ filename: req.params.filename, size: (stats.size / 1024).toFixed(1) + ' KB', sizeBytes: stats.size, date: stats.mtime.toISOString() });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S9: 备份列表 — ADMIN
@@ -146,7 +146,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
       return { filename: f, size: (stats.size / 1024).toFixed(1) + ' KB', date: stats.mtime.toISOString() };
     }).sort((a: any, b: any) => b.date.localeCompare(a.date));
     res.json({ backups: files });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S9+3: 备份下载 — ADMIN + 路径安全
@@ -172,7 +172,7 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
     copyFileSync(file.path, join(backupDir, filename));
     unlinkSync(file.path);
     res.json({ filename, message: '备份上传成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S2: 备份恢复 — ADMIN + 安全脚本生成（JSON.stringify 防注入）+ 路径安全
@@ -253,7 +253,7 @@ router.post('/backups/:filename/restore', async (req: AuthRequest, res: Response
       // Fallback: force exit after 2s if SIGTERM didn't work
       setTimeout(() => process.exit(0), 2000);
     }, 500);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // S9: 删除备份 — ADMIN + 路径安全
@@ -264,7 +264,7 @@ router.delete('/backups/:filename', (req: AuthRequest, res: Response) => {
     if (!filepath || !existsSync(filepath)) return res.status(404).json({ error: '备份不存在' });
     unlinkSync(filepath);
     res.json({ message: '备份已删除' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // 自动备份配置 — ADMIN
@@ -274,7 +274,7 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.put('/auto-backup', (req: AuthRequest, res: Response) => {
@@ -284,7 +284,7 @@ router.put('/auto-backup', (req: AuthRequest, res: Response) => {
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     writeFileSync(configPath, JSON.stringify(req.body, null, 2));
     res.json({ message: '自动备份设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // 升级相关 — ADMIN
@@ -298,7 +298,7 @@ router.get('/upgrade/stream', (req: AuthRequest, res: Response) => {
 
 router.get('/upgrade/status', (req: AuthRequest, res: Response) => {
   if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-  try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  try { res.json(upgradeState); } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: Response) => {
@@ -315,7 +315,7 @@ router.post('/upgrade/validate', upload.single('file'), (req: AuthRequest, res: 
     // Q15: 清理临时文件
     try { unlinkSync(file.path); } catch {}
     res.json({ version, file: file.originalname, valid: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response) => {
@@ -482,7 +482,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         broadcastProgress('error', { message: '升级失败: ' + err.message });
       }
     })();
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // 重启 — ADMIN
@@ -494,7 +494,7 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
       logger.info('[Restart] Sending SIGTERM for restart...');
       process.kill(process.pid, 'SIGTERM');
     }, 500);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 // 通知设置 — ADMIN
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
@@ -514,7 +514,7 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
       return res.json(masked);
     }
     res.json(settings);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.put('/notification-settings', (req: AuthRequest, res: Response) => {
@@ -546,7 +546,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
       s.push_alert ? 1 : 0
     )
     res.json({ message: '通知设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/notification-settings/test', (req: AuthRequest, res: Response) => {
@@ -566,7 +566,7 @@ router.post('/notification-settings/test', (req: AuthRequest, res: Response) => 
     })()
       .then(() => res.json({ message: '测试通知已发送' }))
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 
@@ -589,7 +589,7 @@ router.post('/upgrade/cleanup', (req: AuthRequest, res: Response) => {
       }
     }
     res.json({ message: '清理完成' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 
@@ -702,7 +702,7 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
         warning
       }
     });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // Execute update
@@ -875,7 +875,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('error', { message: '更新失败: ' + err.message });
       }
     })();
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 
@@ -894,7 +894,7 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
     if (result.serverchan_key) result.serverchan_key = decryptToken(result.serverchan_key);
     if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
     res.json(result);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // PUT: 保存自己的设置（加密存储，角色校验）
@@ -931,7 +931,7 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
     res.json({ message: '推送设置已保存' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // POST test: 测试推送（频率限制 + 角色校验）
@@ -958,7 +958,7 @@ router.post('/user-notification-settings/test', async (req: AuthRequest, res: Re
     if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
     else if (errors.length > 0 && results.length === 0) res.status(500).json({ error: '推送失败: ' + errors.join('; ') });
     else res.json({ results, errors });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // ── 推送订阅 API ──
@@ -972,7 +972,7 @@ router.post('/push/subscribe', (req: AuthRequest, res: Response) => {
     if (!endpoint || !keys?.p256dh || !keys?.auth) return res.status(400).json({ error: '参数不完整' });
     saveSubscription(req.user.id, { endpoint, keys });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
@@ -981,7 +981,7 @@ router.post('/push/unsubscribe', (req: AuthRequest, res: Response) => {
     if (!endpoint) return res.status(400).json({ error: '参数不完整' });
     removeSubscription(req.user.id, endpoint);
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/push/test', async (req: AuthRequest, res: Response) => {
@@ -992,7 +992,7 @@ router.post('/push/test', async (req: AuthRequest, res: Response) => {
     }
     await sendPushNotification(req.user.id, '测试推送', '这是一条测试推送消息\n发送时间: ' + new Date().toLocaleString('zh-CN'));
     res.json({ success: true, message: '测试推送已发送' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 export default router;

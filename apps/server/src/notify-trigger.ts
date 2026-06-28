@@ -1,4 +1,4 @@
-﻿import db from './db.js';
+import db from './db.js';
 import { ROLES } from './lib/roles.js';
 import { sendNotification } from './notify.js';
 import { sendPushNotification } from './push-notify.js';

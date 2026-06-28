@@ -46,7 +46,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }));
     res.json({ stores: enriched });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -65,7 +65,7 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
     res.json({ ...store, staff_count: staffCount, shareholders });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -96,7 +96,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -130,7 +130,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
 
     res.json({ message: '门店更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -177,7 +177,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
     res.json({ message: '门店已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 
@@ -323,7 +323,7 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, 0, '更新股东', '更新股东配置');
     res.json({ message: '股东信息更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
 

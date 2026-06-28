@@ -1,4 +1,4 @@
-﻿import { showToast } from '../../components/Toast';
+import { showToast } from '../../components/Toast';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
