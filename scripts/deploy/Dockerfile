@@ -15,15 +15,19 @@ RUN apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/li
 COPY src ./src/
 COPY tsconfig.json ./
 COPY public ./public/
-COPY data/version.json ./data/version.json
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
 COPY startup.sh ./startup.sh
 RUN chmod +x /app/startup.sh
-RUN echo '#!/bin/sh' > /usr/local/bin/msl && echo 'node /app/msl.js' >> /usr/local/bin/msl && chmod +x /usr/local/bin/msl
 
-RUN mkdir -p /public && ln -s /app/public/web-dist /public/web-dist
-RUN mkdir -p data uploads backups
+# Create msl command, directories, and version.json from package.json
+RUN echo '#!/bin/sh' > /usr/local/bin/msl && \
+    echo 'node /app/msl.js' >> /usr/local/bin/msl && \
+    chmod +x /usr/local/bin/msl && \
+    mkdir -p /public data uploads backups && \
+    node -e "const p=require('./package.json');require('fs').writeFileSync('data/version.json',JSON.stringify({version:p.version}))"
+
+RUN ln -s /app/public/web-dist /public/web-dist
 
 ENV NODE_ENV=production
 ENV PORT=3001
