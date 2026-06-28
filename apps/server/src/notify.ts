@@ -24,9 +24,9 @@ function getEncKey(): Buffer {
   try {
     md(join(process.cwd(), 'data'), { recursive: true });
     wf(keyFile, newKey.toString('hex'), 'utf-8');
-    console.log('[NOTIFY] Generated new notify encryption key');
+    if (process.env.NODE_ENV !== 'production') console.log('[NOTIFY] Generated new notify encryption key');
   } catch (e) {
-    console.error('[NOTIFY] Failed to save notify encryption key:', e);
+    if (process.env.NODE_ENV !== 'production') console.error('[NOTIFY] Failed to save notify encryption key:', e);
   }
   return newKey;
 }
@@ -53,7 +53,7 @@ export function decryptToken(enc: string): string {
     const decipher = crypto.createDecipheriv(ENC_ALGO, key, iv);
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final('utf8');
-  } catch (e) { console.warn('[NOTIFY] decryptToken failed:', (e as Error).message); return ''; }
+  } catch (e) { if (process.env.NODE_ENV !== 'production') console.warn('[NOTIFY] decryptToken failed:', (e as Error).message); return ''; }
 }
 
 // ── 全局设置 ──
