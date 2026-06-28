@@ -2,6 +2,10 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
+# Use Alibaba Cloud apt mirrors for speed
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true
+
 RUN apt-get update && \
     apt-get install -y python3 make g++ --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
@@ -18,9 +22,9 @@ COPY public ./public/
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
 COPY startup.sh ./startup.sh
-RUN chmod +x /app/startup.sh
+RUN chmod +x /app/startup.sh && \
+    sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh
 
-# Create msl command, directories, and version.json from package.json
 RUN echo '#!/bin/sh' > /usr/local/bin/msl && \
     echo 'node /app/msl.js' >> /usr/local/bin/msl && \
     chmod +x /usr/local/bin/msl && \
