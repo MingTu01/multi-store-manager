@@ -1,6 +1,7 @@
 import { showToast } from './Toast';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api } from '../lib/api';
+import { isNativeApp } from '../lib/config';
 import { useStore } from '../stores/data';
 import { Modal } from './Modal';
 import { GlassCard } from './GlassCard';
@@ -120,6 +121,7 @@ const role = user?.role ?? '';
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [isIOS, setIsIOS] = useState(false);
   const [hasPushSub, setHasPushSub] = useState(false);
+  const [capPushEnabled, setCapPushEnabled] = useState(false);
   
 
   /* ---- 可见渠道 & 推送选项 ---- */
@@ -133,17 +135,23 @@ const role = user?.role ?? '';
     showToast(text, ok ? 'success' : 'error');
   }, []);
 
-  /* ---- 检查浏览器推送通知权限 + 订阅状态 ---- */
+  /* ---- 检查推送通知权限 ---- */
   useEffect(() => {
     if (!open) return;
     const ua = navigator.userAgent || '';
     setIsIOS(/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-    if ('Notification' in window && 'serviceWorker' in navigator) {
+    if (isNativeApp()) {
+      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+        PushNotifications.checkPermissions().then(perm => {
+          setCapPushEnabled(perm.receive === 'granted');
+          setNotifPermission(perm.receive === 'granted' ? 'granted' : perm.receive === 'denied' ? 'denied' : 'default');
+        }).catch(() => {});
+      }).catch(() => {});
+    } else if ('Notification' in window && 'serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
         setHasPushSub(!!sub);
         setNotifPermission(Notification.permission);
-        
       }).catch(() => {
         setNotifPermission(Notification.permission);
       });
@@ -168,6 +176,26 @@ const role = user?.role ?? '';
   };
 
   const handleRequestNotifPermission = async () => {
+    if (isNativeApp()) {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive !== 'granted') { showMsg(false, '通知权限被拒绝'); return; }
+        await PushNotifications.register();
+        const token = await new Promise((resolve) => {
+          const handler = (t) => { PushNotifications.removeListener('registration', handler); resolve(t.value); };
+          PushNotifications.addListener('registration', handler);
+          setTimeout(() => resolve(''), 15000);
+        });
+        if (token) {
+          await api.post('/system/push/capacitor-token', { token, platform: 'android' });
+          setCapPushEnabled(true);
+          setNotifPermission('granted');
+          showMsg(true, 'APP推送已开启');
+        } else { showMsg(false, '获取推送Token失败'); }
+      } catch (e) { showMsg(false, '开启推送失败: ' + (e.message || '未知错误')); }
+      return;
+    }
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       showMsg(false, "当前浏览器不支持推送通知");
       return;
@@ -441,11 +469,11 @@ const role = user?.role ?? '';
               </p>
             </GlassCard>
 
-            {/* ===== 浏览器推送通知 ===== */}
+            {/* ===== 推送通知 ===== */}
             <GlassCard className="p-4">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
                 <Bell className="h-4 w-4 text-indigo-500" />
-                浏览器推送通知
+                {isNativeApp() ? 'APP 推送通知' : '浏览器推送通知'}
               </h3>
               <div className="flex items-center justify-between rounded-xl bg-white/40 p-3">
                 <div className="flex items-center gap-3">
@@ -460,20 +488,43 @@ const role = user?.role ?? '';
                   />
                   <div>
                     <div className="text-sm font-medium text-slate-700">
-                      浏览器推送通知
+                      {isNativeApp() ? 'APP 推送通知' : '浏览器推送通知'}
                     </div>
                     <div className="text-xs text-slate-400">
-                      {notifPermission === 'granted' && hasPushSub
-                        ? '已开启 · 已订阅'
-                        : notifPermission === 'granted'
-                        ? '已授权 · 未订阅'
-                        : notifPermission === 'denied'
-                        ? '已拒绝，请到浏览器设置中开启通知权限'
-                        : '未开启'}
+                      {isNativeApp()
+                        ? (capPushEnabled ? '已开启' : '未开启')
+                        : (notifPermission === 'granted' && hasPushSub
+                          ? '已开启 · 已订阅'
+                          : notifPermission === 'granted'
+                          ? '已授权 · 未订阅'
+                          : notifPermission === 'denied'
+                          ? '已拒绝，请到浏览器设置中开启通知权限'
+                          : '未开启')}
                     </div>
                   </div>
                 </div>
-                {notifPermission === 'granted' && hasPushSub ? (
+                {isNativeApp() ? (
+                  capPushEnabled ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.post('/system/push/test');
+                          showMsg(true, '测试推送已发送，请查看设备通知');
+                        } catch(e) { showMsg(false, '发送失败'); }
+                      }}
+                      className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                    >
+                      测试推送
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRequestNotifPermission}
+                      className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100"
+                    >
+                      开启通知
+                    </button>
+                  )
+                ) : notifPermission === 'granted' && hasPushSub ? (
                   <button
                     onClick={async () => {
                       try {

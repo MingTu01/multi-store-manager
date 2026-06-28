@@ -1,3 +1,18 @@
+## v1.6.3 (2026-06-28)
+
+状态栏适配 + Capacitor 原生推送
+
+### 状态栏适配
+- 添加 safe-area-inset-top padding，适配刘海屏和状态栏
+- AppShell 使用 CSS env() 安全区域变量
+- BottomNav 底部安全区域适配
+
+### Capacitor 原生推送
+- BrowserPushPrompt 检测原生环境，使用 Capacitor PushNotifications 插件
+- PushSettingsModal 原生 APP 显示「APP 推送通知」而非「浏览器推送通知」
+- 服务端新增 /push/capacitor-token 端点存储原生推送 Token
+- 安装 @capacitor/push-notifications 依赖
+
 ## v1.6.1 (2026-06-28)
 
 APP 原生 HTTP 绕过 CORS + 测试连接修复

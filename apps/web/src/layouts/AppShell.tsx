@@ -16,11 +16,11 @@ export function AppShell() {
   const showAdminNav = !storeId || user?.role === "ADMIN";
   
   return (
-    <div className="min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/30" data-readonly={user?.role === "SHAREHOLDER" ? "true" : undefined}>
+    <div className="min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-indigo-50/30 pt-[env(safe-area-inset-top,0px)]" data-readonly={user?.role === "SHAREHOLDER" ? "true" : undefined}>
       <ToastContainer />
       <BrowserPushPrompt />
       {showAdminNav && <Sidebar />}
-      <main className={`overflow-x-hidden pb-20 ${showAdminNav ? "lg:pl-64" : ""} lg:pb-6`}>
+      <main className={`overflow-x-hidden pb-[calc(5rem+env(safe-area-inset-bottom,0px))] ${showAdminNav ? "lg:pl-64" : ""} lg:pb-6`}>
         <div className="mx-auto max-w-5xl px-4 py-4 lg:px-6 lg:py-6">
           <Outlet />
         </div>

@@ -1,39 +1,89 @@
 import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { api } from '../lib/api';
+import { isNativeApp } from '../lib/config';
 
 export function BrowserPushPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Only check if browser supports notifications
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-    // Don't show if already dismissed
-    if (localStorage.getItem('msl_push_dismissed')) return;
-    // Don't show if already denied or granted+subscribed
-    if (Notification.permission === 'denied') return;
-    // Skip if already granted (user already enabled before)
-    if (Notification.permission === 'granted') {
-      navigator.serviceWorker.ready.then(async (reg) => {
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) return;
-        setTimeout(() => setShow(true), 2000);
-      }).catch(() => {});
+    if (isNativeApp()) {
+      // Native app: use Capacitor PushNotifications
+      initCapacitorPush();
     } else {
-      // Permission is 'default' - show prompt
-      navigator.serviceWorker.ready.then(async (reg) => {
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) return;
-        setTimeout(() => setShow(true), 2000);
-      }).catch(() => {});
+      // Browser: use Web Push API
+      initBrowserPush();
     }
   }, []);
 
-  if (!show) return null;
+  const initCapacitorPush = async () => {
+    try {
+      if (localStorage.getItem('msl_push_dismissed')) return;
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      const perm = await PushNotifications.checkPermissions();
+      if (perm.receive === 'granted') {
+        await registerToken();
+        return;
+      }
+      if (perm.receive === 'denied') return;
+      setTimeout(() => setShow(true), 2000);
+    } catch {
+      // Plugin not available
+    }
+  };
+
+  const initBrowserPush = () => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    if (localStorage.getItem('msl_push_dismissed')) return;
+    if (Notification.permission === 'denied') return;
+    navigator.serviceWorker.ready.then(async (reg) => {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) return;
+      setTimeout(() => setShow(true), 2000);
+    }).catch(() => {});
+  };
+
+  const registerToken = async () => {
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      await PushNotifications.register();
+      const tokenHandler = await new Promise<string>((resolve) => {
+        const handler = (token: any) => {
+          PushNotifications.removeListener('registration', handler);
+          resolve(token.value);
+        };
+        PushNotifications.addListener('registration', handler);
+        setTimeout(() => {
+          PushNotifications.removeListener('registration', handler);
+          resolve('');
+        }, 15000);
+      });
+      if (tokenHandler) {
+        await api.post('/system/push/capacitor-token', { token: tokenHandler, platform: 'android' });
+      }
+    } catch {
+      // silent fail
+    }
+  };
 
   const handleEnable = async () => {
     setShow(false);
     localStorage.setItem('msl_push_dismissed', '1');
+
+    if (isNativeApp()) {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive === 'granted') {
+          await registerToken();
+        }
+      } catch {
+        // silent fail
+      }
+      return;
+    }
+
+    // Browser path
     try {
       if (Notification.permission !== 'granted') {
         const result = await Notification.requestPermission();
@@ -47,15 +97,13 @@ export function BrowserPushPrompt() {
       const raw = atob(padded);
       const appKey = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) appKey[i] = raw.charCodeAt(i);
-      // Subscribe with timeout fallback for mobile browsers
       let sub = null;
       try {
         sub = await Promise.race([
           reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: appKey }),
           new Promise((r) => setTimeout(() => r(null), 10000))
         ]);
-      } catch (_) {}
-      // Polling fallback
+      } catch {}
       if (!sub) {
         for (let i = 0; i < 20; i++) {
           await new Promise(r => setTimeout(r, 500));
@@ -67,7 +115,7 @@ export function BrowserPushPrompt() {
         const subJson = sub.toJSON();
         await api.post('/system/push/subscribe', { endpoint: subJson.endpoint, keys: subJson.keys });
       }
-    } catch (e) {
+    } catch {
       // silent fail
     }
   };
@@ -76,6 +124,8 @@ export function BrowserPushPrompt() {
     localStorage.setItem('msl_push_dismissed', '1');
     setShow(false);
   };
+
+  if (!show) return null;
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 backdrop-blur-sm">

@@ -1069,5 +1069,15 @@ router.post('/push/test', async (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
+// Capacitor native push token
+router.post('/push/capacitor-token', (req: AuthRequest, res: Response) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    db.prepare('INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)').run(req.user.id, 'capacitor:' + token, platform || 'android', '');
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+});
+
 export default router;
 
