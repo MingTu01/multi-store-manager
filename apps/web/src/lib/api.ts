@@ -84,7 +84,7 @@ async function parseError(r: Response, silent = false): Promise<Error> {
       }
       if (!isRedirectingToLogin) {
         isRedirectingToLogin = true;
-        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+        fetch(getBaseURL() + '/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
         if (!silent && location.pathname !== '/login') {
           location.href = '/login';
         }
