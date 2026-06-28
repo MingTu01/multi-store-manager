@@ -98,23 +98,36 @@ function handleEvent(eventName: string, data: any) {
   if (eventName === 'data-change') {
     try {
       const { bumpGlobal, bumpStore, bumpNotifications } = useDataSync.getState();
+      // SSE already carries unreadCount, update directly
       if (typeof data.unreadCount === 'number') {
         useNotificationStore.setState({ unreadCount: data.unreadCount });
       }
+      // Precise cache invalidation by event type
+      const eventType = data.type || '';
       if (data.storeId) {
-        invalidateCache('/stores/' + data.storeId);
-        invalidateCache('/stores/' + data.storeId + '/entries');
-        invalidateCache('/stores/' + data.storeId + '/entries/stats');
-        invalidateCache('/stores/' + data.storeId + '/inventory');
-        invalidateCache('/stores/' + data.storeId + '/report');
         bumpStore(data.storeId);
+        invalidateCache('/stores/' + data.storeId);
+        if (eventType === 'entry' || eventType === 'purchase') {
+          invalidateCache('/stores/' + data.storeId + '/entries');
+          invalidateCache('/stores/' + data.storeId + '/entries/stats');
+          invalidateCache('/stores/' + data.storeId + '/report');
+        }
+        if (eventType === 'inventory') {
+          invalidateCache('/stores/' + data.storeId + '/inventory');
+        }
+        if (eventType === 'shift') {
+          invalidateCache('/stores/' + data.storeId + '/shifts');
+        }
       }
-      invalidateCache('/notifications');
-      invalidateCache('/unread-count');
-      invalidateCache('/stores');
-      invalidateCache('/dashboard');
-      bumpGlobal();
-      bumpNotifications();
+      if (eventType === 'notification') {
+        invalidateCache('/notifications');
+        invalidateCache('/unread-count');
+        bumpNotifications();
+      }
+      if (['entry', 'payroll', 'dividend'].includes(eventType)) {
+        invalidateCache('/dashboard');
+        bumpGlobal();
+      }
     } catch (e) { console.error('[SSE] handleEvent error:', e); }
   }
 }

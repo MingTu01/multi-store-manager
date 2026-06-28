@@ -27,27 +27,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
    * 使用计数器限制最多拦截 10 次，防止无限循环。
    */
   private setupConsoleErrorInterceptor() {
-    this.originalConsoleError = console.error.bind(console);
-    const self = this;
-
-    console.error = function (...args: unknown[]) {
-      const message = args
-        .map((a) => (typeof a === 'string' ? a : String(a)))
-        .join(' ');
-
-      if (message.includes('removeChild') || message.includes('not a child of this node')) {
-        if (self.removeChildInterceptCount < 10) {
-          self.removeChildInterceptCount++;
-          // 静默吞掉，不再输出到控制台
-          return;
-        }
-        // 超过 10 次，放行原始输出，避免隐藏真正的问题
-      }
-
-      if (self.originalConsoleError) {
-        self.originalConsoleError(...args);
-      }
-    };
+    // No-op: removeChild errors handled by React 19.1+
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {

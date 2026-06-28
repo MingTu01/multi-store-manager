@@ -68,6 +68,7 @@ export const useStore = create<AppState>((set) => ({
         }
         const d = await res.json();
         if (d.user) {
+          resetRedirectFlag();
           set({ user: d.user || null, token: 'cookie', loading: false });
           return;
         }

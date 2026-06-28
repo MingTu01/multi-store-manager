@@ -4,6 +4,7 @@ import { useStore } from '../stores/data';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
+import { useUnreadPolling } from '../hooks/useUnreadPolling';
 import { canAccess } from '../lib/permissions';
 import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft, Truck } from 'lucide-react';
 

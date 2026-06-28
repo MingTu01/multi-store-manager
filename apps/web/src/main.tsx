@@ -12,42 +12,6 @@
   (window as any)[marker] = true;
 
   // =====================================================
-  // 全局 removeChild 错误拦截（三层防御）
-  // =====================================================
-
-  // 第一层：DOM 层拦截
-  var originalRemoveChild = Node.prototype.removeChild;
-  Node.prototype.removeChild = function<T extends Node>(child: T): T {
-    try {
-      return originalRemoveChild.call(this, child) as T;
-    } catch (e) {
-      return child;
-    }
-  };
-
-  // 第二层：console.error 拦截
-  var originalConsoleError = console.error;
-  var removeChildCount = 0;
-  console.error = function(...args: unknown[]) {
-    var msg = args.map(function(a) { return typeof a === 'string' ? a : String(a); }).join(' ');
-    if ((msg.indexOf('removeChild') !== -1 || msg.indexOf('not a child of this node') !== -1) && removeChildCount < 20) {
-      removeChildCount++;
-      return;
-    }
-    originalConsoleError.apply(console, args);
-  };
-
-  // 第三层：window.onerror 拦截
-  window.addEventListener('error', function(e) {
-    if (e.message && (e.message.indexOf('removeChild') !== -1 || e.message.indexOf('not a child of this node') !== -1)) {
-      e.preventDefault();
-      return true;
-    }
-  });
-
-  // =====================================================
-  // SW 清理 + 注册
-  // =====================================================
   if ('serviceWorker' in navigator) {
     // Clean old caches but keep SW registration (preserves push subscriptions)
     caches.keys().then(function(names) {
@@ -80,7 +44,6 @@
       </BrowserRouter>,
     );
   }).catch(function(err) {
-    if (err.message && err.message.indexOf('__msl_duplicate') !== -1) return;
-
+    console.error('[MSL] Failed to load application:', err);
   });
 })();

@@ -176,7 +176,7 @@ router.post('/backups/upload', upload.single('file'), (req: AuthRequest, res: Re
 });
 
 // S2: 备份恢复 — ADMIN + 安全脚本生成（JSON.stringify 防注入）+ 路径安全
-router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
+router.post('/backups/:filename/restore', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const filepath = safePath(join(BASE_DIR, 'backups'), req.params.filename);
@@ -221,7 +221,7 @@ router.post('/backups/:filename/restore', (req: AuthRequest, res: Response) => {
 
     // Step 6: Verify DB is readable
     try {
-      const Database = require('better-sqlite3');
+      const Database = (await import('better-sqlite3')).default;
       const testDb = new Database(restoredDb, { readonly: true });
       const storeCount = testDb.prepare('SELECT count(*) as c FROM stores').get().c;
       const userCount = testDb.prepare('SELECT count(*) as c FROM users').get().c;

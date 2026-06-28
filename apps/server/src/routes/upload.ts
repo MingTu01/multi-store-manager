@@ -7,6 +7,7 @@ import multer from 'multer';
 import crypto from 'crypto';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
+import { isStoreAdmin } from '../lib/roles.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -61,6 +62,9 @@ router.post('/:type', upload.single('file'), (req: AuthRequest, res: Response) =
 });
 
 router.delete('/', (req: AuthRequest, res: Response) => {
+    if (!isStoreAdmin(req.user.role)) {
+      return res.status(403).json({ error: '无权限删除文件' });
+    }
   try {
     const { url } = req.body;
     if (!url || !url.startsWith('/uploads/')) return res.status(400).json({ error: '无效的文件路径' });

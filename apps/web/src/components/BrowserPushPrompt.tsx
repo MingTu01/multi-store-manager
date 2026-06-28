@@ -14,14 +14,10 @@ export function BrowserPushPrompt() {
     if (Notification.permission === 'denied') return;
     // Skip if already granted (user already enabled before)
     if (Notification.permission === 'granted') {
-
-    navigator.serviceWorker.ready.then(async (reg) => {
+      navigator.serviceWorker.ready.then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
-        if (sub) return; // already subscribed
-        // Only show prompt if permission not yet granted
-        if (Notification.permission !== 'granted') {
-          setTimeout(() => setShow(true), 2000);
-        }
+        if (sub) return;
+        setTimeout(() => setShow(true), 2000);
       }).catch(() => {});
     } else {
       // Permission is 'default' - show prompt

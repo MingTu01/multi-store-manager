@@ -1,4 +1,6 @@
 import { Router, Response } from 'express';
+import { AuthRequest } from '../auth.js';
+import { isManagerOrAbove } from '../lib/roles.js';
 import db from '../db.js';
 import { localDate, calculateFundBalance } from '../lib/utils.js';
 import { AuthRequest } from '../auth.js';
@@ -8,6 +10,9 @@ import { AuthRequest } from '../auth.js';
 const router = Router({ mergeParams: true });
 
 router.get('/', (req: AuthRequest, res: Response) => {
+    if (!isManagerOrAbove(req.user.role)) {
+      return res.status(403).json({ error: '无权限访问管理面板' });
+    }
   try {
     // Q13: 仅 ADMIN 可访问管理大屏
     

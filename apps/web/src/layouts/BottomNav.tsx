@@ -5,6 +5,7 @@ import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
+import { useUnreadPolling } from '../hooks/useUnreadPolling';
 import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft, Truck } from 'lucide-react';
 
 // All store tabs in priority order

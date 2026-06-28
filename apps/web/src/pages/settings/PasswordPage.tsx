@@ -18,9 +18,9 @@ export default function PasswordPage() {
 
   const handleSubmit = async () => {
     
-    if (!form.old || !form.pwd) {  return; }
-    if (form.pwd !== form.confirm) {  return; }
-    if (form.pwd.length < 6) {  return; }
+    if (!form.old || !form.pwd) { showToast('请输入旧密码和新密码', 'error'); return; }
+    if (form.pwd !== form.confirm) { showToast('两次输入的密码不一致', 'error'); return; }
+    if (form.pwd.length < 6) { showToast('密码长度不能少于6位', 'error'); return; }
     setSaving(true);
     try {
       const d = await api.put('/auth/password', { oldPassword: form.old, newPassword: form.pwd });

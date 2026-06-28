@@ -1,16 +1,11 @@
-import { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useState, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
  * PortalContainer - React 19 安全的 Portal 容器
  * 
- * 使用专用 div 容器代替直接渲染到 document.body，
- * 避免 React 19 commit 阶段的 removeChild 错误。
- * 
- * 用法：
- *   <PortalContainer>
- *     <MyModal />
- *   </PortalContainer>
+ * 使用 useState + useLayoutEffect 确保容器创建后触发重渲染
+ * 避免 useRef + useEffect 模式下 ref 变化不触发渲染的问题
  */
 
 let portalRoot: HTMLDivElement | null = null;
@@ -30,25 +25,23 @@ interface PortalContainerProps {
 }
 
 export function PortalContainer({ children }: PortalContainerProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    // 创建专用容器 div，而不是直接渲染到 document.body
-    const container = document.createElement('div');
-    container.style.cssText = 'position:relative;z-index:9999;';
+  useLayoutEffect(() => {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:relative;z-index:9999;';
     const root = getPortalRoot();
-    root.appendChild(container);
-    containerRef.current = container;
+    root.appendChild(el);
+    setContainer(el);
 
     return () => {
-      // 清理：从 portal root 移除容器
-      if (container.parentNode === root) {
-        root.removeChild(container);
+      if (el.parentNode === root) {
+        root.removeChild(el);
       }
-      containerRef.current = null;
+      setContainer(null);
     };
   }, []);
 
-  if (!containerRef.current) return null;
-  return createPortal(children, containerRef.current);
+  if (!container) return null;
+  return createPortal(children, container);
 }

@@ -8,7 +8,7 @@ import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../l
 import { opLog } from '../oplog.js';
 import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
-import { sendStoreNotification } from '../notify.js';
+import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
 
 const router = Router();
 
@@ -334,7 +334,13 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
       settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
     }
-    // 脱敏：只有 ADMIN 才能看到完整密钥
+    if (settings) {
+      const s = settings as any;
+      if (s.pushplus_token) s.pushplus_token = decryptToken(s.pushplus_token);
+      if (s.serverchan_key) s.serverchan_key = decryptToken(s.serverchan_key);
+      if (s.wecom_secret) s.wecom_secret = decryptToken(s.wecom_secret);
+    }
+        // 脱敏：只有 ADMIN 才能看到完整密钥
     if (!isAdmin(req.user.role)) {
       const masked = { ...settings };
       const sensitiveFields = ['pushplus_token', 'serverchan_key', 'wecom_secret'];
@@ -369,8 +375,8 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       push_monthly_report=COALESCE(?, push_monthly_report), push_review_reminder=COALESCE(?, push_review_reminder),
       push_alert=COALESCE(?, push_alert), updated_at=datetime('now','localtime')
       WHERE store_id=?`).run(
-      s.method, s.pushplus_token, s.serverchan_key, s.wecom_corpid, s.wecom_agentid,
-      s.wecom_secret, s.wecom_userid, s.wecom_proxy_url,
+      s.method, encryptToken(s.pushplus_token || ''), encryptToken(s.serverchan_key || ''), s.wecom_corpid, s.wecom_agentid,
+      encryptToken(s.wecom_secret || ''), s.wecom_userid, s.wecom_proxy_url,
       s.push_daily_report, s.push_weekly_report, s.push_monthly_report,
       s.push_review_reminder, s.push_alert, storeId
     );
@@ -384,6 +390,11 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
+    if (dbSettings) {
+      if (dbSettings.pushplus_token) dbSettings.pushplus_token = decryptToken(dbSettings.pushplus_token);
+      if (dbSettings.serverchan_key) dbSettings.serverchan_key = decryptToken(dbSettings.serverchan_key);
+      if (dbSettings.wecom_secret) dbSettings.wecom_secret = decryptToken(dbSettings.wecom_secret);
+    }
     const bodyConfig = req.body && req.body.config ? req.body.config : {};
     const settings = Object.assign({}, dbSettings || {}, bodyConfig);
     const channel = (req.query.channel as string) || '';

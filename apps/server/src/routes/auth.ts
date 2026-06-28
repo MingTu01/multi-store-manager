@@ -29,7 +29,7 @@ router.post('/login', loginLimiter, (req, res) => {
     const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
     setAuthCookie(res, token);
     const { password_hash, ...userData } = user;
-    res.json({ token, user: userData });
+    res.json({ user: userData });
   } catch (err: any) { res.status(500).json({ error: '登录失败，请稍后重试' }); }
 });
 
