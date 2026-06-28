@@ -11,7 +11,7 @@ let globalReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let globalStopped = false;
 let reconnectDelay = 3000;
 const MAX_RECONNECT_DELAY = 60000;
-const MAX_RECONNECT_ATTEMPTS = 50;
+const MAX_RECONNECT_ATTEMPTS = 20;
 let reconnectAttempts = 0;
 let isConnecting = false; // 防止重复连接
 const listeners = new Set<(s: ConnectionStatus) => void>();
