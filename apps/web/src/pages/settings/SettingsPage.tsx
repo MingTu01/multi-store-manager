@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
 import { useConfirm } from '../../components/useConfirm';
+import { getBaseURL } from '../../lib/config';
 
 type Tab = 'info' | 'backup' | 'upgrade' | 'perms' | 'ocr';
 const tabs: { key: Tab; label: string; icon: any }[] = [
@@ -146,7 +147,7 @@ export default function SettingsPage() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const r = await fetch('/api/system/backups/upload', {
+      const r = await fetch(getBaseURL() + '/api/system/backups/upload', {
         method: 'POST',
         credentials: 'include',
         body: fd
@@ -189,7 +190,7 @@ export default function SettingsPage() {
         for (let i = 0; i < 30; i++) {
           await new Promise(r => setTimeout(r, 1000));
           try {
-            const r = await fetch('/api/system/info', { credentials: 'include' });
+            const r = await fetch(getBaseURL() + '/api/system/info', { credentials: 'include' });
             if (r.ok) {
               setRestoreSteps(prev => {
                 const newSteps = [...prev];
@@ -223,7 +224,7 @@ export default function SettingsPage() {
     try { await api.del('/system/backups/' + filename); showMsg(true, '备份已删除'); setBackups(b => b.filter(x => x.filename !== filename)); }
     catch (e: any) { showMsg(false, e.message || '删除失败'); }
   };
-  const handleDownload = async (filename: string) => { try { const r = await fetch('/api/system/backups/' + filename + '/download', { credentials: 'include' }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { showToast('下载失败', 'error'); } };
+  const handleDownload = async (filename: string) => { try { const r = await fetch(getBaseURL() + '/api/system/backups/' + filename + '/download', { credentials: 'include' }); const blob = await r.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); } catch (e) { showToast('下载失败', 'error'); } };
   
   // Get backup type label
   const getBackupType = (filename: string) => {
@@ -272,7 +273,7 @@ export default function SettingsPage() {
     const fd = new FormData();
     fd.append('file', file);
     try {
-      const r: any = await fetch('/api/system/upgrade/validate', { method: 'POST', credentials: 'include', body: fd }).then(r => {
+      const r: any = await fetch(getBaseURL() + '/api/system/upgrade/validate', { method: 'POST', credentials: 'include', body: fd }).then(r => {
         if (!r.ok) throw new Error('验证失败');
         return r.json();
       });
@@ -353,7 +354,7 @@ export default function SettingsPage() {
           try {
             const ctrl = new AbortController();
             const tmo = setTimeout(() => ctrl.abort(), 5000);
-            const res = await fetch('/api/system/upgrade/status', { credentials: 'include', signal: ctrl.signal });
+            const res = await fetch(getBaseURL() + '/api/system/upgrade/status', { credentials: 'include', signal: ctrl.signal });
             clearTimeout(tmo);
             if (res.ok) {
               const state = await res.json();
@@ -859,7 +860,7 @@ export default function SettingsPage() {
 
 
       {/* === Upgrade Progress Modal === */}
-      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { delete (window as any).__upgradeInProgress; fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
+      <Modal open={showProgressModal} onClose={() => { if (upgradeComplete || (!upgrading && !updating)) { delete (window as any).__upgradeInProgress; fetch(getBaseURL() + '/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); } }} title={updating ? "在线更新" : "ZIP升级"}>
         <div className="space-y-6">
           {uploadProgress > 0 && uploadProgress < 100 && (
             <div className="space-y-2">
@@ -912,7 +913,7 @@ export default function SettingsPage() {
                 <div className="text-xl font-bold text-emerald-700 mb-1">升级完成</div>
                 <div className="text-sm text-emerald-500">系统已更新到最新版本</div>
               </div>
-              <button onClick={() => { delete (window as any).__upgradeInProgress; fetch('/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); reloadWithCacheClear(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
+              <button onClick={() => { delete (window as any).__upgradeInProgress; fetch(getBaseURL() + '/api/system/upgrade/cleanup', { method: 'POST', credentials: 'include' }); setShowProgressModal(false); setUpgradeFile(null); setUpgradeInfo(null); setUpgradeComplete(false); reloadWithCacheClear(); }} className="btn w-full flex items-center justify-center gap-2 py-3 text-base font-medium">
                 <RefreshCw className="h-5 w-5" />确认并刷新页面
               </button>
             </div>
