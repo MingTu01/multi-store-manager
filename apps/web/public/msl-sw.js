@@ -9,6 +9,18 @@ self.addEventListener('activate', function(event) {
   );
 });
 
+
+// Network-first strategy for HTML (PWA offline support)
+self.addEventListener('fetch', function(event) {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(function() {
+        return caches.match('/index.html') || new Response('Offline', { status: 503 });
+      })
+    );
+  }
+});
+
 self.addEventListener('push', function(event) {
   var data = { title: '\u65B0\u901A\u77E5', body: '', url: '/' };
   try { if (event.data) data = event.data.json(); } catch (e) {}
