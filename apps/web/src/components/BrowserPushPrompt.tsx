@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { api } from '../lib/api';
 import { isNativeApp } from '../lib/config';
-import { JPush } from 'capacitor-plugin-jpush';
 
 export function BrowserPushPrompt() {
   const [show, setShow] = useState(false);
@@ -20,6 +19,7 @@ export function BrowserPushPrompt() {
   const initCapacitorPush = async () => {
     try {
       if (localStorage.getItem('msl_push_dismissed')) return;
+      const { JPush } = await import('capacitor-plugin-jpush');
       await JPush.startJPush();
       // Re-apply status bar after JPush init (may reset it)
       try {
@@ -42,7 +42,8 @@ export function BrowserPushPrompt() {
 
   const registerJPush = async () => {
     try {
-      const { registrationId } = await JPush.getRegistrationID();
+      const { JPush: JP2 } = await import('capacitor-plugin-jpush');
+        const { registrationId } = await JP2.getRegistrationID();
       if (registrationId) {
         await api.post('/system/push/jpush-register', { registrationId });
       }
@@ -70,7 +71,8 @@ export function BrowserPushPrompt() {
 
     if (isNativeApp()) {
       try {
-        const perm = await JPush.requestPermissions();
+        const { JPush: JP3 } = await import('capacitor-plugin-jpush');
+        const perm = await JP3.requestPermissions();
         if (perm.permission === 'granted') {
           await registerJPush();
         }

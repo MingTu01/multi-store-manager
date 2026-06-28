@@ -26,6 +26,8 @@ export default function StoreShiftsPage() {
   const [loadedPhotos, setLoadedPhotos] = useState<Record<number, string[]>>({});
   const [lastHandover, setLastHandover] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const user = useStore((s: any) => s.user);
+  const isReadonly = user?.role === 'SHAREHOLDER';
 
   const loadShiftPhotos = async (shiftId: number) => {
     if (loadedPhotos[shiftId]) return;
