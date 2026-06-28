@@ -11,6 +11,22 @@
   }
   (window as any)[marker] = true;
 
+  // Re-apply status bar when app resumes
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    import('@capacitor/app').then(({ App }) => {
+      App.addListener('appStateChange', async ({ isActive }) => {
+        if (isActive) {
+          try {
+            const mod = await import('@capacitor/status-bar');
+            await mod.StatusBar.setStyle({ style: mod.Style.Dark });
+            await mod.StatusBar.setBackgroundColor({ color: '#ffffff' });
+            await mod.StatusBar.setOverlaysWebView({ overlay: false });
+          } catch {}
+        }
+      });
+    }).catch(() => {});
+  }
+
   // Capacitor native status bar
   if ((window as any).Capacitor?.isNativePlatform?.()) {
     import('@capacitor/status-bar').then(({ StatusBar, Style }) => {

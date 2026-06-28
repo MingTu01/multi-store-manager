@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { getBaseURL, isNativeApp } from '../lib/config';
 
 // React 19 安全的 portal 容器
 let imagePortalContainer: HTMLDivElement | null = null;
@@ -12,6 +13,13 @@ function getImagePortalContainer(): HTMLDivElement {
     document.body.appendChild(imagePortalContainer);
   }
   return imagePortalContainer;
+}
+
+function resolveImageUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http')) return url;
+  if (isNativeApp() && url.startsWith('/')) return getBaseURL() + url;
+  return url;
 }
 
 interface ImagePreviewProps {
@@ -197,7 +205,7 @@ export function ImagePreview({ src, alt = '', children, className = '' }: ImageP
         style={{ touchAction: 'none' }}
       >
         <img
-          src={src}
+          src={resolveImageUrl(src)}
           alt={alt}
           className="max-w-[90vw] max-h-[90vh] object-contain pointer-events-none"
           style={{
@@ -219,7 +227,7 @@ export function ImagePreview({ src, alt = '', children, className = '' }: ImageP
   return (
     <>
       <div className={`cursor-pointer ${className}`} onClick={() => setOpen(true)}>
-        {children || <img src={src} alt={alt} className="w-full h-full object-cover" />}
+        {children || <img src={resolveImageUrl(src)} alt={alt} className="w-full h-full object-cover" />}
       </div>
       {preview}
     </>
