@@ -1,3 +1,10 @@
+## v1.7.3b (2026-06-29)
+
+### JPush Integration
+- Hardcoded JPush appKey and masterSecret as defaults in server code
+- No manual configuration needed - works out of the box
+- capacitor.config.json appKey matches server defaults
+
 ## v1.7.3 (2026-06-29)
 
 ### Native APP Fixes
