@@ -11,6 +11,15 @@
   }
   (window as any)[marker] = true;
 
+  // Capacitor native status bar
+  if ((window as any).Capacitor?.isNativePlatform?.()) {
+    import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
+      StatusBar.setStyle({ style: Style.Light });
+      StatusBar.setBackgroundColor({ color: '#3b63f7' });
+      StatusBar.setOverlaysWebView({ overlay: false });
+    }).catch(() => {});
+  }
+
   // =====================================================
   if ('serviceWorker' in navigator) {
     // Clean old caches but keep SW registration (preserves push subscriptions)

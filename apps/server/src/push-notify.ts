@@ -63,6 +63,11 @@ export async function sendPushNotification(userId: number, title: string, body: 
   const payload = JSON.stringify({ title, body, url: url || '/', icon: '/logo-192.png', badge: '/logo-64.png' });
 
   for (const sub of subs) {
+    // Skip Capacitor native tokens (need FCM integration)
+    if (sub.endpoint && sub.endpoint.startsWith('capacitor:')) {
+      logger.info('[Push] Skipping Capacitor token for user ' + userId + ' (FCM not yet configured)');
+      continue;
+    }
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
@@ -71,7 +76,6 @@ export async function sendPushNotification(userId: number, title: string, body: 
       );
     } catch (e: any) {
       if (process.env.NODE_ENV !== 'production') logger.warn('[Push] Failed to send to user' + userId + ':', e.message);
-      // 如果订阅失效（410 Gone），删除它
       if (e.statusCode === 410) {
         removeSubscription(userId, sub.endpoint);
       }
