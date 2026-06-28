@@ -293,7 +293,7 @@ app.get('{*splat}', (req, res) => {
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message);
   console.error('[FATAL] Stack:', err.stack);
-    process.exit(1); // 让 Docker restart:always 自动重启
+  gracefulShutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] Unhandled Rejection:', reason);

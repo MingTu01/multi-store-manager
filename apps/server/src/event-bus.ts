@@ -19,6 +19,12 @@ class EventBus {
   private counter = 0;
 
   addClient(userId: number, role: string, storeId: string | null, res: Response): string {
+    // Per-user connection limit: max 3 SSE connections
+    const userConns = [...this.clients.values()].filter(c => c.userId === userId).length;
+    if (userConns >= 3) {
+      console.log('[SSE] Connection limit reached for user ' + userId);
+      return '';
+    }
     const id = 'client_' + (++this.counter);
     this.clients.set(id, { id, userId, role, storeId, res });
     console.log('[SSE] Client connected: ' + id + ' (user ' + userId + '), total: ' + this.clients.size);

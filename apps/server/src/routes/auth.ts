@@ -24,7 +24,7 @@ router.post('/login', loginLimiter, (req, res) => {
     if (!username || !password) return res.status(400).json({ error: '请输入用户名和密码' });
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
     if (!user) return res.status(401).json({ error: '用户名或密码错误' });
-    if (user.status !== 'active') return res.status(403).json({ error: '账号已被禁用' });
+    if (user.status !== 'active') return res.status(401).json({ error: '用户名或密码错误' });
     if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
     const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
     setAuthCookie(res, token);
@@ -42,7 +42,7 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
+router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { phone, address, avatar, oldPassword, newPassword } = req.body;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
@@ -63,7 +63,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {
       if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
-      updates.push('password_hash=?'); vals.push(bcrypt.hashSync(newPassword, 10));
+      updates.push('password_hash=?'); vals.push(await bcrypt.hash(newPassword, 10));
     }
     if (updates.length === 0) return res.status(400).json({ error: '没有需要更新的内容' });
     updates.push("updated_at=datetime('now','localtime')");
@@ -75,7 +75,7 @@ router.put('/me', authMiddleware, (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
+router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword) return res.status(400).json({ error: '请输入旧密码和新密码' });
@@ -83,7 +83,7 @@ router.put('/password', authMiddleware, (req: AuthRequest, res: Response) => {
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) return res.status(404).json({ error: '用户不存在' });
     if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
-    const hash = bcrypt.hashSync(newPassword, 10);
+    const hash = await bcrypt.hash(newPassword, 10);
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     res.json({ message: '密码修改成功' });

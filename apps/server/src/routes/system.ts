@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import { join } from 'path';
 const BASE_DIR = join(__dirname, '..', '..');
-import { exec, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { readdirSync, statSync, unlinkSync, copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, cpSync } from 'fs';
 import os from 'os';
 import crypto from 'crypto';
@@ -197,6 +197,8 @@ router.post('/backups/:filename/restore', async (req: AuthRequest, res: Response
 
     // Step 2: Checkpoint WAL and close DB connections gracefully
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch {}
+    db.close();
+    console.log('[Restore] Database closed for safe restore');
 
     // Step 3: Delete old DB files
     try { unlinkSync(join(dbDir, 'store.db')); } catch {}
@@ -431,7 +433,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         try {
           console.log('[Upgrade] Running npm install...');
           broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
-          execFileSync('npm', ['install', '--omit=dev'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
+          execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
           console.log('[Upgrade] npm install completed');
         } catch (e) {
           console.error('[Upgrade] npm install FAILED:', e.message);

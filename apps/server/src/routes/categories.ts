@@ -20,7 +20,11 @@ router.get('/', (req: AuthRequest, res: Response) => {
 });
 
 router.post('/', (req: AuthRequest, res: Response) => {
-  try {
+    try {
+    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
+      return res.status(403).json({ error: '只读角色无权操作分类' });
+    }
+
     const { storeId } = req.params;
     const { name, type } = req.body;
     if (!name || !type) return res.status(400).json({ error: '请输入分类名和类型' });
@@ -30,7 +34,11 @@ router.post('/', (req: AuthRequest, res: Response) => {
 });
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
-  try {
+    try {
+    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
+      return res.status(403).json({ error: '只读角色无权操作分类' });
+    }
+
     const { storeId } = req.params;
     const { name, type } = req.body;
     // S28: 归属校验
@@ -49,7 +57,11 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
 // S28: DELETE 添加归属校验
 router.delete('/:id', (req: AuthRequest, res: Response) => {
-  try {
+    try {
+    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
+      return res.status(403).json({ error: '只读角色无权操作分类' });
+    }
+
     const { storeId } = req.params;
     const cat = db.prepare('SELECT * FROM categories WHERE id = ?').get(req.params.id) as any;
     if (!cat) return res.status(404).json({ error: '分类不存在' });

@@ -29,7 +29,7 @@ export default function AdminSettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { showToast('手机号格式不正确', 'error'); return; }
+      if (profileForm.phone && !/^1[3-9]\d{9}$/.test(profileForm.phone)) { showToast('手机号格式不正确', 'error'); setSaving(false); return; }
       const d: any = await api.put('/auth/me', profileForm);
       if (d.user) {
         useStore.setState({ user: { ...user!, ...d.user } });

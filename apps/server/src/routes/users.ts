@@ -48,7 +48,7 @@ router.get('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // POST create user — S5: 仅 ADMIN
-router.post('/', (req: AuthRequest, res: Response) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) {
       return res.status(403).json({ error: '无权限' });
@@ -60,7 +60,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (existing) return res.status(400).json({ error: '用户名已存在' });
     // 角色大小写统一为大写（S19）
     const safeRole = (role || 'STAFF').toUpperCase();
-    const hash = bcrypt.hashSync(password, 10);
+    const hash = await bcrypt.hash(password, 10);
     const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(username, hash, sanitizeText(name || ''), phone || '', safeRole, store_id || null, avatar || '', salary || 0, status || 'active', sanitizeText(job_title || ''), sanitizeText(address || ''));
     opLog(req.user?.id || 0, store_id || 0, '员工', '创建员工 ' + (name || username));
     res.json({ id: result.lastInsertRowid, success: true });
@@ -70,7 +70,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 });
 
 // PUT update user — S5: 禁止非管理员修改 role
-router.put('/:id', (req: AuthRequest, res: Response) => {
+router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
     if (!targetUser) return res.status(404).json({ error: '用户不存在' });
@@ -80,7 +80,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     // 非管理员只能修改自己的基本信息（字段白名单）
     let body = req.body;
     if (!isAdmin(req.user.role)) {
-      const allowedFields = ['name', 'phone', 'address', 'avatar', 'username', 'password'];
+      const allowedFields = ['name', 'phone', 'address', 'avatar', 'password'];
       const safeBody: any = {};
       for (const key of allowedFields) {
         if (req.body[key] !== undefined) safeBody[key] = req.body[key];
@@ -102,7 +102,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
         if (!oldPassword) return res.status(400).json({ error: '非管理员修改密码需提供旧密码' });
         if (!bcrypt.compareSync(oldPassword, targetUser.password_hash)) return res.status(401).json({ error: '旧密码错误' });
       }
-      sql += ', password_hash = ?'; params.push(bcrypt.hashSync(password, 10));
+      sql += ', password_hash = ?'; params.push(await bcrypt.hash(password, 10));
     }
     sql += ' WHERE id = ?';
     params.push(req.params.id);

@@ -9,6 +9,7 @@ import { opLog } from '../oplog.js';
 import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
+import { validateWebhookUrl } from '../lib/network.js';
 
 const router = Router();
 
@@ -362,6 +363,11 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const s = req.body;
+    // SSRF protection: validate wecom_proxy_url
+    if (s.wecom_proxy_url) {
+      const urlCheck = validateWebhookUrl(s.wecom_proxy_url);
+      if (!urlCheck.valid) return res.status(400).json({ error: urlCheck.error });
+    }
     const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);
     if (!exists) {
       db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);

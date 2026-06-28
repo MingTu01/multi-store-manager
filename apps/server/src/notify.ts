@@ -3,6 +3,8 @@ import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';
 import { validateWebhookUrl } from './lib/network.js';
+import { existsSync, readFileSync, writeFileSync as wf, mkdirSync as md } from 'fs';
+import { join } from 'path';
 
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
@@ -10,9 +12,8 @@ function getEncKey(): Buffer {
   if (process.env.NOTIFY_ENC_KEY) {
     return crypto.createHash('sha256').update(process.env.NOTIFY_ENC_KEY).digest();
   }
-  const { existsSync, readFileSync, writeFileSync: wf, mkdirSync: md } = require('fs');
-  const { join } = require('path');
-  const keyFile = join('/app/data', 'notify-enc-key');
+  
+  const keyFile = join(process.cwd(), 'data', 'notify-enc-key');
   try {
     if (existsSync(keyFile)) {
       const key = readFileSync(keyFile, 'utf-8').trim();
@@ -21,7 +22,7 @@ function getEncKey(): Buffer {
   } catch {}
   const newKey = crypto.randomBytes(32);
   try {
-    md('/app/data', { recursive: true });
+    md(join(process.cwd(), 'data'), { recursive: true });
     wf(keyFile, newKey.toString('hex'), 'utf-8');
     console.log('[NOTIFY] Generated new notify encryption key');
   } catch (e) {
@@ -52,7 +53,7 @@ export function decryptToken(enc: string): string {
     const decipher = crypto.createDecipheriv(ENC_ALGO, key, iv);
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final('utf8');
-  } catch { return enc; }
+  } catch (e) { console.warn('[NOTIFY] decryptToken failed:', (e as Error).message); return ''; }
 }
 
 // ── 全局设置 ──
@@ -76,6 +77,13 @@ export function isContentTypeAllowed(role: string, contentType: string): boolean
 
 // ── 推送频率限制 ──
 const testRateLimit = new Map<string, number>();
+// Cleanup expired entries every 10 minutes
+setInterval(() => {
+  const cutoff = Date.now() - 600000;
+  for (const [k, v] of testRateLimit) {
+    if (v < cutoff) testRateLimit.delete(k);
+  }
+}, 600000);
 export function checkTestRateLimit(userId: number): string | null {
   const key = 'test_' + userId;
   const last = testRateLimit.get(key) || 0;

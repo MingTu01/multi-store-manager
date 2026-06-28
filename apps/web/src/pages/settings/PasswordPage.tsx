@@ -24,9 +24,11 @@ export default function PasswordPage() {
     setSaving(true);
     try {
       const d = await api.put('/auth/password', { oldPassword: form.old, newPassword: form.pwd });
-            setForm({ old: '', pwd: '', confirm: '' });
+      showToast('密码已修改', 'success');
+      setForm({ old: '', pwd: '', confirm: '' });
     } catch (e: any) {
-          } finally { setSaving(false); }
+        showToast(e.message || '修改失败', 'error');
+      } finally { setSaving(false); }
   };
 
   return (
