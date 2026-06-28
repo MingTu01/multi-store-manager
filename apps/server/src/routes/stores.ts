@@ -137,7 +137,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: '请输入管理员密码' });
     const admin = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id) as any;
-    if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
+    if (!admin || !await bcrypt.compare(password, admin.password_hash)) {
       return res.status(401).json({ error: '密码错误' });
     }
     const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(req.params.id) as any;

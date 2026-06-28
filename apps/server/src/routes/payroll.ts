@@ -18,12 +18,24 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const isStaff = req.user.role === 'STAFF';
     const total = (db.prepare('SELECT COUNT(*) as count FROM payroll WHERE store_id = ?').get(storeId) as any).count;
     const payrolls = db.prepare('SELECT * FROM payroll WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
+    // Batch query to avoid N+1
+    const _prIds = payrolls.map((pr: any) => pr.id);
+    let _allItems: any[] = [];
+    if (_prIds.length > 0) {
+      const _ph = _prIds.map(() => '?').join(',');
+      _allItems = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id IN (' + _ph + ')').all(..._prIds);
+    }
+    const _itemsMap = new Map<number, any[]>();
+    for (const item of _allItems) {
+      if (!_itemsMap.has(item.payroll_id)) _itemsMap.set(item.payroll_id, []);
+      _itemsMap.get(item.payroll_id)!.push(item);
+    }
     const enriched = payrolls.map((pr: any) => {
       let items;
       if (canSeeAll) {
-        items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ?').all(pr.id);
+        items = _itemsMap.get(pr.id) || [];
       } else {
-        items = db.prepare('SELECT pi.*, u.name as user_display_name, u.username, u.avatar, u.job_title as user_job_title FROM payroll_items pi LEFT JOIN users u ON pi.user_id=u.id WHERE pi.payroll_id = ? AND pi.user_id = ?').all(pr.id, req.user.id);
+        items = _itemsMap.get(pr.id) || [];
       }
       // For STAFF, override total_amount with their own sum only
       let payrollData: any = { ...pr, items };

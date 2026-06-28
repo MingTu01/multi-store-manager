@@ -32,8 +32,17 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const total = (db.prepare('SELECT COUNT(*) as count FROM inventory_checks WHERE store_id = ?').get(storeId) as any).count || 0;
     const totalPages = Math.ceil(total / ps);
     const checks = db.prepare('SELECT * FROM inventory_checks WHERE store_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?').all(storeId, ps, offset);
+    // Batch query item counts to avoid N+1
+    const _checkIds = (checks as any[]).map((c: any) => c.id);
+    const _countMap = new Map<string, number>();
+    if (_checkIds.length > 0) {
+      const _cph = _checkIds.map(() => '?').join(',');
+      const _counts = db.prepare('SELECT check_id, COUNT(*) as cnt FROM inventory_check_items WHERE check_id IN (' + _cph + ') GROUP BY check_id').all(..._checkIds) as any[];
+      for (const row of _counts) _countMap.set(row.check_id, row.cnt);
+    }
+
     for (const c of checks as any[]) {
-      c.items_count = (db.prepare('SELECT COUNT(*) as cnt FROM inventory_check_items WHERE check_id = ?').get(c.id) as any).cnt || 0;
+      c.items_count = _countMap.get(c.id) || 0;
     }
     res.json({ items, checks, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }

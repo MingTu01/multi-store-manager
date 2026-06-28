@@ -19,8 +19,20 @@ router.get('/', (req: AuthRequest, res: Response) => {
       return (store?.initial_capital || 0) + (income?.t || 0) - (expense?.t || 0);
     })();
     const dividends = db.prepare('SELECT * FROM dividends WHERE store_id = ? ORDER BY created_at DESC').all(storeId) as any[];
+    // Batch query dividend details to avoid N+1
+    const _divIds = dividends.map((d: any) => d.id);
+    let _allDetails: any[] = [];
+    if (_divIds.length > 0) {
+      const _dph = _divIds.map(() => '?').join(',');
+      _allDetails = db.prepare('SELECT * FROM dividend_details WHERE dividend_id IN (' + _dph + ')').all(..._divIds);
+    }
+    const _detailsMap = new Map<number, any[]>();
+    for (const detail of _allDetails) {
+      if (!_detailsMap.has(detail.dividend_id)) _detailsMap.set(detail.dividend_id, []);
+      _detailsMap.get(detail.dividend_id)!.push(detail);
+    }
     const enriched = dividends.map((d: any) => {
-      const items = db.prepare('SELECT * FROM dividend_details WHERE dividend_id = ?').all(d.id);
+      const items = _detailsMap.get(d.id) || [];
       return { ...d, items };
     });
     res.json({ dividends: enriched, shareholders, balance });

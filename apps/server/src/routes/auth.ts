@@ -25,7 +25,7 @@ router.post('/login', loginLimiter, (req, res) => {
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
     if (!user) return res.status(401).json({ error: '用户名或密码错误' });
     if (user.status !== 'active') return res.status(401).json({ error: '用户名或密码错误' });
-    if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
+    if (!await bcrypt.compare(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
     const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
     setAuthCookie(res, token);
     const userData = { id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id, phone: user.phone, avatar: user.avatar };
@@ -62,7 +62,7 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {
-      if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
+      if (!await bcrypt.compare(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
       updates.push('password_hash=?'); vals.push(await bcrypt.hash(newPassword, 10));
     }
     if (updates.length === 0) return res.status(400).json({ error: '没有需要更新的内容' });
@@ -82,7 +82,7 @@ router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) 
     if (newPassword.length < 6) return res.status(400).json({ error: '新密码至少6位' });
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) return res.status(404).json({ error: '用户不存在' });
-    if (!bcrypt.compareSync(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
+    if (!await bcrypt.compare(oldPassword, user.password_hash)) return res.status(401).json({ error: '旧密码错误' });
     const hash = await bcrypt.hash(newPassword, 10);
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);

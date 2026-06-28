@@ -100,7 +100,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       if (!isAdmin(req.user.role)) {
         const { oldPassword } = body;
         if (!oldPassword) return res.status(400).json({ error: '非管理员修改密码需提供旧密码' });
-        if (!bcrypt.compareSync(oldPassword, targetUser.password_hash)) return res.status(401).json({ error: '旧密码错误' });
+        if (!await bcrypt.compare(oldPassword, targetUser.password_hash)) return res.status(401).json({ error: '旧密码错误' });
       }
       sql += ', password_hash = ?'; params.push(await bcrypt.hash(password, 10));
     }
