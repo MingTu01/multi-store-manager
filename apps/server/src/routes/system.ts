@@ -338,6 +338,36 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         if (existsSync(join(BASE_DIR, 'data', 'store.db-wal'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-wal'), '', 'store.db-wal');
         if (existsSync(join(BASE_DIR, 'data', 'store.db-shm'))) preZip.addLocalFile(join(BASE_DIR, 'data', 'store.db-shm'), '', 'store.db-shm');
         logger.info('[Update] Creating backup zip...'); preZip.writeZip(join(backupDir, 'pre-upgrade-' + now + '.zip')); logger.info('[Update] Backup zip created');
+
+        // Step 1.5: Backup current code (for msl rollback)
+        try {
+          const codeBackupDir = join(backupDir, 'code-backups');
+          mkdirSync(codeBackupDir, { recursive: true });
+          const currentVer = (() => { try { return JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch { return 'unknown'; } })();
+          const codeZip = new AdmZip();
+          const codeBackupName = 'pre-upgrade-v' + currentVer + '-' + now + '.zip';
+          // Backup src/
+          const srcDir = join(BASE_DIR, 'src');
+          if (existsSync(srcDir)) codeZip.addLocalFolder(srcDir, 'src');
+          // Backup public/web-dist/
+          const webDistDir = join(BASE_DIR, 'public', 'web-dist');
+          if (existsSync(webDistDir)) codeZip.addLocalFolder(webDistDir, 'web-dist');
+          // Backup startup scripts and tools
+          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json', 'package.json']) {
+            const fp = join(BASE_DIR, f);
+            if (existsSync(fp)) codeZip.addLocalFile(fp, '', f);
+          }
+          codeZip.writeZip(join(codeBackupDir, codeBackupName));
+          logger.info('[Upgrade] Code backup created:', codeBackupName);
+          // Cleanup old code backups (keep last 3)
+          try {
+            const oldBackups = readdirSync(codeBackupDir).filter(f => f.startsWith('pre-upgrade-') && f.endsWith('.zip')).sort().reverse();
+            for (const old of oldBackups.slice(3)) {
+              try { unlinkSync(join(codeBackupDir, old)); logger.info('[Upgrade] Cleaned old backup:', old); } catch {}
+            }
+          } catch {}
+        } catch (e) { logger.warn('[Upgrade] Code backup failed (non-fatal):', e.message); }
+
         await new Promise(r => setTimeout(r, 500));
         // Step 2: Extract
         upgradeState = { step: 2, message: '正在解压', complete: false };
@@ -422,6 +452,15 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         const srcDest = join(BASE_DIR, 'src');
         copyDir(sSrc, srcDest);
         logger.info('[Upgrade] server code updated');
+
+        // === 更新启动脚本和容器工具 ===
+        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json']) {
+          const srcFile = join(workDir, f);
+          if (existsSync(srcFile)) {
+            try { copyFileSync(srcFile, join(BASE_DIR, f)); logger.info('[Upgrade] Updated:', f); } catch (e) { logger.warn('[Upgrade] Failed to update', f, ':', e.message); }
+          }
+        }
+
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         // === 更新 package.json ===
         const pkgFile = join(workDir, 'package.json');
@@ -733,6 +772,32 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('progress', { step: 1, total: 4, message: '数据库备份完成', done: true });
         await new Promise(r => setTimeout(r, 1000));
         
+
+        // Step 1.5: Backup current code (for msl rollback)
+        try {
+          const codeBackupDir = join(backupDir, 'code-backups');
+          mkdirSync(codeBackupDir, { recursive: true });
+          const currentVer = (() => { try { return JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch { return 'unknown'; } })();
+          const codeZip = new AdmZip();
+          const codeBackupName = 'pre-upgrade-v' + currentVer + '-' + now + '.zip';
+          const srcDirBackup = join(BASE_DIR, 'src');
+          if (existsSync(srcDirBackup)) codeZip.addLocalFolder(srcDirBackup, 'src');
+          const webDistDirBackup = join(BASE_DIR, 'public', 'web-dist');
+          if (existsSync(webDistDirBackup)) codeZip.addLocalFolder(webDistDirBackup, 'web-dist');
+          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json', 'package.json']) {
+            const fp = join(BASE_DIR, f);
+            if (existsSync(fp)) codeZip.addLocalFile(fp, '', f);
+          }
+          codeZip.writeZip(join(codeBackupDir, codeBackupName));
+          logger.info('[Update] Code backup created:', codeBackupName);
+          try {
+            const oldBackups = readdirSync(codeBackupDir).filter(f => f.startsWith('pre-upgrade-') && f.endsWith('.zip')).sort().reverse();
+            for (const old of oldBackups.slice(3)) {
+              try { unlinkSync(join(codeBackupDir, old)); logger.info('[Update] Cleaned old backup:', old); } catch {}
+            }
+          } catch {}
+        } catch (e) { logger.warn('[Update] Code backup failed (non-fatal):', e.message); }
+
         // Step 2: Download
         broadcastProgress('progress', { step: 2, total: 4, message: '正在下载更新' });
         const zipUrl = 'https://github.com/' + DEPLOY_REPO + '/archive/refs/heads/main.zip';
@@ -830,6 +895,15 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         const destSrc = join(BASE_DIR, 'src');
         cpSync(srcDir, destSrc, { recursive: true, force: true });
         logger.info('[Update] server-src updated');
+
+        // === 更新启动脚本和容器工具 ===
+        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json']) {
+          const srcFile = join(realExtractedFolder, f);
+          if (existsSync(srcFile)) {
+            try { copyFileSync(srcFile, join(BASE_DIR, f)); logger.info('[Update] Updated:', f); } catch (e) { logger.warn('[Update] Failed to update', f, ':', e.message); }
+          }
+        }
+
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         await new Promise(r => setTimeout(r, 300));
         const pkgFile = join(realExtractedFolder, 'package.json');
