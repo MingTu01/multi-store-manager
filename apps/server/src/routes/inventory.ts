@@ -27,7 +27,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const items = db.prepare('SELECT * FROM inventory_master WHERE store_id = ? ORDER BY sort_order ASC, id ASC').all(storeId);
     const p = parseInt(req.query.page as string) || 1;
-    const ps = parseInt(req.query.pageSize as string) || 20;
+    const ps = Math.min(parseInt(req.query.pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     const total = (db.prepare('SELECT COUNT(*) as count FROM inventory_checks WHERE store_id = ?').get(storeId) as any).count || 0;
     const totalPages = Math.ceil(total / ps);
@@ -36,7 +36,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       c.items_count = (db.prepare('SELECT COUNT(*) as cnt FROM inventory_check_items WHERE check_id = ?').get(c.id) as any).cnt || 0;
     }
     res.json({ items, checks, total, page: p, pageSize: ps, totalPages });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // POST /items - add master item
@@ -51,7 +51,7 @@ router.post('/items', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, storeId, '盘点', '添加物品: ' + name);
     triggerNotification({ type: 'inventory', action: '新增盘点条目', storeId, detail: name , operatorName: req.user.name || req.user.username});
     res.json({ id: result.lastInsertRowid, message: '物品添加成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // PUT /items/:id - update master item
@@ -78,7 +78,7 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
       if (status !== undefined) { const statusNames: Record<string,string> = {normal:'正常',diff:'差异',lost:'丢失',scrap:'报废',empty:'空仓',restocking:'待补货',pending:'待补货'}; changes.push('状态:' + (statusNames[status] || status)); }
       opLog(req.user.id, req.params.storeId, '盘点', '编辑物品 ' + (editedItem?.name || '') + ' (' + changes.join(', ') + ')');
     res.json({ message: '物品已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // DELETE /items/:id - delete master item
@@ -94,7 +94,7 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM inventory_master WHERE id = ?').run(itemId);
     opLog(req.user.id, item.store_id, '删除盘点物品', item.name);
     res.json({ message: '删除成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // 领出物品
@@ -112,7 +112,7 @@ router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, req.params.id);
     opLog(req.user.id, storeId, '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
     res.json({ success: true, newQuantity: newQty, message: '领出成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.delete('/items/:id', (req: AuthRequest, res: Response) => {
@@ -123,7 +123,7 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
     if (String(item.store_id) !== String(storeId)) return res.status(404).json({ error: '物品不存在' });
     db.prepare('DELETE FROM inventory_master WHERE id = ?').run(req.params.id);
     res.json({ message: '物品已删除' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // POST /items/reorder - reorder items
@@ -134,7 +134,7 @@ router.post('/items/reorder', (req: AuthRequest, res: Response) => {
     const stmt = db.prepare('UPDATE inventory_master SET sort_order = ? WHERE id = ?');
     for (const o of order) stmt.run(o.sort_order, o.id);
     res.json({ message: '排序已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // POST /checks - start a new inventory check
@@ -152,7 +152,7 @@ router.post('/checks', (req: AuthRequest, res: Response) => {
     }
     opLog(req.user.id, storeId, '盘点', '开始盘点 #' + checkId);
     res.json({ id: checkId, message: '盘点已开始' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // GET /checks/:id - get check detail
@@ -162,7 +162,7 @@ router.get('/checks/:id', (req: AuthRequest, res: Response) => {
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ? ORDER BY id ASC').all(check.id);
     res.json({ check, items });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // PUT /checks/:id/items/:itemId - update check item
@@ -180,7 +180,7 @@ router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
       db.prepare('UPDATE inventory_check_items SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
     }
     res.json({ message: '已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // POST /checks/:id/complete - complete check, update master quantities
@@ -203,7 +203,7 @@ router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
     triggerNotification({ type: 'inventory', action: '盘点完成', storeId: check.store_id, detail: '盘点 #' + req.params.id + ' 已完成', operatorName: req.user.name || req.user.username });
     eventBus.broadcast({ type: 'inventory', action: 'check', storeId: check.store_id, data: { checkId: req.params.id } });
     res.json({ message: '盘点完成' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 
@@ -246,6 +246,6 @@ router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
     triggerNotification({ type: 'inventory', action: '日常盘点', storeId, detail: detailParts.join(' | '), operatorName: req.user.name || req.user.username });
     eventBus.broadcast({ type: 'inventory', action: 'check', storeId, data: { checkId } });
     res.json({ id: checkId, message: '盘点完成' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 export default router;

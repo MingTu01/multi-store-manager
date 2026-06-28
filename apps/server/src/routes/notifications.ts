@@ -44,7 +44,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
   try {
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     const typeFilter = type && type !== 'all' ? String(type) : '';
 
@@ -64,7 +64,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -74,7 +74,7 @@ router.get('/unread-count', (req: AuthRequest, res: Response) => {
     const result = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any;
     res.json({ count: result.count });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -89,7 +89,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     ).run(user_id, title, link || '', type || '', content || '', store_id || null);
     res.json({ id: result.lastInsertRowid, message: '通知发送成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -98,7 +98,7 @@ router.put('/:id/read', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '已标记为已读' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -107,7 +107,7 @@ router.put('/read-all', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE user_id = ?').run(req.user.id);
     res.json({ message: '全部已读' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -116,7 +116,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '通知已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 

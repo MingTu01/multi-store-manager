@@ -39,9 +39,9 @@ router.get('/', (req: AuthRequest, res: Response) => {
         yoy = 'AND date >= ? AND date <= ?'; yoyP = [localDate(yws), localDate(ywe)];
       } else if (period === 'month') {
         const ms = ds.slice(0,7);
-        cur = "AND strftime('%Y-%m',date) = ?"; curP = [ms];
-        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); prev = "AND strftime('%Y-%m',date) = ?"; prevP = [localDate(pm).slice(0,7)];
-        const ym = new Date(d); ym.setFullYear(ym.getFullYear()-1); yoy = "AND strftime('%Y-%m',date) = ?"; yoyP = [localDate(ym).slice(0,7)];
+        cur = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; curP = [ms];
+        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); prev = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; prevP = [localDate(pm).slice(0,7)];
+        const ym = new Date(d); ym.setFullYear(ym.getFullYear()-1); yoy = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; yoyP = [localDate(ym).slice(0,7)];
       } else if (period === 'year') {
         const ys = ds.slice(0,4);
         cur = "AND strftime('%Y',date) = ?"; curP = [ys];
@@ -120,7 +120,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
       yoy: { incomeChange: pct(ci,yi), expenseChange: pct(ce,ye), profitChange: pct(cp,yp), marginChange: cm !== 0 && yi > 0 ? (cm - (yi>0?(yi-ye)/yi:0)) / Math.abs(yi>0?(yi-ye)/yi:0||1) : 0 },
       incomeByCategory, expenseByCategory, stores, fundBalance: totalFundBalance
     });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 
@@ -160,8 +160,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         const ms = localDate(m).slice(0, 7);
         const cond = storeId ? 'AND store_id = ?' : '';
         const params = storeId ? [ms, storeId] : [ms];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y-%m',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y-%m',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
+        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
+        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
         points.push({ label: (m.getMonth() + 1) + '月', income: inc, expense: exp });
       }
     } else if (period === 'year') {
@@ -176,7 +176,7 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     }
     
     res.json({ trend: points });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 export default router;
 

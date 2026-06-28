@@ -28,7 +28,7 @@ router.post('/login', loginLimiter, (req, res) => {
     if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: '用户名或密码错误' });
     const token = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
     setAuthCookie(res, token);
-    const { password_hash, ...userData } = user;
+    const userData = { id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id, phone: user.phone, avatar: user.avatar };
     res.json({ user: userData });
   } catch (err: any) { res.status(500).json({ error: '登录失败，请稍后重试' }); }
 });
@@ -39,7 +39,7 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const store = user.store_id ? db.prepare('SELECT name FROM stores WHERE id = ?').get(user.store_id) as any : null;
     res.json({ user: { ...user, store_name: store?.name || '' } });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -72,7 +72,7 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (oldPassword && newPassword) { opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip); }
     const updated = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address FROM users WHERE id = ?').get(req.user.id) as any;
     res.json({ user: updated, message: '信息已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -87,7 +87,7 @@ router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) 
     db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     res.json({ message: '密码修改成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 
@@ -102,7 +102,7 @@ router.post('/logout', authMiddleware, (req: AuthRequest, res: Response) => {
     }
     clearAuthCookie(res);
     res.json({ message: '\u5df2\u9000\u51fa\u767b\u5f55' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 export default router;

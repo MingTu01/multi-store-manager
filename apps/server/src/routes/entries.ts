@@ -25,7 +25,7 @@ router.get('/stats', (req: AuthRequest, res: Response) => {
     const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?").get(storeId, today) as any)?.total || 0;
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?").get(storeId, today) as any)?.total || 0;
     res.json({ income, expense, profit: income - expense });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.get('/', (req: AuthRequest, res: Response) => {
@@ -33,7 +33,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const { storeId } = req.params;
     const { date, dateFrom, dateTo, month, year, week, period, limit, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     let whereClause = ' WHERE e.store_id=?';
     const params: any[] = [storeId];
@@ -44,11 +44,11 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if (user.role?.toUpperCase() === 'STAFF') whereClause += ' AND e.is_system=0';
     if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
     else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
-    else if (period === 'month') { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(localDate().slice(0,7)); }
+    else if (period === 'month') { const m = localDate().slice(0,7); whereClause += " AND e.date >= ? AND e.date < ?"; params.push(m + '-01'); params.push(m + '-32'); }
     else if (period === 'year') { whereClause += " AND strftime('%Y',e.date)=?"; params.push(new Date().getFullYear().toString()); }
     if (date) { whereClause += ' AND e.date=?'; params.push(date); }
     if (dateFrom && dateTo) { whereClause += ' AND e.date>=? AND e.date<=?'; params.push(dateFrom, dateTo); }
-    if (month) { whereClause += " AND strftime('%Y-%m',e.date)=?"; params.push(month); }
+    if (month) { whereClause += " AND e.date >= ? AND e.date < ?"; params.push(month + '-01'); params.push(month + '-32'); }
     if (year) { whereClause += " AND strftime('%Y',e.date)=?"; params.push(year); }
     if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
@@ -57,7 +57,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     if (!page && limit) { sql += ' LIMIT ?'; qp.push(Number(limit)); } else { sql += ' LIMIT ? OFFSET ?'; qp.push(ps, offset); }
     const totalPages = Math.ceil(total / ps);
     res.json({ data: db.prepare(sql).all(...qp), total, page: p, pageSize: ps, totalPages });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.post('/', (req: AuthRequest, res: Response) => {
@@ -86,7 +86,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid } });
     res.json({ id: result.lastInsertRowid, success: true });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // S12: PUT 添加记录归属校验
@@ -119,7 +119,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id } });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // S12: DELETE 添加记录归属校验
@@ -148,7 +148,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
 
     eventBus.broadcast({ type: 'entry', action: 'delete', storeId, data: { id: req.params.id } });
     res.json({ success: true });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 export default router;

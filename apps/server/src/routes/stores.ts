@@ -43,7 +43,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }));
     res.json({ stores: enriched });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -62,7 +62,7 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
     res.json({ ...store, staff_count: staffCount, shareholders });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -93,7 +93,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -127,7 +127,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
 
     res.json({ message: '门店更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -174,7 +174,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
 
     res.json({ message: '门店已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -188,7 +188,7 @@ router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(storeId) as any).count || 0;
     res.json({ income, expense, profit: income - expense, staffCount });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
@@ -198,7 +198,7 @@ router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at, health_cert_url, health_cert_name, health_cert_expiry, health_cert_verified FROM users WHERE store_id = ?').all(storeId);
     res.json({ staff });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
@@ -235,7 +235,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
@@ -283,7 +283,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '员工信息已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
@@ -292,7 +292,7 @@ router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM users WHERE id = ? AND store_id = ?').run(req.params.id, req.params.storeId);
     opLog(req.user.id, req.params.storeId, '删除员工', '删除员工 #' + req.params.id);
     res.json({ message: '员工已删除' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
@@ -302,7 +302,7 @@ router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     res.json(shareholders);
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
@@ -320,7 +320,7 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, 0, '更新股东', '更新股东配置');
     res.json({ message: '股东信息更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -354,7 +354,7 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       return res.json(masked);
     }
     res.json(settings);
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // 店铺通知设置 - PUT
@@ -387,7 +387,7 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       s.push_review_reminder, s.push_alert, storeId
     );
     res.json({ message: '通知设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // 店铺通知测试
@@ -414,7 +414,7 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
         }
       })
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 

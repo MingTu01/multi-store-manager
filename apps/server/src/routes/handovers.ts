@@ -17,7 +17,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }
     const { page, pageSize, type } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
 
     const countSql = type
@@ -37,7 +37,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     res.json({ handovers: enriched, total, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 

@@ -2,6 +2,7 @@ import db from './db.js';
 import bcrypt from 'bcryptjs';
 
 export function seedDatabase() {
+  if (process.env.NODE_ENV === 'production') { console.log('[Seed] Skipped in production'); return; }
   const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get() as any;
   if (existingUsers.count > 1) {
     console.log('Database already seeded');

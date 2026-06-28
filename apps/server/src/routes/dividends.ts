@@ -25,7 +25,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     });
     res.json({ dividends: enriched, shareholders, balance });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -54,10 +54,11 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ id: dividendId, message: '分红创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
+// TODO: wrap in transaction for data consistency
 router.put('/:id', (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
@@ -67,20 +68,23 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     const dividend = db.prepare('SELECT * FROM dividends WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     if (!dividend) return res.status(404).json({ error: '分红记录不存在' });
     if (dividend.status === 'archived') return res.status(400).json({ error: '已归档的分红不能修改' });
-    db.prepare('UPDATE dividends SET total_amount = COALESCE(?, total_amount), note = COALESCE(?, note) WHERE id = ?').run(total_amount, note, req.params.id);
-    if (total_amount !== undefined) {
-      const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(req.params.storeId) as any[];
-      const totalRatio = shareholders.reduce((s: number, sh: any) => s + (sh.ratio || 0), 0);
-      db.prepare('DELETE FROM dividend_details WHERE dividend_id = ?').run(req.params.id);
-      const stmt = db.prepare('INSERT INTO dividend_details (dividend_id, shareholder_name, ratio, amount) VALUES (?,?,?,?)');
-      for (const sh of shareholders) {
-        const amount = totalRatio > 0 ? (total_amount * sh.ratio / totalRatio) : 0;
-        stmt.run(req.params.id, sh.name, sh.ratio, amount);
-      }
-    }
-    res.json({ message: '分红更新成功' });
+    const updateDividend = db.transaction(() => {
+      db.prepare('UPDATE dividends SET total_amount = COALESCE(?, total_amount), note = COALESCE(?, note) WHERE id = ?').run(total_amount, note, req.params.id);
+          if (total_amount !== undefined) {
+            const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(req.params.storeId) as any[];
+            const totalRatio = shareholders.reduce((s: number, sh: any) => s + (sh.ratio || 0), 0);
+            db.prepare('DELETE FROM dividend_details WHERE dividend_id = ?').run(req.params.id);
+            const stmt = db.prepare('INSERT INTO dividend_details (dividend_id, shareholder_name, ratio, amount) VALUES (?,?,?,?)');
+            for (const sh of shareholders) {
+              const amount = totalRatio > 0 ? (total_amount * sh.ratio / totalRatio) : 0;
+              stmt.run(req.params.id, sh.name, sh.ratio, amount);
+            }
+          }
+          res.json({ message: '分红更新成功' });
+    });
+    updateDividend();
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -105,7 +109,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '分红已归档' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 router.delete('/:id', (req: AuthRequest, res: Response) => {
@@ -118,7 +122,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM dividends WHERE id = ?').run(req.params.id);
     res.json({ message: '分红已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 

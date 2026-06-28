@@ -12,7 +12,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
     const canSeeAll = req.user.role !== 'STAFF';
     const isStaff = req.user.role === 'STAFF';
@@ -37,7 +37,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }).filter((pr: any) => canSeeAll || pr.items.length > 0);
     res.json({ payrolls: enriched, total, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -67,7 +67,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ id: payrollId, message: '工资单创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -96,7 +96,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ message: '工资单更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -163,7 +163,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     });
 
     res.json({ id: payrollId, message: '工资单生成成功' });
-  } catch (err: any) { res.status(500).json({ error: err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
 });
 
 // PUT /:id/confirm
@@ -206,7 +206,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
 
     res.json({ message: '工资单已确认' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
@@ -224,7 +224,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ message: '工资单已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 

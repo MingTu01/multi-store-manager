@@ -30,6 +30,7 @@ import healthCertRouter from './routes/health-cert.js';
 import purchaseRouter from './routes/purchase.js';
 import uploadRouter from './routes/upload.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
+// NOTE: startHealthCheckScheduler is called below after server starts
 import { requireStoreAccess } from './middleware/store-access.js';
 import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';
 
@@ -356,6 +357,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 initPush();
 app.listen(PORT, '0.0.0.0', () => {
   console.log('Server running on http://0.0.0.0:' + PORT);
+    try { startHealthCheckScheduler(); } catch(e) { console.error('[HealthCheck] Failed to start:', e.message); }
   // Broadcast server-ready to all SSE clients after startup
   setTimeout(() => {
     try {

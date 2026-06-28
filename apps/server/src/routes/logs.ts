@@ -12,7 +12,7 @@ router.get('/', authMiddleware, (req: AuthRequest, res) => {
     const userStoreId = req.user?.store_id;
     const { storeId, action, dateFrom, dateTo, search, page, pageSize } = req.query;
     const p = parseInt(page as string) || 1;
-    const ps = parseInt(pageSize as string) || 20;
+    const ps = Math.min(parseInt(pageSize as string) || 20, 100);
     const offset = (p - 1) * ps;
 
     let whereClause = '';
@@ -73,7 +73,7 @@ router.get('/', authMiddleware, (req: AuthRequest, res) => {
     const totalPages = Math.ceil(total / ps);
     res.json({ data: rows, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message });
   }
 });
 
