@@ -79,7 +79,7 @@ console.log('');
 let crashCount = 0;
 let crashTimes = [];
 
-async function startApp() {
+function startApp() {
   const child = spawn('node', ['--import', 'tsx', 'src/index.ts'], {
     cwd: BASE_DIR,
     stdio: 'inherit',
@@ -108,10 +108,7 @@ async function startApp() {
       console.error('========================================');
       console.error('');
       // Sleep 60s then retry (avoids tight crash loop)
-      await new Promise(r => setTimeout(r, 60000));
-      crashTimes = [];
-      crashCount = 0;
-      startApp();
+      setTimeout(() => { crashTimes = []; crashCount = 0; startApp(); }, 60000);
     } else {
       console.log('[Startup] App exited unexpectedly (code: ' + code + '), restarting...');
       console.log('[Startup] Crash ' + crashCount + '/' + MAX_CRASHES + ' in window');
