@@ -65,7 +65,7 @@ export default function ServerConfigPage() {
         {/* Logo */}
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-[#fcd5e5] to-[#7977de] shadow-xl">
-            <img src="/logo.png" alt="Logo" className="h-12 w-12 object-contain" />
+            <img src="/logo-192.png" alt="Logo" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Multi Shop Link</h1>
           <p className="mt-2 text-sm text-slate-500">

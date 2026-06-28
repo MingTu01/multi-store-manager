@@ -59,6 +59,9 @@ export default function LoginPage() {
           <p className="mt-3 text-center text-sm text-slate-400">请登录以继续</p>
         </form>
       </GlassCard>
+        <div className="mt-4 text-center">
+          <button type="button" onClick={() => window.location.href = '/server-config'} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors">更改服务器地址</button>
+        </div>
     </div>
   );
 }
