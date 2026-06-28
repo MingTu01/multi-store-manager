@@ -34,6 +34,8 @@ function getMonths(count = 12) {
 export default function StorePayrollPage() {
 const { storeId } = useParams();
 
+  const myRole = useStore((s: any) => s.user?.role);
+  const canManage = ['ADMIN', 'STORE_ADMIN', 'MANAGER'].includes(myRole);
   const { confirm, ConfirmDialog } = useConfirm();
 
   const [month, setMonth] = useState(() => {
