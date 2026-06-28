@@ -12,7 +12,7 @@ import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js'
 import { AppError, ErrorCode } from '../error-handler.js';
 import { validateWebhookUrl } from '../lib/network.js';
 import { settingsCache } from '../cache.js';
-import logger from '../../logger.js';
+import logger from '../logger.js';
 
 const router = Router();
 

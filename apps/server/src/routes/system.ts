@@ -882,7 +882,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 // ── 用户个人推送设置（改造版） ──
 import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
 import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification } from '../push-notify.js';
-import logger from '../../logger.js';
+import logger from '../logger.js';
 
 // GET: 读取自己的设置（解密返回）
 router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {

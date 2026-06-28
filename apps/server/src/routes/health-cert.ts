@@ -13,7 +13,7 @@ import { isAdmin } from '../lib/roles.js';
 import { localDate } from '../lib/utils.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { getAliyunOCRConfig, isAliyunOCRConfigured, saveAliyunCredentials, reloadAliyunOCRConfig } from '../lib/aliyun-ocr.js';
-import logger from '../../logger.js';
+import logger from '../logger.js';
 
 const router = Router();
 const upload = multer({

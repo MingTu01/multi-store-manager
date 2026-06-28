@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin } from '../lib/roles.js';
-import logger from '../../logger.js';
+import logger from '../logger.js';
 
 
 

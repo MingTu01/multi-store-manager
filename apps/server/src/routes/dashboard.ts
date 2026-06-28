@@ -3,7 +3,7 @@ import { AuthRequest } from '../auth.js';
 import { isManagerOrAbove } from '../lib/roles.js';
 import db from '../db.js';
 import { localDate, calculateFundBalance } from '../lib/utils.js';
-import logger from '../../logger.js';
+import logger from '../logger.js';
 
 
 
