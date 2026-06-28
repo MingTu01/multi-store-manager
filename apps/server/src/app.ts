@@ -43,11 +43,22 @@ app.set('trust proxy', 1);
 
 // S7: CORS 配置
 const corsOrigin = process.env.CORS_ORIGIN || '';
+const ALLOWED_ORIGINS = corsOrigin
+  ? corsOrigin.split(',').map(s => s.trim())
+  : [];
 const corsOptions: cors.CorsOptions = {
-  origin: corsOrigin
-    ? corsOrigin.split(',').map(s => s.trim())
-    : false,
-  credentials: !!corsOrigin
+  origin: (origin, callback) => {
+    // No origin (native app, curl, server-to-server) — allow
+    if (!origin) return callback(null, true);
+    // Capacitor native app — allow
+    if (origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('http://localhost')) return callback(null, true);
+    // Explicitly configured origins
+    if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // No CORS_ORIGIN configured — allow all (self-hosted mode)
+    if (ALLOWED_ORIGINS.length === 0) return callback(null, true);
+    callback(null, false);
+  },
+  credentials: true
 };
 
 app.use(requestLogger);
@@ -66,23 +77,27 @@ app.use((req, res, next) => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.removeHeader('X-Powered-By');
-  const nonce = crypto.randomBytes(16).toString('base64');
-  res.locals.cspNonce = nonce;
-  res.setHeader('Content-Security-Policy', [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "connect-src 'self'",
-    "frame-ancestors 'self'",
-    "base-uri 'self'",
-    "form-action 'self'"
-  ].join('; '));
+  const ua = req.headers['user-agent'] || '';
+  const isNativeApp = ua.includes('CapacitorHttp') || ua.includes('Capacitor/');
+  if (!isNativeApp) {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+    res.setHeader('Content-Security-Policy', [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}'`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'"
+    ].join('; '));
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  }
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   next();
 });
 
