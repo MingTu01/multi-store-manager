@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+﻿import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
@@ -9,6 +9,7 @@ import { safeImageUrl } from '../lib/image';
 import { GlassCard } from './GlassCard';
 import { Modal } from './Modal';
 import { showToast } from './Toast';
+import { Clock } from './Clock';
 
 export function StoreGuard({ children }: { children: React.ReactNode }) {
   const { storeId } = useParams();
@@ -20,8 +21,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   const [showOpen, setShowOpen] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [now, setNow] = useState(new Date());
-  const [shifts, setShifts] = useState<any[]>([]);
+    const [shifts, setShifts] = useState<any[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -31,8 +31,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
     api.get('/stores/' + storeId + '/shifts?page=1&pageSize=5').then((d: any) => setShifts(d.shifts || [])).catch(() => {});
   };
   useEffect(() => { load(); }, [storeId]);
-  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
-
+  
   // 未登录用户重定向到登录页
   const storeLoading = useStore((s) => s.loading);
   if (storeLoading) return (
@@ -75,11 +74,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   const lastCloseShift = shifts.find((s: any) => s.type === 'close');
   const lastHandover = lastCloseShift?.handover_content || '';
 
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-  const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const weekStr = '星期' + weekdays[now.getDay()];
-
+  
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -119,15 +114,11 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
             返回门店列表
           </button>
         )}
-        <Lock className="mb-4 h-16 w-16 text-slate-300" />
-        <div className="mb-1 text-4xl font-mono font-bold text-slate-800">{timeStr}</div>
-        <div className="mb-2 text-sm text-slate-500">{dateStr} {weekStr}</div>
+        <Lock className="mb-4 h-16 w-16 text-slate-300" />\n        <Clock />
         <p className="mb-6 text-sm text-slate-400">门店当前已关闭</p>
         <button onClick={() => setShowOpen(true)} className="flex items-center gap-2 rounded-xl bg-indigo-500 px-8 py-3 text-sm font-medium text-white shadow-lg hover:bg-indigo-600 transition-all">
           <Power className="h-4 w-4" />开店
         </button>
-
-
 
         <Modal open={showOpen} onClose={() => { setShowOpen(false); setPhotos([]); }} title="确认开店">
           <div className="space-y-4">

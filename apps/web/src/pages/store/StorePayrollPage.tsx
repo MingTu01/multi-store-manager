@@ -9,6 +9,7 @@ import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { formatMoney } from '../../lib/format';
 import { ChevronLeft, ChevronRight, Check, Loader2, X, FileText, Trash2 } from 'lucide-react';
+import { useConfirm } from '../../components/useConfirm';
 
 function formatDateTime(d: string | null | undefined): string {
   if (!d) return '';
@@ -30,7 +31,8 @@ function getMonths(count = 12) {
 }
 
 export default function StorePayrollPage() {
-  const { storeId } = useParams();
+  const { storeId } = useParams();const { confirm, ConfirmDialog } = useConfirm();
+
   const [month, setMonth] = useState(() => {
     const n = new Date();
     return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
@@ -110,7 +112,7 @@ export default function StorePayrollPage() {
   };
 
   const handleConfirm = async (id: number) => {
-    if (!confirm('确认发放该工资？')) return;
+    if (!await confirm({ message: '确认发放该工资？' })) return;
     try {
       await api.put('/stores/' + storeId + '/payrolls/' + id + '/confirm', {});
       load();
@@ -118,7 +120,7 @@ export default function StorePayrollPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确认删除该工资单？')) return;
+    if (!await confirm({ message: '确认删除该工资单？' })) return;
     try {
       await api.del('/stores/' + storeId + '/payrolls/' + id);
       load();
@@ -276,6 +278,7 @@ export default function StorePayrollPage() {
                     </div>
                   </div>
                 </div>
+      <ConfirmDialog />
               );
             })}
             <button onClick={handleGenerate} disabled={generating || staffList.length === 0} className="action-btn btn w-full disabled:opacity-50">

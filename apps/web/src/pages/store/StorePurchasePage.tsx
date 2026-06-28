@@ -10,6 +10,7 @@ import { Modal } from '../../components/Modal';
 import { showToast } from '../../components/Toast';
 import { ChevronLeft, ChevronRight, Download, TrendingUp, TrendingDown, Package, Pencil, Plus, Trash2, Edit3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { useConfirm } from '../../components/useConfirm';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
 
@@ -17,7 +18,8 @@ export default function StorePurchasePage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
   const isReadonly = user?.role === 'STAFF' || user?.role === 'SHAREHOLDER';
-  const dataVersion = useDataVersion('store', storeId);
+  const dataVersion = useDataVersion('store', storeId);const { confirm, ConfirmDialog } = useConfirm();
+
 
   const [date, setDate] = useState(new Date());
   const [items, setItems] = useState<any[]>([]);
@@ -125,7 +127,7 @@ export default function StorePurchasePage() {
   };
 
   const handleDeleteItem = async (id: number) => {
-    if (!confirm('确定删除？该商品的所有历史进货记录也会被删除。')) return;
+    if (!await confirm({ message: '确定删除？该商品的所有历史进货记录也会被删除。' })) return;
     try {
       await api.del('/stores/' + storeId + '/purchase/items/' + id);
       load();
@@ -389,6 +391,7 @@ export default function StorePurchasePage() {
         </div>
       </Modal>
     </div>
+      <ConfirmDialog />
   );
 }
 

@@ -5,6 +5,7 @@ import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
+import { useConfirm } from '../../components/useConfirm';
 
 type Tab = 'info' | 'backup' | 'upgrade' | 'perms' | 'ocr';
 const tabs: { key: Tab; label: string; icon: any }[] = [
@@ -31,7 +32,8 @@ export default function SettingsPage() {
       }  } catch (_) { /* ignore */ }
     // 3. 强制刷新（不走缓存）
     window.location.replace(window.location.href);
-  };
+  };const { confirm, ConfirmDialog } = useConfirm();
+
  
   const [tab, setTab] = useState<Tab>('info');
   const [info, setInfo] = useState<any>(null);
@@ -216,7 +218,7 @@ export default function SettingsPage() {
   };
   
   const handleDeleteBackup = async (filename: string) => {
-    if (!confirm('确定删除此备份？')) return;
+    if (!await confirm({ message: '确定删除此备份？' })) return;
     try { await api.del('/system/backups/' + filename); showMsg(true, '备份已删除'); setBackups(b => b.filter(x => x.filename !== filename)); }
     catch (e: any) { showMsg(false, e.message || '删除失败'); }
   };
@@ -625,6 +627,7 @@ export default function SettingsPage() {
                         <button onClick={() => handleDeleteBackup(b.filename)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-50" title="删除"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
+      <ConfirmDialog />
                   );
                 })}
               </div>

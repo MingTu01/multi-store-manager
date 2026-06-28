@@ -9,6 +9,7 @@ import { Modal } from '../../components/Modal';
 import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
 import {
+import { useConfirm } from '../../components/useConfirm';
   Building2, Tags, Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle,
   Camera, Upload, Users, Save, ImageIcon, Phone, Percent, ChevronDown, ChevronUp, X,
 } from 'lucide-react';
@@ -44,7 +45,8 @@ function CollapseCard({
   defaultOpen?: boolean;
   children: React.ReactNode;
   action?: React.ReactNode;
-}) {
+}) {const { confirm, ConfirmDialog } = useConfirm();
+
   const [open, setOpen] = useState(defaultOpen);
   return (
     <GlassCard className="p-4">
@@ -65,6 +67,7 @@ function CollapseCard({
           )}
         </div>
       </div>
+      <ConfirmDialog />
       {open && children}
     </GlassCard>
   );
@@ -182,7 +185,7 @@ export default function StoreSettingsPage() {
   };
 
   const handleDeletePhoto = async (idx: number) => {
-    if (!confirm('确认删除该照片？')) return;
+    if (!await confirm({ message: '确认删除该照片？' })) return;
     try {
       const updated = (store?.photos || []).filter((_, i) => i !== idx);
       await api.put('/stores/' + storeId, {
@@ -246,7 +249,7 @@ export default function StoreSettingsPage() {
   };
 
   const handleDeleteShareholder = async (idx: number) => {
-    if (!confirm('确认删除该股东？')) return;
+    if (!await confirm({ message: '确认删除该股东？' })) return;
     try {
       const list = (store?.shareholders || []).filter((_, i) => i !== idx);
       await api.put('/stores/' + storeId, {
@@ -296,7 +299,7 @@ export default function StoreSettingsPage() {
   };
 
   const handleDeleteCat = async (id: number, name: string) => {
-    if (!confirm('确认删除分类 ' + name + ' ？')) return;
+    if (!await confirm({ message: '确认删除分类 ' + name + ' ？' })) return;
     try {
       await api.del('/stores/' + storeId + '/categories/' + id);
       load();

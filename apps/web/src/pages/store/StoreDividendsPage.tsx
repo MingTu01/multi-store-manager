@@ -9,11 +9,13 @@ import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { MoneyDisplay, formatMoney } from '../../lib/format';
 import { Plus, Edit3, Trash2, Archive, Wallet, Loader2, FileText } from 'lucide-react';
+import { useConfirm } from '../../components/useConfirm';
 
 export default function StoreDividendsPage() {
   const { storeId } = useParams();
   const myRole = useStore((s) => s.user?.role);
-  const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
+  const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';const { confirm, ConfirmDialog } = useConfirm();
+
   const [balance, setBalance] = useState(0);
   const [dividends, setDividends] = useState<any[]>([]);
   const [shareholders, setShareholders] = useState<any[]>([]);
@@ -56,7 +58,7 @@ export default function StoreDividendsPage() {
 
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确认删除该分红记录？')) return;
+    if (!await confirm({ message: '确认删除该分红记录？' })) return;
     try { await api.del('/stores/' + storeId + '/dividends/' + id); load(); } catch (e: any) { showToast(e.message || '删除失败', 'error'); }
   };
 
@@ -76,7 +78,7 @@ export default function StoreDividendsPage() {
   };
 
   const handleArchive = async (id: number) => {
-    if (!confirm('归档后将创建支出记录，确认继续？')) return;
+    if (!await confirm({ message: '归档后将创建支出记录，确认继续？' })) return;
     try {
       await api.put('/stores/' + storeId + '/dividends/' + id + '/archive', {});
       load();
@@ -219,6 +221,7 @@ export default function StoreDividendsPage() {
                         </div>
                         <div className="text-sm font-semibold text-amber-600">{formatMoney(amount)}</div>
                       </div>
+      <ConfirmDialog />
                     );
                   })}
                 </div>

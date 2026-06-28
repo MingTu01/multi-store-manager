@@ -5,6 +5,7 @@ import { useStore } from '../stores/data';
 import { Modal } from './Modal';
 import { GlassCard } from './GlassCard';
 import {
+import { useConfirm } from '../../components/useConfirm';
   Send, Check, Edit2, Plus, Eye, EyeOff, Loader2, AlertCircle,
   Bell, Settings2, Clock, ExternalLink, Smartphone,
 } from 'lucide-react';
@@ -96,7 +97,8 @@ const INPUT_CLS =
 
 export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const user = useStore((s) => s.user);
-  const role = user?.role ?? '';
+  const role = user?.role ?? '';const { confirm, ConfirmDialog } = useConfirm();
+
 
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [channelStatus, setChannelStatus] = useState<Record<string, boolean>>({});
@@ -430,6 +432,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                         </button>
                       </div>
                     </div>
+      <ConfirmDialog />
                   );
                 })}
               </div>
@@ -568,10 +571,10 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
       {/* ===== 渠道编辑弹窗 ===== */}
       <Modal
         open={!!editingChannel}
-        onClose={() => {
+        onClose={async () => {
           const ch = visibleChannels.find((c) => c.key === editingChannel);
           if (ch && channelStatus[ch.key] && !channelTested[ch.key]) {
-            if (window.confirm('测试未完成，当前配置将被清除。确认关闭？')) {
+            if (await confirm({ message: '测试未完成，当前配置将被清除。确认关闭？' })) {
               setChannelForm((s) => {
                 const n = { ...s };
                 ch.fields.forEach((f) => delete n[f.f]);

@@ -17,6 +17,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { VirtualList } from '../../components/VirtualList';
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useConfirm } from '../../components/useConfirm';
 
 type InventoryItem = {
   id: number;
@@ -74,7 +75,8 @@ function SortableDragHandle({ id }: { id: number }) {
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
-  const isReadonly = user?.role === 'SHAREHOLDER';
+  const isReadonly = user?.role === 'SHAREHOLDER';const { confirm, ConfirmDialog } = useConfirm();
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
   const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);
@@ -216,7 +218,7 @@ export default function StoreInventoryPage() {
   };
 
   const handleDeleteItem = async (id: number) => {
-    if (!confirm('确定删除该物品？')) return;
+    if (!await confirm({ message: '确定删除该物品？' })) return;
     try {
       await api.del('/stores/' + storeId + '/inventory/items/' + id);
       loadItems();
@@ -335,8 +337,8 @@ export default function StoreInventoryPage() {
     }
   };
 
-  const cancelCheck = () => {
-    if (Object.keys(checkResults).length > 0 && !confirm('确定放弃本次盘点？')) return;
+  const cancelCheck = async () => {
+    if (Object.keys(checkResults).length > 0 && !await confirm({ message: '确定放弃本次盘点？' })) return;
     setCheckActive(false);
     setCheckResults({});
     setCheckIndex(0);
@@ -469,6 +471,7 @@ export default function StoreInventoryPage() {
                       <span className={'rounded-full px-2 py-0.5 text-xs ' + s.color}>{s.label}</span>
                     </div>
                   </div>
+      <ConfirmDialog />
                 );
               })}
             </div>

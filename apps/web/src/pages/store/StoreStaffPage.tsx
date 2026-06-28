@@ -12,6 +12,7 @@ import { useStore } from '../../stores/data';
 import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle, User } from 'lucide-react';
 import { ImagePreview } from '../../components/ImagePreview';
 import { uploadImage, compressToBase64 } from '../../lib/image';
+import { useConfirm } from '../../components/useConfirm';
 
 const roles = [
   { value: 'STORE_ADMIN', label: '店铺管理员' },
@@ -28,7 +29,8 @@ const statuses = [
 
 export default function StoreStaffPage() {
   const { storeId } = useParams();
-  const myRole = useStore((s) => s.user?.role);
+  const myRole = useStore((s) => s.user?.role);const { confirm, ConfirmDialog } = useConfirm();
+
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -115,7 +117,7 @@ export default function StoreStaffPage() {
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm('确认删除 ' + name + '？历史记录将保留。')) return;
+    if (!await confirm({ message: '确认删除 ' + name + '？历史记录将保留。' })) return;
     setDeleting(id);
     try { await api.del('/stores/' + storeId + '/staff/' + id); load(); }
     catch (e: any) { showToast(e.message || '删除失败', 'error'); }
@@ -181,6 +183,7 @@ export default function StoreStaffPage() {
                   <div className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2 text-xs text-slate-400">
                     <Shield className="h-3 w-3" />股东账号，仅可查看
                   </div>
+      <ConfirmDialog />
                 )}
               </GlassCard>
             );

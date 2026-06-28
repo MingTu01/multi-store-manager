@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+﻿import { Router, Response } from 'express';
 import { AuthRequest } from '../auth.js';
 import { isManagerOrAbove } from '../lib/roles.js';
 import db from '../db.js';
@@ -38,14 +38,14 @@ router.get('/', (req: AuthRequest, res: Response) => {
         yoy = 'AND date >= ? AND date <= ?'; yoyP = [localDate(yws), localDate(ywe)];
       } else if (period === 'month') {
         const ms = ds.slice(0,7);
-        cur = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; curP = [ms];
-        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); prev = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; prevP = [localDate(pm).slice(0,7)];
-        const ym = new Date(d); ym.setFullYear(ym.getFullYear()-1); yoy = "AND /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ?"; yoyP = [localDate(ym).slice(0,7)];
+        const msEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0); cur = 'AND date >= ? AND date <= ?'; curP = [ms, localDate(msEnd)];
+        const pm = new Date(d.getFullYear(), d.getMonth()-1, 1); const pmEnd = new Date(d.getFullYear(), d.getMonth(), 0); prev = 'AND date >= ? AND date <= ?'; prevP = [localDate(pm), localDate(pmEnd)];
+        const ym = new Date(d.getFullYear()-1, d.getMonth(), 1); const ymEnd = new Date(d.getFullYear()-1, d.getMonth()+1, 0); yoy = 'AND date >= ? AND date <= ?'; yoyP = [localDate(ym), localDate(ymEnd)];
       } else if (period === 'year') {
         const ys = ds.slice(0,4);
-        cur = "AND strftime('%Y',date) = ?"; curP = [ys];
-        prev = "AND strftime('%Y',date) = ?"; prevP = [String(parseInt(ys)-1)];
-        yoy = "AND strftime('%Y',date) = ?"; yoyP = [String(parseInt(ys)-2)];
+        cur = 'AND date >= ? AND date <= ?'; curP = [ys + '-01-01', ys + '-12-31'];
+        prev = 'AND date >= ? AND date <= ?'; prevP = [String(parseInt(ys)-1) + '-01-01', String(parseInt(ys)-1) + '-12-31'];
+        yoy = 'AND date >= ? AND date <= ?'; yoyP = [String(parseInt(ys)-2) + '-01-01', String(parseInt(ys)-2) + '-12-31'];
       }
       return { cur, curP, prev, prevP, yoy, yoyP };
     }
@@ -132,50 +132,102 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
     
     if (period === 'day') {
       const dayCount = parseInt(days as string) || 30;
+      const startDate = new Date(now); startDate.setDate(startDate.getDate() - (dayCount - 1));
+      const startStr = localDate(startDate);
+      const endStr = localDate(now);
+      const cond = storeId ? 'AND store_id = ?' : '';
+      const params = storeId ? [startStr, endStr, storeId] : [startStr, endStr];
+      const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
+      const dateMap = new Map<string, { income: number; expense: number }>();
+      for (const r of rows) {
+        const entry = dateMap.get(r.date) || { income: 0, expense: 0 };
+        if (r.type === '收入' || r.type === 'income') entry.income = r.t; else entry.expense = r.t;
+        dateMap.set(r.date, entry);
+      }
       for (let i = dayCount - 1; i >= 0; i--) {
         const d = new Date(now); d.setDate(d.getDate() - i);
         const ds = localDate(d);
-        const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [ds, storeId] : [ds];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
-        points.push({ label: ds.slice(5), income: inc, expense: exp });
+        const data = dateMap.get(ds) || { income: 0, expense: 0 };
+        points.push({ label: ds.slice(5), income: data.income, expense: data.expense });
       }
     } else if (period === 'week') {
+      const weekRanges: { ws: string; we: string; label: string }[] = [];
+      let minDate = '', maxDate = '';
       for (let i = 14; i >= 0; i--) {
         const ws = new Date(now); ws.setDate(ws.getDate() - ws.getDay() + 1 - i * 7);
         const we = new Date(ws); we.setDate(we.getDate() + 6);
         const startStr = localDate(ws);
         const endStr = localDate(we);
-        const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [startStr, endStr, storeId] : [startStr, endStr];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE date>=? AND date<=? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
-        points.push({ label: 'W' + Math.ceil((ws.getDate()) / 7) + '/' + (ws.getMonth() + 1), income: inc, expense: exp });
+        if (!minDate || startStr < minDate) minDate = startStr;
+        if (!maxDate || endStr > maxDate) maxDate = endStr;
+        weekRanges.push({ ws: startStr, we: endStr, label: 'W' + Math.ceil((ws.getDate()) / 7) + '/' + (ws.getMonth() + 1) });
+      }
+      const cond = storeId ? 'AND store_id = ?' : '';
+      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
+      const dateMap = new Map<string, { type: string; amount: number }>();
+      for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });
+      for (const wk of weekRanges) {
+        let inc = 0, exp = 0;
+        for (const [dateStr, entry] of dateMap) {
+          if (dateStr >= wk.ws && dateStr <= wk.we) {
+            if (entry.type === '收入' || entry.type === 'income') inc += entry.amount; else exp += entry.amount;
+          }
+        }
+        points.push({ label: wk.label, income: inc, expense: exp });
       }
     } else if (period === 'month') {
+      const monthRanges: { start: string; end: string; label: string }[] = [];
+      let minDate = '', maxDate = '';
       for (let i = 11; i >= 0; i--) {
         const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const ms = localDate(m).slice(0, 7);
-        const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [ms, storeId] : [ms];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE /* TODO: replace strftime with range query */ strftime('%Y-%m',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
-        points.push({ label: (m.getMonth() + 1) + '月', income: inc, expense: exp });
+        const mEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        const ms = localDate(m);
+        const me = localDate(mEnd);
+        if (!minDate || ms < minDate) minDate = ms;
+        if (!maxDate || me > maxDate) maxDate = me;
+        monthRanges.push({ start: ms, end: me, label: (m.getMonth() + 1) + '月' });
+      }
+      const cond = storeId ? 'AND store_id = ?' : '';
+      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
+      const dateMap = new Map<string, { type: string; amount: number }>();
+      for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });
+      for (const mo of monthRanges) {
+        let inc = 0, exp = 0;
+        for (const [dateStr, entry] of dateMap) {
+          if (dateStr >= mo.start && dateStr <= mo.end) {
+            if (entry.type === '收入' || entry.type === 'income') inc += entry.amount; else exp += entry.amount;
+          }
+        }
+        points.push({ label: mo.label, income: inc, expense: exp });
       }
     } else if (period === 'year') {
+      const yearRanges: { start: string; end: string; label: string }[] = [];
       for (let i = 9; i >= 0; i--) {
-        const y = String(now.getFullYear() - i);
-        const cond = storeId ? 'AND store_id = ?' : '';
-        const params = storeId ? [y, storeId] : [y];
-        const inc = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y',date) = ? AND type IN ('收入','income') " + cond).get(...params) as any).t;
-        const exp = (db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM entries WHERE strftime('%Y',date) = ? AND type IN ('支出','expense') " + cond).get(...params) as any).t;
-        points.push({ label: y, income: inc, expense: exp });
+        const y = now.getFullYear() - i;
+        yearRanges.push({ start: y + '-01-01', end: y + '-12-31', label: String(y) });
+      }
+      const minDate = yearRanges[0].start;
+      const maxDate = yearRanges[yearRanges.length - 1].end;
+      const cond = storeId ? 'AND store_id = ?' : '';
+      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
+      const dateMap = new Map<string, { type: string; amount: number }>();
+      for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });
+      for (const yr of yearRanges) {
+        let inc = 0, exp = 0;
+        for (const [dateStr, entry] of dateMap) {
+          if (dateStr >= yr.start && dateStr <= yr.end) {
+            if (entry.type === '收入' || entry.type === 'income') inc += entry.amount; else exp += entry.amount;
+          }
+        }
+        points.push({ label: yr.label, income: inc, expense: exp });
       }
     }
     
     res.json({ trend: points });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "发生内部错误" : err.message }); }
 });
 export default router;
 

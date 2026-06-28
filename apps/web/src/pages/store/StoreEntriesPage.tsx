@@ -12,6 +12,7 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { Pagination } from '../../components/Pagination';
 import { Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { showToast } from '../../components/Toast';
+import { useConfirm } from '../../components/useConfirm';
 
 // React 19 安全的 portal 容器
 let portalContainer: HTMLDivElement | null = null;
@@ -53,7 +54,8 @@ export default function StoreEntriesPage() {
   const myRole = useStore((s) => s.user?.role);
   const isReadonly = myRole === 'SHAREHOLDER';
   const location = useLocation();
-  const navigate = useNavigate();
+  const navigate = useNavigate();const { confirm, ConfirmDialog } = useConfirm();
+
   const [entries, setEntries] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -144,7 +146,7 @@ export default function StoreEntriesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确认删除？')) return;
+    if (!await confirm({ message: '确认删除？' })) return;
     try { await api.del('/stores/' + storeId + '/entries/' + id); load(); } catch (e: any) { showToast(e.message || '删除失败', 'error'); }
   };
 
@@ -288,6 +290,7 @@ export default function StoreEntriesPage() {
 
       {!isReadonly && <FloatingActionButton label={"记一笔"} onClick={openCreate} />}
     </div>
+      <ConfirmDialog />
   );
 }
 
