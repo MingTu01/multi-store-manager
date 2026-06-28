@@ -25,9 +25,9 @@ jobs:
         working-directory: apps/web
         run: npx vite build
 
-      - name: Install Capacitor
+      - name: Install Capacitor + Android
         working-directory: apps/web
-        run: npm install @capacitor/core @capacitor/cli @capacitor/push-notifications @capacitor/camera @capacitor/filesystem --legacy-peer-deps
+        run: npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/push-notifications @capacitor/camera @capacitor/filesystem --legacy-peer-deps
 
       - name: Init Capacitor
         working-directory: apps/web
@@ -79,9 +79,9 @@ jobs:
         working-directory: apps/web
         run: npx vite build
 
-      - name: Install Capacitor
+      - name: Install Capacitor + iOS
         working-directory: apps/web
-        run: npm install @capacitor/core @capacitor/cli @capacitor/push-notifications @capacitor/camera @capacitor/filesystem --legacy-peer-deps
+        run: npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/push-notifications @capacitor/camera @capacitor/filesystem --legacy-peer-deps
 
       - name: Init Capacitor
         working-directory: apps/web
