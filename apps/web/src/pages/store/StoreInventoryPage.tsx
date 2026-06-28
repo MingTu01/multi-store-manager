@@ -129,7 +129,7 @@ const isReadonly = user?.role === 'SHAREHOLDER';
     setLoading(true);
     api.get('/stores/' + storeId + '/inventory')
       .then((d) => {
-        const list = d.data || [];
+        const list = d.data?.items || d.data || [];
         setItems(Array.isArray(list) ? list : []);
         // 加载最近一次盘点结果
         const checks = d.checks || [];

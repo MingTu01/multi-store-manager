@@ -39,7 +39,7 @@ export default function StoreShiftsPage() {
     if (!storeId) return;
     api.get('/stores/' + storeId).then((d) => setStore(d)).catch(() => {});
     api.get('/stores/' + storeId + '/shifts?page=' + page + '&pageSize=10').then((d) => setShifts(d.data || [])).catch(() => {});
-    api.get('/stores/' + storeId + '/shifts/last-close-handover').then((d: any) => setLastHandover(d.handover || '')).catch(() => {});
+    api.get('/stores/' + storeId + '/shifts/last-close-handover').then((d: any) => setLastHandover(d.data?.handover || d.handover || '')).catch(() => {});
   };
   useEffect(() => { load(); }, [storeId, page]);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);

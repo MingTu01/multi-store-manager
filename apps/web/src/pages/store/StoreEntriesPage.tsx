@@ -85,7 +85,7 @@ const navigate = useNavigate();
       setTotal(d.pagination?.total || 0);
     }).catch(e => { setLoadError(e.message || '加载失败'); });
     api.get('/stores/' + storeId + '/categories').then((d) => setCategories(d || [])).catch(() => {});
-    api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d)).catch(() => {});
+    api.get('/stores/' + storeId + '/entries/stats').then((d) => setStats(d.data || d)).catch(() => {});
   };
   useEffect(() => { load(); }, [storeId, page, pageSize, dateFrom, dateTo, dataVersion]);
 

@@ -32,9 +32,9 @@ const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
     if (!storeId) return;
     setLoading(true);
     api.get('/stores/' + storeId + '/dividends').then((d) => {
-      setDividends(d.data || []);
-      setBalance(d.balance || 0);
-      setShareholders(d.shareholders || []);
+      setDividends(d.data?.dividends || d.data || []);
+      setBalance(d.data?.balance || d.balance || 0);
+      setShareholders(d.data?.shareholders || d.shareholders || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };

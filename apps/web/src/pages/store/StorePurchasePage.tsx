@@ -42,7 +42,7 @@ const dataVersion = useDataVersion('store', storeId);
 
   const load = () => {
     api.get('/stores/' + storeId + '/purchase?date=' + dateStr).then((d) => {
-      setItems(d.data || []);
+      setItems(d.items || d.data || []);
     }).catch(() => {});
   };
 

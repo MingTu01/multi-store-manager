@@ -28,7 +28,7 @@ export function StoreGuard({ children }: { children: React.ReactNode }) {
   const load = () => {
     if (!storeId) return;
     api.get('/stores/' + storeId).then((d) => { setStore(d); setLoading(false); }).catch(() => setLoading(false));
-    api.get('/stores/' + storeId + '/shifts?page=1&pageSize=5').then((d: any) => setShifts(d.shifts || [])).catch(() => {});
+    api.get('/stores/' + storeId + '/shifts?page=1&pageSize=5').then((d: any) => setShifts(d.data || d.shifts || [])).catch(() => {});
   };
   useEffect(() => { load(); }, [storeId]);
   
