@@ -1,3 +1,11 @@
+## v1.7.3 (2026-06-29)
+
+### Native APP Fixes
+- ImagePreview: resolveImageUrl() prepends server URL for relative image paths in native app
+- main.tsx: re-apply StatusBar on app foreground (fixes JPush overlay after notification init)
+- Dockerfile: fix double /app//app/ path in sed command
+- Added @capacitor/app dependency for appStateChange listener
+
 ## v1.6.3 (2026-06-28)
 
 状态栏适配 + Capacitor 原生推送
