@@ -77,8 +77,7 @@ jobs:
           # Copy container management tools (msl.js, startup-check.js, startup.sh)
           cp ../apps/server/msl.js . 2>/dev/null || true
           cp ../apps/server/startup-check.js . 2>/dev/null || true
-          cp ../apps/server/startup.sh . 2>/dev/null || true
-          cp ../apps/server/entrypoint.js . 2>/dev/null || true
+                    cp ../apps/server/entrypoint.js . 2>/dev/null || true
 
           # Copy deploy-specific Dockerfile (NOT from source repo root!)
           # deploy/ dir is overwritten by checkout, so use scripts/deploy/Dockerfile

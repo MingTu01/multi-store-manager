@@ -22,9 +22,8 @@ COPY public ./public/
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
 COPY entrypoint.js ./entrypoint.js
-COPY startup.sh ./startup.sh
-RUN chmod +x /app/startup.sh /app/entrypoint.js && \
-    sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh /app/entrypoint.js 2>/dev/null || true
+RUN chmod +x /app/entrypoint.js && \
+    sed -i '1s/^\xEF\xBB\xBF//' /app//app/entrypoint.js 2>/dev/null || true
 
 RUN echo '#!/bin/sh' > /usr/local/bin/msl && \
     echo 'node /app/msl.js' >> /usr/local/bin/msl && \
