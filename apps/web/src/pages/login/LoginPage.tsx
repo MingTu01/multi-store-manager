@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../stores/data';
 import { GlassCard } from '../../components/GlassCard';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, Settings } from 'lucide-react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -33,7 +33,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-4">
       <GlassCard className="w-full max-w-sm p-8 login-card">
         <div className="mb-8 text-center">
           <img src="/logo.png" alt="Logo" className="mx-auto mb-3 h-16 w-16 rounded-2xl object-cover login-logo" />
@@ -58,10 +58,10 @@ export default function LoginPage() {
           </button>
           <p className="mt-3 text-center text-sm text-slate-400">请登录以继续</p>
         </form>
+        <button type="button" onClick={() => window.location.href = '/server-config'} className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-slate-400 shadow-sm hover:text-indigo-500 hover:bg-white transition-all">
+          <Settings className="h-4 w-4" />
+        </button>
       </GlassCard>
-        <div className="mt-4 text-center">
-          <button type="button" onClick={() => window.location.href = '/server-config'} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors">更改服务器地址</button>
-        </div>
     </div>
   );
 }

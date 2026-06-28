@@ -21,16 +21,47 @@ export default function ServerConfigPage() {
     setTestResult(null);
     try {
       const normalized = url.replace(/\/+$/, '');
-      const res = await fetch(normalized + '/api/health', {
-        method: 'GET',
-        signal: AbortSignal.timeout(10000),
-      });
-      if (res.ok) {
-        setTestResult('ok');
-        showToast('连接成功', 'success');
-      } else {
-        setTestResult('fail');
-        showToast('服务器响应异常: ' + res.status, 'error');
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch(normalized + '/api/health', {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          setTestResult('ok');
+          showToast('连接成功', 'success');
+        } else {
+          setTestResult('fail');
+          showToast('服务器响应异常: ' + res.status, 'error');
+        }
+      } catch (fetchErr: any) {
+        clearTimeout(timer);
+        // CORS or network error - try with no-cors to check if server is reachable
+        if (fetchErr.name === 'TypeError' || fetchErr.message?.includes('Failed to fetch')) {
+          try {
+            const res2 = await fetch(normalized + '/api/health', {
+              method: 'GET',
+              mode: 'no-cors',
+              signal: AbortSignal.timeout(10000),
+            });
+            // opaque response means server responded (CORS blocks reading)
+            if (res2.type === 'opaque') {
+              setTestResult('ok');
+              showToast('服务器可达（浏览器跨域限制，原生APP无此问题）', 'success');
+            } else {
+              setTestResult('fail');
+              showToast('连接失败', 'error');
+            }
+          } catch {
+            setTestResult('fail');
+            showToast('连接失败: 服务器不可达', 'error');
+          }
+        } else {
+          setTestResult('fail');
+          showToast('连接失败: ' + (fetchErr.message || '网络错误'), 'error');
+        }
       }
     } catch (e: any) {
       setTestResult('fail');
