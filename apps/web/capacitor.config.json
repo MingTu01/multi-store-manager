@@ -22,6 +22,11 @@
         "sound",
         "alert"
       ]
+    },
+    "JPush": {
+      "appKey": "583347af32b59abcf0b9f317",
+      "channel": "default",
+      "isProduction": false
     }
   }
 }

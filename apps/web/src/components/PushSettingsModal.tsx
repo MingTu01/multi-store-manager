@@ -477,18 +477,16 @@ const role = user?.role ?? '';
               </h3>
               <div className="flex items-center justify-between rounded-xl bg-white/40 p-3">
                 <div className="flex items-center gap-3">
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      notifPermission === 'granted'
-                        ? 'bg-emerald-500'
-                        : notifPermission === 'denied'
-                        ? 'bg-rose-500'
-                        : 'bg-slate-300'
-                    }`}
-                  />
+                  <div className={`h-2.5 w-2.5 rounded-full ${
+                    (isNativeApp() ? capPushEnabled : (notifPermission === 'granted' && hasPushSub))
+                      ? 'bg-emerald-500'
+                      : (isNativeApp() ? false : notifPermission === 'denied')
+                      ? 'bg-rose-500'
+                      : 'bg-slate-300'
+                  }`} />
                   <div>
                     <div className="text-sm font-medium text-slate-700">
-                      {isNativeApp() ? 'APP 推送通知' : '浏览器推送通知'}
+                      {isNativeApp() ? 'APP 推送通知（极光推送）' : '浏览器推送通知'}
                     </div>
                     <div className="text-xs text-slate-400">
                       {isNativeApp()

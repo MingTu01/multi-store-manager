@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { api } from '../lib/api';
 import { isNativeApp } from '../lib/config';
+import { JPush } from 'capacitor-plugin-jpush';
 
 export function BrowserPushPrompt() {
   const [show, setShow] = useState(false);
@@ -19,16 +20,27 @@ export function BrowserPushPrompt() {
   const initCapacitorPush = async () => {
     try {
       if (localStorage.getItem('msl_push_dismissed')) return;
-      const { PushNotifications } = await import('@capacitor/push-notifications');
-      const perm = await PushNotifications.checkPermissions();
-      if (perm.receive === 'granted') {
-        await registerToken();
+      await JPush.startJPush();
+      const perm = await JPush.checkPermissions();
+      if (perm.permission === 'granted') {
+        await registerJPush();
         return;
       }
-      if (perm.receive === 'denied') return;
+      if (perm.permission === 'denied') return;
       setTimeout(() => setShow(true), 2000);
-    } catch {
-      // Plugin not available
+    } catch (e) {
+      console.warn('[JPush] init failed:', e);
+    }
+  };
+
+  const registerJPush = async () => {
+    try {
+      const { registrationId } = await JPush.getRegistrationID();
+      if (registrationId) {
+        await api.post('/system/push/jpush-register', { registrationId });
+      }
+    } catch (e) {
+      console.warn('[JPush] register failed:', e);
     }
   };
 
@@ -43,28 +55,7 @@ export function BrowserPushPrompt() {
     }).catch(() => {});
   };
 
-  const registerToken = async () => {
-    try {
-      const { PushNotifications } = await import('@capacitor/push-notifications');
-      await PushNotifications.register();
-      const tokenHandler = await new Promise<string>((resolve) => {
-        const handler = (token: any) => {
-          PushNotifications.removeListener('registration', handler);
-          resolve(token.value);
-        };
-        PushNotifications.addListener('registration', handler);
-        setTimeout(() => {
-          PushNotifications.removeListener('registration', handler);
-          resolve('');
-        }, 15000);
-      });
-      if (tokenHandler) {
-        await api.post('/system/push/capacitor-token', { token: tokenHandler, platform: 'android' });
-      }
-    } catch {
-      // silent fail
-    }
-  };
+
 
   const handleEnable = async () => {
     setShow(false);
@@ -72,13 +63,12 @@ export function BrowserPushPrompt() {
 
     if (isNativeApp()) {
       try {
-        const { PushNotifications } = await import('@capacitor/push-notifications');
-        const perm = await PushNotifications.requestPermissions();
-        if (perm.receive === 'granted') {
-          await registerToken();
+        const perm = await JPush.requestPermissions();
+        if (perm.permission === 'granted') {
+          await registerJPush();
         }
-      } catch {
-        // silent fail
+      } catch (e) {
+        console.warn('[JPush] permission failed:', e);
       }
       return;
     }

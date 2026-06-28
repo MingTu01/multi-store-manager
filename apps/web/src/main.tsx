@@ -14,8 +14,8 @@
   // Capacitor native status bar
   if ((window as any).Capacitor?.isNativePlatform?.()) {
     import('@capacitor/status-bar').then(({ StatusBar, Style }) => {
-      StatusBar.setStyle({ style: Style.Light });
-      StatusBar.setBackgroundColor({ color: '#3b63f7' });
+      StatusBar.setStyle({ style: Style.Dark });
+      StatusBar.setBackgroundColor({ color: '#ffffff' });
       StatusBar.setOverlaysWebView({ overlay: false });
     }).catch(() => {});
   }

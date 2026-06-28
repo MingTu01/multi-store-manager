@@ -955,7 +955,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 
 // ── 用户个人推送设置（改造版） ──
 import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
-import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification } from '../push-notify.js';
+import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification, getJPushConfig, setJPushConfig } from '../push-notify.js';
 import logger from '../logger.js';
 
 // GET: 读取自己的设置（解密返回）
@@ -1069,12 +1069,29 @@ router.post('/push/test', async (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
-// Capacitor native push token
-router.post('/push/capacitor-token', (req: AuthRequest, res: Response) => {
+// JPush device registration
+router.post('/push/jpush-register', (req: AuthRequest, res: Response) => {
   try {
-    const { token, platform } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token required' });
-    db.prepare('INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)').run(req.user.id, 'capacitor:' + token, platform || 'android', '');
+    const { registrationId } = req.body;
+    if (!registrationId) return res.status(400).json({ error: 'registrationId required' });
+    db.prepare('INSERT OR REPLACE INTO push_subscriptions (user_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?)').run(req.user.id, 'jpush:' + registrationId, 'jpush', '');
+    res.json({ success: true });
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+});
+
+// JPush config (admin only)
+router.get('/push/jpush-config', requireRole('ADMIN'), (req: AuthRequest, res: Response) => {
+  try {
+    const cfg = getJPushConfig();
+    res.json({ appKey: cfg.appKey, masterSecret: cfg.masterSecret ? '***' : '' });
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+});
+
+router.put('/push/jpush-config', requireRole('ADMIN'), (req: AuthRequest, res: Response) => {
+  try {
+    const { appKey, masterSecret } = req.body;
+    if (!appKey || !masterSecret) return res.status(400).json({ error: '参数不完整' });
+    setJPushConfig(appKey, masterSecret);
     res.json({ success: true });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
