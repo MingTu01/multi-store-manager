@@ -38,8 +38,8 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
 
   if (storeId) {
     if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase') {
-      const managers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.MANAGER) as any[];
-      managers.forEach((u: any) => userIds.push(u.id));
+      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?)').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER) as any[];
+      storeAdmins.forEach((u: any) => userIds.push(u.id));
     }
 
     if (type === 'dividend') {
