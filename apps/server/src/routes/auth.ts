@@ -18,7 +18,7 @@ const loginLimiter = rateLimit({
 });
 
 
-router.post('/login', loginLimiter, (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: '请输入用户名和密码' });

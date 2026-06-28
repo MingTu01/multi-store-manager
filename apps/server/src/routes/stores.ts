@@ -131,7 +131,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
   }
 });
 
-router.delete('/:id', (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { password } = req.body;
