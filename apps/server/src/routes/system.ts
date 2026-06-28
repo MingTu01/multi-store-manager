@@ -353,7 +353,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           const webDistDir = join(BASE_DIR, 'public', 'web-dist');
           if (existsSync(webDistDir)) codeZip.addLocalFolder(webDistDir, 'web-dist');
           // Backup startup scripts and tools
-          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json', 'package.json']) {
+          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json', 'package.json']) {
             const fp = join(BASE_DIR, f);
             if (existsSync(fp)) codeZip.addLocalFile(fp, '', f);
           }
@@ -454,7 +454,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
         logger.info('[Upgrade] server code updated');
 
         // === 更新启动脚本和容器工具 ===
-        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json']) {
+        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json']) {
           const srcFile = join(workDir, f);
           if (existsSync(srcFile)) {
             try { copyFileSync(srcFile, join(BASE_DIR, f)); logger.info('[Upgrade] Updated:', f); } catch (e) { logger.warn('[Upgrade] Failed to update', f, ':', e.message); }
@@ -784,7 +784,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           if (existsSync(srcDirBackup)) codeZip.addLocalFolder(srcDirBackup, 'src');
           const webDistDirBackup = join(BASE_DIR, 'public', 'web-dist');
           if (existsSync(webDistDirBackup)) codeZip.addLocalFolder(webDistDirBackup, 'web-dist');
-          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json', 'package.json']) {
+          for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json', 'package.json']) {
             const fp = join(BASE_DIR, f);
             if (existsSync(fp)) codeZip.addLocalFile(fp, '', f);
           }
@@ -897,7 +897,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         logger.info('[Update] server-src updated');
 
         // === 更新启动脚本和容器工具 ===
-        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'tsconfig.json']) {
+        for (const f of ['startup.sh', 'startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json']) {
           const srcFile = join(realExtractedFolder, f);
           if (existsSync(srcFile)) {
             try { copyFileSync(srcFile, join(BASE_DIR, f)); logger.info('[Update] Updated:', f); } catch (e) { logger.warn('[Update] Failed to update', f, ':', e.message); }
