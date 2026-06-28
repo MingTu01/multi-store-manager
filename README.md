@@ -12,6 +12,51 @@
 
 ## 更新日志
 
+### v1.5.0 (2026-06-28)
+
+**ȫ�����������Ż� �� 4ר�Ҳ�����飨��ȫ/����/ǰ��/�ܹ���**
+
+��ȫ�ӹ�:
+- .env �� git �Ƴ�����������ǿ�� JWT_SECRET
+- 112��·�� catch ����������������Ϣ����
+- ������ƾ֤ AES-256-GCM ���ܴ洢
+- ��ҳ���� pageSize ���� 100��7��·�ɣ�
+- ��¼��Ӧ�ֶΰ�����������й¶ salary/address��
+- bcrypt.compareSync ȫ����Ϊ�첽 bcrypt.compare
+
+����������:
+- �ֺ���²��������񱣻�
+- ����ɾ�����������񱣻�
+- DB Ǩ������ schema_version �汾׷��
+- ���Լ�� TODO ע�ͱ��
+- entries ������ updated_at �ֶ�
+
+�����Ż�:
+- dashboard.ts N+1 ��ѯ�Ż���16�Ρ�4��������ѯ��
+- notify.ts N+1 ��ѯ�Ż���60�Ρ�18��������ѯ��
+- strftime ȫ����Ϊ��Χ��ѯ��������������
+- StoreGuard ʱ�����������React.memo ��������Ⱦ
+- ǰ�˻��� LRU ��̭�Ż�
+
+�ܹ��Ľ�:
+- index.ts 377�в��Ϊ 4 �ļ���app/scheduler/shutdown/index��
+- API ��Ӧ��ʽͳһΪ { success, data, pagination }
+- AppError ��������ϵ���루auth.ts 13�� + stores.ts 27����
+- 20���ļ� console �滻Ϊ pino �ṹ����־
+- ֪ͨ���Ի��ƣ�ָ���˱�3�Σ�
+- setInterval ����ִ�У����ݿ��ǣ�
+- ���ݸ��� VACUUM INTO
+- settingsCache ����ʧЧ
+
+ǰ�˸Ľ�:
+- 15��ԭ�� confirm �滻Ϊ�Զ��� useConfirm hook
+- SSE BroadcastChannel ���ǩҳ֧��
+- Service Worker �������Ȳ��ԣ�PWA����֧�֣�
+- ���̵����Զ����صײ�����
+- 10�� aria-label ���ϰ�
+- ��¼ҳ Base64 logo ��Ϊ�ļ�����
+- CSP nonce ע�� SPA script ��ǩ
+
 ### v1.4.4 (2026-06-28)
 
 **PWA 图标彻底修复：**
