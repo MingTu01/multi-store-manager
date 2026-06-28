@@ -3,6 +3,7 @@ import { api, invalidateCache, resetRedirectFlag } from '../lib/api';
 import { useDataSync } from './data-sync';
 import { useNotificationStore } from './notification';
 import { disconnectSSE, reconnectSSE } from '../lib/sse';
+import { getBaseURL } from '../lib/config';
 
 export interface User {
   id: number;
@@ -48,7 +49,7 @@ export const useStore = create<AppState>((set) => ({
       navigator.serviceWorker.ready.then(async (reg) => {
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
-          fetch('/api/system/push/unsubscribe', {
+          fetch(getBaseURL() + '/api/system/push/unsubscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -58,7 +59,7 @@ export const useStore = create<AppState>((set) => ({
         }
       }).catch(() => {});
     }
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+    fetch(getBaseURL() + '/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     set({ token: null, user: null, loading: false });
     useNotificationStore.getState().resetUnread();
     disconnectSSE();
@@ -78,7 +79,7 @@ export const useStore = create<AppState>((set) => ({
         const timer = setTimeout(() => controller.abort(), 5000);
         let res: Response;
         try {
-          res = await fetch('/api/auth/me', {
+          res = await fetch(getBaseURL() + '/api/auth/me', {
             credentials: 'include',
             cache: 'no-store',
             signal: controller.signal

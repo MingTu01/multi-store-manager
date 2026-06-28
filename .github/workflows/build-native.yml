@@ -1,0 +1,111 @@
+name: Build Native Apps
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build web app
+        working-directory: apps/web
+        run: npx vite build
+
+      - name: Install Capacitor
+        working-directory: apps/web
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/push-notifications @capacitor/camera @capacitor/filesystem
+          npx cap init "Multi Shop Link" com.mingshoplink.app --web-dir dist
+
+      - name: Add Android platform
+        working-directory: apps/web
+        run: npx cap add android
+
+      - name: Sync web to native
+        working-directory: apps/web
+        run: npx cap sync android
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build APK
+        working-directory: apps/web/android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: apps/web/android/app/build/outputs/apk/debug/*.apk
+
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build web app
+        working-directory: apps/web
+        run: npx vite build
+
+      - name: Install Capacitor
+        working-directory: apps/web
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/push-notifications @capacitor/camera @capacitor/filesystem
+          npx cap init "Multi Shop Link" com.mingshoplink.app --web-dir dist
+
+      - name: Add iOS platform
+        working-directory: apps/web
+        run: npx cap add ios
+
+      - name: Sync web to native
+        working-directory: apps/web
+        run: npx cap sync ios
+
+      - name: Build iOS app
+        working-directory: apps/web/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Debug \
+            -archivePath $PWD/build/App.xcarchive \
+            archive
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: apps/web/ios/App/build/*.ipa

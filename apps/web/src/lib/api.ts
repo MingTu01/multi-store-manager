@@ -1,3 +1,4 @@
+import { getBaseURL } from './config';
 let isRedirectingToLogin = false;
 
 const headers = () => ({ 'Content-Type': 'application/json' });
@@ -103,32 +104,32 @@ export const api = {
     const ck = url;
     const cached = getCached(ck);
     if (cached) return cached;
-    const res = await fetch('/api' + url, { headers: headers(), cache: 'no-store', credentials: 'include' });
+    const res = await fetch(getBaseURL() + '/api' + url, { headers: headers(), cache: 'no-store', credentials: 'include' });
     if (!res.ok) throw await parseError(res, opts?.silent);
     const data = await res.json();
     setCache(ck, data);
     return data;
   },
   post: async (url: string, body: any) => {
-    const res = await fetch('/api' + url, { method: 'POST', headers: headers(), cache: 'no-store', body: JSON.stringify(body), credentials: 'include' });
+    const res = await fetch(getBaseURL() + '/api' + url, { method: 'POST', headers: headers(), cache: 'no-store', body: JSON.stringify(body), credentials: 'include' });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
   },
   put: async (url: string, body: any) => {
-    const res = await fetch('/api' + url, { method: 'PUT', headers: headers(), cache: 'no-store', body: JSON.stringify(body), credentials: 'include' });
+    const res = await fetch(getBaseURL() + '/api' + url, { method: 'PUT', headers: headers(), cache: 'no-store', body: JSON.stringify(body), credentials: 'include' });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
   },
   del: async (url: string, body?: any) => {
-    const res = await fetch('/api' + url, { method: 'DELETE', headers: headers(), cache: 'no-store', credentials: 'include', ...(body ? { body: JSON.stringify(body) } : {}) });
+    const res = await fetch(getBaseURL() + '/api' + url, { method: 'DELETE', headers: headers(), cache: 'no-store', credentials: 'include', ...(body ? { body: JSON.stringify(body) } : {}) });
     if (!res.ok) throw await parseError(res);
     invalidateRelated(url);
     return res.json();
   },
   upload: async (url: string, formData: FormData) => {
-    const res = await fetch('/api' + url, {
+    const res = await fetch(getBaseURL() + '/api' + url, {
       method: 'POST',
       credentials: 'include',
       body: formData,

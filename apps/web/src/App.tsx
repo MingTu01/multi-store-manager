@@ -2,11 +2,13 @@ import { useEffect, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
+import { getServerURL, isNativeApp } from './lib/config';
 
 import { canAccess } from './lib/permissions';
 import { AppShell } from './layouts/AppShell';
 import { StoreGuard } from './components/StoreGuard';
 import LoginPage from './pages/login/LoginPage';
+import ServerConfigPage from './components/ServerConfigPage';
 
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
 const StoresPage = lazy(() => import('./pages/stores/StoresPage'));
@@ -39,7 +41,13 @@ function Loading() {
 function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
   const user = useStore((s) => s.user);
   const loading = useStore((s) => s.loading);
-  if (loading) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
+  // Native app: redirect to server config if no URL set
+    if (isNativeApp() && !getServerURL() && window.location.pathname !== '/server-config') {
+      window.location.href = '/server-config';
+      return null;
+    }
+
+    if (loading) return <div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" /></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (!canAccess(perm, (user as any)?.role)) {
     if (user.store_id) {
@@ -108,7 +116,8 @@ export default function App() {
     <ErrorBoundary>
     <Suspense fallback={<Loading />}>
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/server-config" element={<ServerConfigPage />} />
+            <Route path="/login" element={<LoginPage />} />
         <Route element={<AppShell />}>
           <Route index element={<Guard perm="dashboard"><DashboardPage /></Guard>} />
           <Route path="stores" element={<Guard perm="stores"><StoresPage /></Guard>} />

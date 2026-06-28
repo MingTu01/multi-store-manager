@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { invalidateCache } from './api';
+import { getBaseURL } from './config';
 import { useDataSync } from '../stores/data-sync';
 import { useNotificationStore } from '../stores/notification';
 
@@ -82,7 +83,7 @@ function globalConnect() {
   notifyListeners('connecting');
   startHeartbeat();
 
-  const source = new EventSource('/api/sse', { withCredentials: true });
+  const source = new EventSource(getBaseURL() + '/api/sse', { withCredentials: true });
   globalSource = source;
 
   source.onopen = function() {
