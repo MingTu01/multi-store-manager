@@ -5,6 +5,12 @@
   "server": {
     "androidScheme": "https"
   },
+  "ios": {
+    "contentInset": "automatic",
+    "preferredContentMode": "mobile",
+    "scheme": "Multi Shop Link",
+    "limitsNavigationsToAppBoundDomains": true
+  },
   "plugins": {
     "PushNotifications": {
       "presentationOptions": [
