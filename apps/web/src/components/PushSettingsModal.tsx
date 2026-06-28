@@ -96,6 +96,7 @@ const INPUT_CLS =
 /* ---------- 组件 ---------- */
 
 export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { confirm, ConfirmDialog } = useConfirm();
   const user = useStore((s) => s.user);
 const role = user?.role ?? '';
 

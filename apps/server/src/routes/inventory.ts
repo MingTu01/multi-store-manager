@@ -138,6 +138,7 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
 // POST /items/reorder - reorder items
 router.post('/items/reorder', (req: AuthRequest, res: Response) => {
   try {
+    if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const { order } = req.body; // [{id, sort_order}]
     if (!Array.isArray(order)) return res.status(400).json({ error: '参数错误' });
     const stmt = db.prepare('UPDATE inventory_master SET sort_order = ? WHERE id = ?');

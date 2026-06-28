@@ -26,6 +26,6 @@ export function isReadonly(role: string) {
  * 返回基于角色的记账条目过滤 SQL 子句
  * 当前所有角色均可查看所有条目，返回空字符串
  */
-export function entryFilterClause(_role) {
+export function entryFilterClause(_role: string): string {
   return '';
 }

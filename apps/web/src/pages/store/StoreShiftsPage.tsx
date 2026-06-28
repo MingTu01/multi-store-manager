@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { Power, Camera, Upload, Clock, Lock, ChevronDown, ChevronUp } from 'lucide-react';
 import { ImagePreview } from '../../components/ImagePreview';
+import { useConfirm } from '../../components/useConfirm';
 
 export default function StoreShiftsPage() {
   const { storeId } = useParams();
@@ -31,7 +32,7 @@ export default function StoreShiftsPage() {
     if (loadedPhotos[shiftId]) return;
     try {
       const d = await api.get('/stores/' + storeId + '/shifts/' + shiftId);
-      setLoadedPhotos((prev) => ({ ...prev, [shiftId]: d.photos || [] }));
+      setLoadedPhotos((prev) => ({ ...prev, [shiftId]: d.data?.photos || d.photos || [] }));
     } catch {}
   };
 

@@ -3,7 +3,7 @@
 
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../auth.js';
-import { isAdmin, isReadonly, isManagerOrAbove, isStoreAdminOrAbove } from '../lib/roles.js';
+import { isAdmin, isReadonly, isManagerOrAbove, isStoreAdmin } from '../lib/roles.js';
 
 /** Require ADMIN role */
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction) {
@@ -23,7 +23,7 @@ export function requireManagerOrAbove(req: AuthRequest, res: Response, next: Nex
 
 /** Require STORE_ADMIN or above (ADMIN, STORE_ADMIN) */
 export function requireStoreAdminOrAbove(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!isStoreAdminOrAbove(req.user?.role)) {
+  if (!isStoreAdmin(req.user?.role)) {
     return res.status(403).json({ error: '\u65e0\u6743\u9650\uff0c\u9700\u8981\u95e8\u5e97\u7ba1\u7406\u5458\u4ee5\u4e0a\u6743\u9650' });
   }
   next();

@@ -1,5 +1,34 @@
 # Changelog
 
+## v1.5.6 (2026-06-28)
+
+权限修复 + 前端组件修复 + Docker优化
+
+### 权限安全修复
+- shifts.ts: POST路由添加只读角色(SHAREHOLDER)权限检查
+- inventory.ts: POST /items/reorder添加canOperateInventory权限检查
+- categories.ts: POST/PUT/DELETE从仅检查SHAREHOLDER改为isManagerOrAbove
+- middleware/require-role.ts: 修复isStoreAdminOrAbove导入名
+- lib/roles.ts: entryFilterClause添加TypeScript类型注解
+
+### 前端权限匹配
+- permissions.ts: dashboard权限扩展为ADMIN/STORE_ADMIN/MANAGER
+- permissions.ts: stores权限扩展为所有角色
+- permissions.ts: notifications权限扩展为所有角色
+
+### 前端组件修复
+- PushSettingsModal.tsx: 添加useConfirm()钩子调用(修复ConfirmDialog未定义)
+- StoreShiftsPage.tsx: 添加useConfirm导入(修复缺失导入)
+- NotificationsPage.tsx: 防御性API响应解析
+- StoreNotificationsPage.tsx: 防御性API响应解析
+- StoreInventoryPage.tsx: 修复checks/items数据解析
+- StoreShiftsPage.tsx: 修复photos数据解析
+
+### Docker优化
+- Dockerfile: 添加阿里云apt镜像加速
+- Dockerfile: startup.sh BOM自动修复
+- startup.sh: 添加sanitize-html依赖检查
+
 ## v1.5.0 (2026-06-28)
 
 全面代码审查优化 — 4专家交叉审查（安全/性能/前端/架构），28项问题全部修复

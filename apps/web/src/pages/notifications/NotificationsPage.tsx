@@ -58,9 +58,9 @@ export default function NotificationsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (typeFilter !== 'all') params.set('type', typeFilter);
     api.get('/notifications?' + params.toString()).then((d) => {
-      setList(d.notifications || []);
-      setTotal(d.total || 0);
-      setUnread(d.unread || 0);
+      setList(d.data?.notifications || d.notifications || []);
+      setTotal(d.pagination?.total || d.total || 0);
+      setUnread(d.data?.unread || d.unread || 0);
     }).catch(() => {});
   };
 

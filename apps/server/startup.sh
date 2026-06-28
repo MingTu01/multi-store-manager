@@ -38,6 +38,9 @@ elif [ ! -d "/app/node_modules/express" ]; then
 elif [ ! -d "/app/node_modules/better-sqlite3" ]; then
   echo "[Startup] Critical dependency better-sqlite3 missing"
   NEED_INSTALL=1
+elif [ ! -d "/app/node_modules/sanitize-html" ]; then
+  echo "[Startup] Critical dependency sanitize-html missing"
+  NEED_INSTALL=1
 fi
 
 if [ "$NEED_INSTALL" = "1" ]; then

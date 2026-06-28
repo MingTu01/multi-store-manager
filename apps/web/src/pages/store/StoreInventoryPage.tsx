@@ -132,12 +132,12 @@ const isReadonly = user?.role === 'SHAREHOLDER';
         const list = d.data?.items || d.data || [];
         setItems(Array.isArray(list) ? list : []);
         // 加载最近一次盘点结果
-        const checks = d.checks || [];
+        const checks = d.data?.checks || d.checks || [];
         if (checks.length > 0 && checks[0].status === 'completed') {
           api.get('/stores/' + storeId + '/inventory/checks/' + checks[0].id)
             .then((detail) => {
               const results: Record<number, { expected: number; consumption: number; actual: number; status: StatusType }> = {};
-              (detail.items || []).forEach((item: any) => {
+              (detail.data?.items || detail.items || []).forEach((item: any) => {
                 const currentItem = list.find((it: any) => it.id === item.master_id);
                 if (currentItem && currentItem.quantity !== (item.actual_qty || 0)) return;
                 results[item.master_id] = {

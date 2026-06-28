@@ -2,7 +2,8 @@ FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-RUN apt-get update && \
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
     apt-get install -y python3 make g++ --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
@@ -18,7 +19,7 @@ COPY apps/server/public ./public/
 COPY apps/server/msl.js ./msl.js
 COPY apps/server/startup-check.js ./startup-check.js
 COPY apps/server/startup.sh ./startup.sh
-RUN chmod +x /app/startup.sh
+RUN chmod +x /app/startup.sh && sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh
 
 # Create msl command, directories, and version.json from package.json
 RUN echo '#!/bin/sh' > /usr/local/bin/msl && \

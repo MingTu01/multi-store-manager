@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { sanitizeNote } from '../sanitize.js';
+import { isReadonly } from '../lib/roles.js';
 import { opLog } from '../oplog.js';
 import { triggerNotification } from '../notify-trigger.js';
 
@@ -64,6 +65,7 @@ router.get('/:shiftId', (req: AuthRequest, res: Response) => {
 // POST /
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
+    if (isReadonly(req.user?.role)) return res.status(403).json({ error: '只读角色无权操作' });
     const storeId = req.params.storeId;
     const { type, photos, note, handover_content } = req.body;
     if (!type || !['open', 'close'].includes(type)) {
@@ -96,6 +98,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 router.post('/open', (req: AuthRequest, res: Response) => {
   req.body.type = 'open';
   try {
+    if (isReadonly(req.user?.role)) return res.status(403).json({ error: '只读角色无权操作' });
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);
@@ -117,6 +120,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
 // POST /close
 router.post('/close', (req: AuthRequest, res: Response) => {
   try {
+    if (isReadonly(req.user?.role)) return res.status(403).json({ error: '只读角色无权操作' });
     const storeId = req.params.storeId;
     const { photos, note, handover_content } = req.body;
     const photosStr = JSON.stringify(photos || []);

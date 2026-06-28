@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
-import { isAdmin } from '../lib/roles.js';
+import { isAdmin, isManagerOrAbove } from '../lib/roles.js';
 import { sanitizeText } from '../sanitize.js';
 
 const router = Router({ mergeParams: true });
@@ -21,8 +21,8 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
     try {
-    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
-      return res.status(403).json({ error: '只读角色无权操作分类' });
+    if (!isManagerOrAbove(req.user.role)) {
+      return res.status(403).json({ error: '需要管理员以上权限' });
     }
 
     const { storeId } = req.params;
@@ -35,8 +35,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:id', (req: AuthRequest, res: Response) => {
     try {
-    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
-      return res.status(403).json({ error: '只读角色无权操作分类' });
+    if (!isManagerOrAbove(req.user.role)) {
+      return res.status(403).json({ error: '需要管理员以上权限' });
     }
 
     const { storeId } = req.params;
@@ -58,8 +58,8 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
 // S28: DELETE 添加归属校验
 router.delete('/:id', (req: AuthRequest, res: Response) => {
     try {
-    if (['SHAREHOLDER'].includes(req.user.role?.toUpperCase())) {
-      return res.status(403).json({ error: '只读角色无权操作分类' });
+    if (!isManagerOrAbove(req.user.role)) {
+      return res.status(403).json({ error: '需要管理员以上权限' });
     }
 
     const { storeId } = req.params;
