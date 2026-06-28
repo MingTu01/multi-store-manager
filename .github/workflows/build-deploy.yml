@@ -78,6 +78,7 @@ jobs:
           cp ../apps/server/msl.js . 2>/dev/null || true
           cp ../apps/server/startup-check.js . 2>/dev/null || true
           cp ../apps/server/startup.sh . 2>/dev/null || true
+          cp ../apps/server/entrypoint.js . 2>/dev/null || true
 
           # Copy deploy-specific Dockerfile (NOT from source repo root!)
           # deploy/ dir is overwritten by checkout, so use scripts/deploy/Dockerfile
@@ -105,6 +106,13 @@ jobs:
 
           # Copy post-upgrade script
           cp ../apps/server/post-upgrade.cjs . 2>/dev/null || true
+
+          # Sync documentation from source repo
+          cp ../README.md DOCS.md 2>/dev/null || true
+          cp ../CHANGELOG.md . 2>/dev/null || true
+          cp ../DEPLOY.md . 2>/dev/null || true
+          cp ../UPGRADE.md . 2>/dev/null || true
+          cp ../ARCHITECTURE.md . 2>/dev/null || true
 
           # Restore preserved deploy-specific files
           for f in docker-compose.yml .dockerignore .gitignore post-upgrade.cjs; do

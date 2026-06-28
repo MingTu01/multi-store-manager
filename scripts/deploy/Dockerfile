@@ -21,9 +21,10 @@ COPY tsconfig.json ./
 COPY public ./public/
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
+COPY entrypoint.js ./entrypoint.js
 COPY startup.sh ./startup.sh
-RUN chmod +x /app/startup.sh && \
-    sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh
+RUN chmod +x /app/startup.sh /app/entrypoint.js && \
+    sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh /app/entrypoint.js 2>/dev/null || true
 
 RUN echo '#!/bin/sh' > /usr/local/bin/msl && \
     echo 'node /app/msl.js' >> /usr/local/bin/msl && \
@@ -42,4 +43,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["/app/startup.sh"]
+CMD ["node", "/app/entrypoint.js"]
