@@ -43,6 +43,21 @@ export const useStore = create<AppState>((set) => ({
     }
   },
   logout: () => {
+    // Unsubscribe from browser push before logout
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          fetch('/api/system/push/unsubscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ endpoint: sub.endpoint })
+          }).catch(() => {});
+          await sub.unsubscribe().catch(() => {});
+        }
+      }).catch(() => {});
+    }
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     set({ token: null, user: null, loading: false });
     useNotificationStore.getState().resetUnread();
