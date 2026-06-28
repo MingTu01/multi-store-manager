@@ -13,6 +13,7 @@ import { ImagePreview } from '../../components/ImagePreview';
 export default function StoreShiftsPage() {
   const { storeId } = useParams();
   const [store, setStore] = useState<any>(null);
+  const { confirm, ConfirmDialog } = useConfirm();
   const [shifts, setShifts] = useState<any[]>([]);
   const [now, setNow] = useState(new Date());
   const [showOpen, setShowOpen] = useState(false);
@@ -156,8 +157,9 @@ export default function StoreShiftsPage() {
             <button onClick={handleOpen} disabled={saving || photos.length === 0} className="action-btn w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600 disabled:opacity-50">{saving ? "提交中..." : "确认开店"}</button>
           </div>
         </Modal>
+      <ConfirmDialog />
       </>
-    );
+  );
   }
 
   // 正常页面（门店已开）
@@ -193,5 +195,5 @@ export default function StoreShiftsPage() {
         </div>
       </Modal>
     </div>
-  );
+);
 }

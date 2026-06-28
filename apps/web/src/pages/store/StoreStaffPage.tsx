@@ -29,9 +29,10 @@ const statuses = [
 
 export default function StoreStaffPage() {
   const { storeId } = useParams();
-  const myRole = useStore((s) => s.user?.role);const { confirm, ConfirmDialog } = useConfirm();
+const myRole = useStore((s) => s.user?.role);
 
   const [staff, setStaff] = useState<any[]>([]);
+  const { confirm, ConfirmDialog } = useConfirm();
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -183,10 +184,9 @@ export default function StoreStaffPage() {
                   <div className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2 text-xs text-slate-400">
                     <Shield className="h-3 w-3" />股东账号，仅可查看
                   </div>
-      <ConfirmDialog />
                 )}
               </GlassCard>
-            );
+);
           })}
         </div>
       )}
@@ -317,6 +317,7 @@ export default function StoreStaffPage() {
       </Modal>
 
 {canEdit && <FloatingActionButton label="添加员工" onClick={() => setShowModal(true)} />}
+    <ConfirmDialog />
     </div>
   );
 }

@@ -18,10 +18,11 @@ export default function StorePurchasePage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
   const isReadonly = user?.role === 'STAFF' || user?.role === 'SHAREHOLDER';
-  const dataVersion = useDataVersion('store', storeId);const { confirm, ConfirmDialog } = useConfirm();
+const dataVersion = useDataVersion('store', storeId);
 
 
   const [date, setDate] = useState(new Date());
+  const { confirm, ConfirmDialog } = useConfirm();
   const [items, setItems] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -391,7 +392,6 @@ export default function StorePurchasePage() {
         </div>
       </Modal>
     </div>
-      <ConfirmDialog />
   );
 }
 
@@ -462,6 +462,7 @@ function HeatmapChart({ data, itemNames }: { data: any[]; itemNames: string[] })
           ))}
         </div>
       </div>
+    <ConfirmDialog />
     </div>
   );
 }
@@ -488,5 +489,5 @@ function WeekCompareChart({ data }: { data: any[] }) {
         <Bar dataKey="this_week" fill="#6366f1" name="本周" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
-  );
+);
 }

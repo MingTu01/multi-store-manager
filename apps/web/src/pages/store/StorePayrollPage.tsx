@@ -31,9 +31,10 @@ function getMonths(count = 12) {
 }
 
 export default function StorePayrollPage() {
-  const { storeId } = useParams();const { confirm, ConfirmDialog } = useConfirm();
+const { storeId } = useParams();
 
   const [month, setMonth] = useState(() => {
+  const { confirm, ConfirmDialog } = useConfirm();
     const n = new Date();
     return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
   });
@@ -278,7 +279,6 @@ export default function StorePayrollPage() {
                     </div>
                   </div>
                 </div>
-      <ConfirmDialog />
               );
             })}
             <button onClick={handleGenerate} disabled={generating || staffList.length === 0} className="action-btn btn w-full disabled:opacity-50">
@@ -359,6 +359,7 @@ export default function StorePayrollPage() {
       </Modal>
 
       <FloatingActionButton label="生成工资" onClick={openGenerate} />
+    <ConfirmDialog />
     </div>
   );
 }
@@ -366,5 +367,5 @@ export default function StorePayrollPage() {
 function ChevronDown(props: any) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m6 9 6 6 6-6"/></svg>
-  );
+);
 }

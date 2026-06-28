@@ -4,8 +4,8 @@ import { api } from '../lib/api';
 import { useStore } from '../stores/data';
 import { Modal } from './Modal';
 import { GlassCard } from './GlassCard';
+import { useConfirm } from './useConfirm';
 import {
-import { useConfirm } from '../../components/useConfirm';
   Send, Check, Edit2, Plus, Eye, EyeOff, Loader2, AlertCircle,
   Bell, Settings2, Clock, ExternalLink, Smartphone,
 } from 'lucide-react';
@@ -97,7 +97,7 @@ const INPUT_CLS =
 
 export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const user = useStore((s) => s.user);
-  const role = user?.role ?? '';const { confirm, ConfirmDialog } = useConfirm();
+const role = user?.role ?? '';
 
 
   const [settings, setSettings] = useState<Record<string, any>>({});
@@ -432,7 +432,6 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                         </button>
                       </div>
                     </div>
-      <ConfirmDialog />
                   );
                 })}
               </div>
@@ -733,7 +732,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
                           <div className={`h-1.5 w-1.5 rounded-full ${selected ? colors.dot : 'bg-slate-300'}`} />
                           {o.label}
                         </button>
-                      );
+);
                     })}
                   </div>
                 </div>
@@ -753,6 +752,7 @@ export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: (
           </div>
         </div>
       </Modal>
+    <ConfirmDialog />
     </>
   );
 }

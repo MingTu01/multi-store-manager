@@ -14,9 +14,10 @@ import { useConfirm } from '../../components/useConfirm';
 export default function StoreDividendsPage() {
   const { storeId } = useParams();
   const myRole = useStore((s) => s.user?.role);
-  const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';const { confirm, ConfirmDialog } = useConfirm();
+const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
 
   const [balance, setBalance] = useState(0);
+  const { confirm, ConfirmDialog } = useConfirm();
   const [dividends, setDividends] = useState<any[]>([]);
   const [shareholders, setShareholders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -221,8 +222,7 @@ export default function StoreDividendsPage() {
                         </div>
                         <div className="text-sm font-semibold text-amber-600">{formatMoney(amount)}</div>
                       </div>
-      <ConfirmDialog />
-                    );
+);
                   })}
                 </div>
               </div>
@@ -254,6 +254,7 @@ export default function StoreDividendsPage() {
         )}
       </Modal>
       {canManage && <FloatingActionButton label="创建分红" onClick={() => setShowCreate(true)} />}
+    <ConfirmDialog />
     </div>
   );
 }

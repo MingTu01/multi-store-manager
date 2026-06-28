@@ -32,10 +32,11 @@ export default function SettingsPage() {
       }  } catch (_) { /* ignore */ }
     // 3. 强制刷新（不走缓存）
     window.location.replace(window.location.href);
-  };const { confirm, ConfirmDialog } = useConfirm();
+};
 
  
   const [tab, setTab] = useState<Tab>('info');
+  const { confirm, ConfirmDialog } = useConfirm();
   const [info, setInfo] = useState<any>(null);
   const [backups, setBackups] = useState<any[]>([]);
   const [autoBackup, setAutoBackup] = useState<any>({});
@@ -627,7 +628,6 @@ export default function SettingsPage() {
                         <button onClick={() => handleDeleteBackup(b.filename)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-50" title="删除"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
-      <ConfirmDialog />
                   );
                 })}
               </div>
@@ -892,7 +892,7 @@ export default function SettingsPage() {
                         {isActive && <div className="text-xs text-indigo-400 mt-1 animate-pulse">执行中...</div>}
                       </div>
                     </div>
-                  );
+);
                 })}
               </div>
             </div>
@@ -946,6 +946,7 @@ export default function SettingsPage() {
           </div>
         </div>
       </Modal>
+    <ConfirmDialog />
     </div>
   );
 }

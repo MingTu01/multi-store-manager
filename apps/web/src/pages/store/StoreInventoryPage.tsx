@@ -75,9 +75,10 @@ function SortableDragHandle({ id }: { id: number }) {
 export default function StoreInventoryPage() {
   const { storeId } = useParams();
   const user = useStore((s) => s.user);
-  const isReadonly = user?.role === 'SHAREHOLDER';const { confirm, ConfirmDialog } = useConfirm();
+const isReadonly = user?.role === 'SHAREHOLDER';
 
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const { confirm, ConfirmDialog } = useConfirm();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }));
   const [showTakeout, setShowTakeout] = useState<InventoryItem | null>(null);
   const [takeoutQty, setTakeoutQty] = useState('');
@@ -471,7 +472,6 @@ export default function StoreInventoryPage() {
                       <span className={'rounded-full px-2 py-0.5 text-xs ' + s.color}>{s.label}</span>
                     </div>
                   </div>
-      <ConfirmDialog />
                 );
               })}
             </div>
@@ -594,7 +594,7 @@ export default function StoreInventoryPage() {
                   </div>
                 </GlassCard>
                 </SortableItem>
-              );
+);
             })}
             </SortableContext>
             </DndContext>
@@ -751,6 +751,7 @@ export default function StoreInventoryPage() {
         <Plus className="h-5 w-5" />
       </button>
       )}
+    <ConfirmDialog />
     </div>
   );
 }

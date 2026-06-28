@@ -8,8 +8,8 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
-import {
 import { useConfirm } from '../../components/useConfirm';
+import {
   Building2, Tags, Plus, Edit3, Trash2, ArrowUpCircle, ArrowDownCircle,
   Camera, Upload, Users, Save, ImageIcon, Phone, Percent, ChevronDown, ChevronUp, X,
 } from 'lucide-react';
@@ -45,9 +45,10 @@ function CollapseCard({
   defaultOpen?: boolean;
   children: React.ReactNode;
   action?: React.ReactNode;
-}) {const { confirm, ConfirmDialog } = useConfirm();
+}) {;
 
   const [open, setOpen] = useState(defaultOpen);
+  const { confirm, ConfirmDialog } = useConfirm();
   return (
     <GlassCard className="p-4">
       <div
@@ -67,8 +68,8 @@ function CollapseCard({
           )}
         </div>
       </div>
-      <ConfirmDialog />
       {open && children}
+    <ConfirmDialog />
     </GlassCard>
   );
 }
@@ -747,5 +748,5 @@ export default function StoreSettingsPage() {
         </div>
       </Modal>
     </div>
-  );
+);
 }

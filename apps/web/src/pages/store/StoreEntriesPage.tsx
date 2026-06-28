@@ -54,9 +54,10 @@ export default function StoreEntriesPage() {
   const myRole = useStore((s) => s.user?.role);
   const isReadonly = myRole === 'SHAREHOLDER';
   const location = useLocation();
-  const navigate = useNavigate();const { confirm, ConfirmDialog } = useConfirm();
+const navigate = useNavigate();
 
   const [entries, setEntries] = useState<any[]>([]);
+  const { confirm, ConfirmDialog } = useConfirm();
   const [categories, setCategories] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -288,9 +289,10 @@ export default function StoreEntriesPage() {
         </div>
       </Modal>
 
-      {!isReadonly && <FloatingActionButton label={"记一笔"} onClick={openCreate} />}
+      {!isReadonly && <FloatingActionButton label={"记一笔"} onClick={openCreate} />}  
+  <ConfirmDialog />
+
     </div>
-      <ConfirmDialog />
-  );
+);
 }
 
