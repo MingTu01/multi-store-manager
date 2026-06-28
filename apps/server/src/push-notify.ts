@@ -32,12 +32,19 @@ export function getVapidPublicKey(): string {
 
 // ==================== JPush 极光推送 ====================
 
+// JPush hardcoded defaults (can be overridden via database)
+const JPUSH_DEFAULT_APP_KEY = 'ea63f270ecfe13b59700ff5a';
+const JPUSH_DEFAULT_MASTER_SECRET = '9b9080037e2f08a696e3c71d';
+
 export function getJPushConfig(): { appKey: string; masterSecret: string } {
   try {
     const ak = db.prepare("SELECT value FROM app_settings WHERE key='jpush_app_key'").get() as any;
     const ms = db.prepare("SELECT value FROM app_settings WHERE key='jpush_master_secret'").get() as any;
-    return { appKey: ak?.value || '', masterSecret: ms?.value || '' };
-  } catch { return { appKey: '', masterSecret: '' }; }
+    return { 
+      appKey: ak?.value || JPUSH_DEFAULT_APP_KEY, 
+      masterSecret: ms?.value || JPUSH_DEFAULT_MASTER_SECRET 
+    };
+  } catch { return { appKey: JPUSH_DEFAULT_APP_KEY, masterSecret: JPUSH_DEFAULT_MASTER_SECRET }; }
 }
 
 export function setJPushConfig(appKey: string, masterSecret: string): void {
