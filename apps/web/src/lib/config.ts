@@ -1,6 +1,7 @@
 // Server base URL configuration
 // In web mode (same origin): returns empty string (relative paths)
-// In native app mode: returns the configured server URL
+// In native app mode (Capacitor): returns the configured server URL
+// CapacitorHttp is enabled, so all requests bypass CORS in native mode
 
 export function getBaseURL(): string {
   // Check if running in Capacitor native app
@@ -13,6 +14,7 @@ export function getBaseURL(): string {
   }
   
   // Native app mode - read from localStorage
+  // CapacitorHttp handles all requests natively (no CORS)
   return localStorage.getItem('msl_server_url') || '';
 }
 

@@ -1,3 +1,22 @@
+## v1.6.1 (2026-06-28)
+
+APP 原生 HTTP 绕过 CORS + 测试连接修复
+
+### Capacitor 原生 HTTP
+- 启用 CapacitorHttp 插件，原生 APP 所有请求走设备原生网络层
+- 完全绕过浏览器 CORS 限制，直接访问远程服务器
+- 服务器地址支持 HTTPS 加密传输，安全性不变
+
+### ServerConfigPage 修复
+- 原生 APP 使用 CapacitorHttp 测试连接（无 CORS 问题）
+- 浏览器环境保留 no-cors fallback（检测服务器可达性）
+- 超时 10 秒自动提示连接超时
+- 保存后自动跳转登录页
+
+### capacitor.config.json
+- 添加 CapacitorHttp.enabled: true
+- 添加 server.cleartext: true（支持本地开发 HTTP）
+
 # Changelog
 
 ## v1.5.7 (2026-06-28)

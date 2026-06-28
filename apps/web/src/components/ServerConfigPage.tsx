@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setServerURL, getServerURL, clearServerURL } from '../lib/config';
+import { setServerURL, getServerURL, clearServerURL, isNativeApp } from '../lib/config';
 import { showToast } from './Toast';
 import { GlassCard } from './GlassCard';
 import { Globe, Wifi, WifiOff, Check, ArrowRight, Settings } from 'lucide-react';
@@ -19,53 +19,47 @@ export default function ServerConfigPage() {
     }
     setTesting(true);
     setTestResult(null);
+    const normalized = url.replace(/\/+$/, '');
+    const healthUrl = normalized + '/api/health';
+
     try {
-      const normalized = url.replace(/\/+$/, '');
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 10000);
+      let res: Response;
       try {
-        const res = await fetch(normalized + '/api/health', {
-          method: 'GET',
-          signal: controller.signal,
-        });
+        res = await fetch(healthUrl, { method: 'GET', signal: controller.signal });
         clearTimeout(timer);
-        if (res.ok) {
+      } catch (fetchErr: any) {
+        clearTimeout(timer);
+        if (!isNativeApp() && (fetchErr.name === 'TypeError' || fetchErr.message?.includes('Failed to fetch'))) {
+          try {
+            const res2 = await fetch(healthUrl, { method: 'GET', mode: 'no-cors', signal: AbortSignal.timeout(10000) });
+            if (res2.type === 'opaque') {
+              setTestResult('ok');
+              showToast('服务器可达（浏览器跨域限制，APP中无此问题）', 'success');
+              return;
+            }
+          } catch {}
+        }
+        throw fetchErr;
+      }
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.status === 'ok') {
           setTestResult('ok');
           showToast('连接成功', 'success');
         } else {
           setTestResult('fail');
-          showToast('服务器响应异常: ' + res.status, 'error');
+          showToast('服务器响应异常', 'error');
         }
-      } catch (fetchErr: any) {
-        clearTimeout(timer);
-        // CORS or network error - try with no-cors to check if server is reachable
-        if (fetchErr.name === 'TypeError' || fetchErr.message?.includes('Failed to fetch')) {
-          try {
-            const res2 = await fetch(normalized + '/api/health', {
-              method: 'GET',
-              mode: 'no-cors',
-              signal: AbortSignal.timeout(10000),
-            });
-            // opaque response means server responded (CORS blocks reading)
-            if (res2.type === 'opaque') {
-              setTestResult('ok');
-              showToast('服务器可达（浏览器跨域限制，原生APP无此问题）', 'success');
-            } else {
-              setTestResult('fail');
-              showToast('连接失败', 'error');
-            }
-          } catch {
-            setTestResult('fail');
-            showToast('连接失败: 服务器不可达', 'error');
-          }
-        } else {
-          setTestResult('fail');
-          showToast('连接失败: ' + (fetchErr.message || '网络错误'), 'error');
-        }
+      } else {
+        setTestResult('fail');
+        showToast('服务器错误: ' + res.status, 'error');
       }
     } catch (e: any) {
       setTestResult('fail');
-      showToast('连接失败: ' + (e.message || '网络错误'), 'error');
+      const msg = e.name === 'AbortError' ? '连接超时' : (e.message || '网络错误');
+      showToast('连接失败: ' + msg, 'error');
     } finally {
       setTesting(false);
     }
@@ -93,7 +87,6 @@ export default function ServerConfigPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-indigo-50 p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-[#fcd5e5] to-[#7977de] shadow-xl">
             <img src="/logo-192.png" alt="Logo" className="h-full w-full object-contain" />
@@ -105,11 +98,8 @@ export default function ServerConfigPage() {
         </div>
 
         <GlassCard className="p-6 space-y-5">
-          {/* URL Input */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
-              服务器地址
-            </label>
+            <label className="mb-2 block text-sm font-medium text-slate-700">服务器地址</label>
             <div className="relative">
               <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -122,64 +112,37 @@ export default function ServerConfigPage() {
                 autoCapitalize="none"
               />
             </div>
-            <p className="mt-1.5 text-xs text-slate-400">
-              输入你的 Multi Shop Link 服务器地址，包含 https://
-            </p>
+            <p className="mt-1.5 text-xs text-slate-400">输入你的 Multi Shop Link 服务器地址，包含 https://</p>
           </div>
 
-          {/* Test Result */}
           {testResult && (
-            <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${
-              testResult === 'ok' 
-                ? 'bg-emerald-50 text-emerald-700' 
-                : 'bg-rose-50 text-rose-700'
-            }`}>
-              {testResult === 'ok' 
-                ? <><Wifi className="h-4 w-4" /> 连接成功，服务器正常</> 
+            <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${testResult === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+              {testResult === 'ok'
+                ? <><Wifi className="h-4 w-4" /> 连接成功，服务器正常</>
                 : <><WifiOff className="h-4 w-4" /> 连接失败，请检查地址</>}
             </div>
           )}
 
-          {/* Buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={testConnection}
-              disabled={testing}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50"
-            >
-              {testing ? (
-                <><div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500" /> 测试中...</>
-              ) : (
-                <><Wifi className="h-4 w-4" /> 测试连接</>
-              )}
+            <button onClick={testConnection} disabled={testing} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50">
+              {testing
+                ? <><div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500" /> 测试中...</>
+                : <><Wifi className="h-4 w-4" /> 测试连接</>}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={testing}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:bg-indigo-600 disabled:opacity-50"
-            >
-              <Check className="h-4 w-4" /> {isEdit ? '保存' : '连接'}
-              <ArrowRight className="h-3.5 w-3.5" />
+            <button onClick={handleSave} disabled={testing} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-500 px-4 py-3 text-sm font-medium text-white shadow-lg transition-all hover:bg-indigo-600 disabled:opacity-50">
+              <Check className="h-4 w-4" /> {isEdit ? '保存' : '连接'} <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {/* Clear button (only when editing) */}
           {isEdit && (
-            <button
-              onClick={handleClear}
-              className="w-full text-center text-xs text-slate-400 hover:text-rose-500 transition-colors"
-            >
+            <button onClick={handleClear} className="w-full text-center text-xs text-slate-400 hover:text-rose-500 transition-colors">
               清除服务器地址，重新配置
             </button>
           )}
         </GlassCard>
 
-        {/* Settings link */}
         <div className="text-center">
-          <button
-            onClick={() => navigate('/login')}
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors"
-          >
+          <button onClick={() => navigate('/login')} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-500 transition-colors">
             <Settings className="h-3 w-3" /> 跳过，直接登录
           </button>
         </div>
