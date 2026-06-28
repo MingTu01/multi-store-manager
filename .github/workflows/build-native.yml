@@ -37,6 +37,16 @@ jobs:
         working-directory: apps/web
         run: npx cap add android
 
+      - name: Set app icon
+        working-directory: apps/web
+        run: |
+          # Copy logo-192.png as app icon for all densities
+          for dir in android/app/src/main/res/mipmap-mdpi android/app/src/main/res/mipmap-hdpi android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxhdpi android/app/src/main/res/mipmap-xxxhdpi; do
+            cp public/logo-192.png "$dir/ic_launcher.png" 2>/dev/null || true
+            cp public/logo-192.png "$dir/ic_launcher_round.png" 2>/dev/null || true
+          done
+          echo "Icons set"
+
       - name: Sync web to native
         working-directory: apps/web
         run: npx cap sync android
@@ -87,14 +97,22 @@ jobs:
         working-directory: apps/web
         run: npx cap init "Multi Shop Link" com.mingshoplink.app --web-dir dist
 
-      - name: Add iOS platform
+      - name: Add iOS platform (skip pod install)
         working-directory: apps/web
-        run: npx cap add ios
+        run: npx cap add ios --no-pod-install
 
       - name: Set iOS minimum deployment target
         working-directory: apps/web
         run: |
-          sed -i '' 's/platform :ios, .*/platform :ios, '''16.0'''/' ios/App/Podfile
+          # Update Podfile deployment target
+          sed -i '' "s/platform :ios, .*/platform :ios, '16.0'/" ios/App/Podfile
+          # Update Xcode project deployment target
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 16.0/' ios/App/App.xcodeproj/project.pbxproj
+          echo "iOS deployment target set to 16.0"
+
+      - name: Pod install
+        working-directory: apps/web/ios/App
+        run: pod install
 
       - name: Sync web to native
         working-directory: apps/web
