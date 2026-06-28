@@ -11,6 +11,7 @@ import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
 import { AppError, ErrorCode } from '../error-handler.js';
 import { validateWebhookUrl } from '../lib/network.js';
+import { settingsCache } from '../cache.js';
 
 const router = Router();
 
@@ -387,6 +388,7 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       s.push_daily_report, s.push_weekly_report, s.push_monthly_report,
       s.push_review_reminder, s.push_alert, storeId
     );
+    settingsCache.invalidate('settings');
     res.json({ message: '通知设置已更新' });
   } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });

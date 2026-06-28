@@ -40,6 +40,7 @@ export function BottomNav() {
   const { storeId } = useParams();
   const role = user?.role;
   const [showMore, setShowMore] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [storeOpen, setStoreOpen] = useState<boolean | null>(null);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   useUnreadPolling();
@@ -50,6 +51,17 @@ export function BottomNav() {
     }).catch(() => setStoreOpen(true));
   }, [storeId]);
 
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!vp) return;
+    const handler = () => {
+      const keyboardHeight = window.innerHeight - vp.height;
+      setHidden(keyboardHeight > 150);
+    };
+    vp.addEventListener('resize', handler);
+    return () => vp.removeEventListener('resize', handler);
+  }, []);
+
   // StoreGuard handles closed state - BottomNav always shows store nav
   if (storeId && storeOpen === null) return null;
 
@@ -57,10 +69,10 @@ export function BottomNav() {
   if (!storeId) {
     const filtered = ADMIN_TABS.filter(t => canAccess(t.key as any, role as any));
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden ${hidden ? 'translate-y-full' : ''}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', transition: 'transform 0.2s' }}>
         <div className="flex items-end justify-around">
           {filtered.map(t => (
-            <NavLink key={t.to} to={t.to}
+            <NavLink key={t.to} to={t.to} aria-label={t.label}
               className={({ isActive }) => 'flex flex-shrink-0 flex-col items-center gap-0.5 py-2 pt-2.5 text-xs transition-colors min-w-[56px] px-1 ' + (isActive ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
               <span className="relative flex h-5 w-5 items-center justify-center">
                 <t.icon className="h-5 w-5" />
@@ -81,7 +93,7 @@ export function BottomNav() {
   const moreTabs = accessible.length <= MAX_DIRECT ? [] : accessible.slice(MAX_DIRECT - 1);
 
   const navItem = (t: typeof accessible[0]) => (
-    <NavLink key={t.key} to={t.to(storeIdVal)} end={('end' in t && (t as any).end === true) ? true : undefined} onClick={() => setShowMore(false)}
+    <NavLink key={t.key} to={t.to(storeIdVal)} aria-label={t.label} end={('end' in t && (t as any).end === true) ? true : undefined} onClick={() => setShowMore(false)}
       className={({ isActive }) => 'flex flex-shrink-0 flex-col items-center gap-0.5 py-2 pt-2.5 text-xs transition-colors min-w-[56px] px-1 ' + (isActive ? 'font-semibold text-indigo-600' : 'text-slate-400')}>
       <span className="relative flex h-5 w-5 items-center justify-center">
         <t.icon className="h-5 w-5" />
@@ -99,7 +111,7 @@ export function BottomNav() {
           <div className="absolute bottom-16 right-2 w-48 rounded-2xl border border-white/40 bg-white/90 p-2 shadow-2xl backdrop-blur-xl" onClick={e => e.stopPropagation()}>
             <div className="mb-1 px-3 py-1 text-xs font-semibold text-slate-500">更多功能</div>
             {moreTabs.map(t => (
-              <NavLink key={t.key} to={t.to(storeIdVal)} onClick={() => setShowMore(false)}
+              <NavLink key={t.key} to={t.to(storeIdVal)} aria-label={t.label} onClick={() => setShowMore(false)}
                 className={({ isActive }) => 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ' + (isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'text-slate-600 hover:bg-white/60')}>
                 <t.icon className="h-4 w-4" />{t.label}
               </NavLink>
@@ -107,11 +119,11 @@ export function BottomNav() {
           </div>
         </div>
       )}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200/60 bg-white/80 backdrop-blur-xl lg:hidden ${hidden ? 'translate-y-full' : ''}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)', transition: 'transform 0.2s' }}>
         <div className="flex items-end justify-around">
           {directTabs.map(t => navItem(t))}
           {moreTabs.length > 0 && (
-            <button onClick={() => setShowMore(!showMore)} className="flex flex-shrink-0 flex-col items-center gap-0.5 px-1 py-2 pt-2.5 text-xs text-slate-400 min-w-[56px]">
+            <button onClick={() => setShowMore(!showMore)} aria-label="更多" className="flex flex-shrink-0 flex-col items-center gap-0.5 px-1 py-2 pt-2.5 text-xs text-slate-400 min-w-[56px]">
               {showMore ? <X className="h-5 w-5 text-indigo-600" /> : <MoreHorizontal className="h-5 w-5" />}
               <span className="max-w-[52px] truncate">更多</span>
             </button>

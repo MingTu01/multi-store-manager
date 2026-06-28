@@ -1,3 +1,7 @@
+// DEPRECATED: 此模块已被 index.ts 中的 setupCron() 替代，不再使用。
+// 如需定时报表推送，请使用 index.ts 的 setupCron 函数。
+// 此文件保留仅供参考，可安全删除。
+
 import db from './db.js';
 import { ROLES } from './lib/roles.js';
 import { buildDailyReport, buildWeeklyReport, buildMonthlyReport, sendNotification } from './notify.js';

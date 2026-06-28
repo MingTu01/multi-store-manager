@@ -5,7 +5,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..', '..');
 import { join, resolve } from 'path';
-import { existsSync, mkdirSync, renameSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import multer from 'multer';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
@@ -16,7 +16,19 @@ import { getAliyunOCRConfig, isAliyunOCRConfigured, saveAliyunCredentials, reloa
 
 const router = Router();
 const upload = multer({
-  dest: join(BASE_DIR, 'uploads'),
+  storage: multer.diskStorage({
+    destination: (_req: any, _file: any, cb: any) => {
+      const destDir = join(BASE_DIR, 'uploads');
+      if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
+      cb(null, destDir);
+    },
+    filename: (req: any, file: any, cb: any) => {
+      const mimeExtMap: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
+      const ext = mimeExtMap[file.mimetype] || file.originalname.split('.').pop() || 'jpg';
+      const newName = 'health_' + req.user.id + '_' + Date.now() + '.' + ext;
+      cb(null, newName);
+    }
+  }),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req: any, file: any, cb: any) => {
     const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -29,15 +41,9 @@ router.post('/upload', upload.single('file'), (req: AuthRequest, res: Response) 
   try {
     const file = (req as any).file;
     if (!file) return res.status(400).json({ error: '请选择文件' });
-    // Determine extension from MIME type for security
-    const mimeExtMap: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };
-    const ext = mimeExtMap[file.mimetype] || file.originalname.split('.').pop() || 'jpg';
-    const newName = 'health_' + req.user.id + '_' + Date.now() + '.' + ext;
-    const destDir = join(BASE_DIR, 'uploads');
-    if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
-    renameSync(file.path, join(destDir, newName));
-    res.json({ url: '/uploads/' + newName, filename: newName });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+    const filename = file.filename;
+    res.json({ url: '/uploads/' + filename, filename });
+  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "系统内部错误" : err.message }); }
 });
 
 // POST /ocr - 阿里云 OCR 识别健康证

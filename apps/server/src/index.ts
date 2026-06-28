@@ -241,7 +241,8 @@ function setupAutoBackup() {
       const filename = 'auto-backup-' + config.interval + '-' + ts + '.db';
       // Q8: 备份前执行 WAL checkpoint
       db.pragma('wal_checkpoint(TRUNCATE)');
-      copyFileSync(join(BASE_DIR, 'data', 'store.db'), join(backupDir, filename));
+      const backupPath = join(backupDir, filename);
+      db.exec("VACUUM INTO '" + backupPath.replace(/'/g, "''") + "'");
 
       config[lastKey] = now.toISOString();
       writeFileSync(configPath, JSON.stringify(config, null, 2));

@@ -39,7 +39,7 @@ export function ToastContainer() {
            t.type === 'success' ? <CheckCircle className="h-4 w-4 shrink-0" /> :
            <Info className="h-4 w-4 shrink-0" />}
           <span className="flex-1 break-all">{t.message}</span>
-          <button onClick={() => setItems(prev => prev.filter(x => x.id !== t.id))} className="shrink-0 opacity-50 hover:opacity-100">
+          <button onClick={() => setItems(prev => prev.filter(x => x.id !== t.id))} aria-label="关闭通知" className="shrink-0 opacity-50 hover:opacity-100">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>

@@ -4,6 +4,7 @@ export function FloatingActionButton({ onClick, icon: Icon, label }: { onClick: 
   return (
     <button
       onClick={onClick}
+      aria-label={label || '添加'}
       className="fixed right-4 bottom-24 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500 text-white shadow-xl transition-all hover:bg-indigo-600 active:scale-95 lg:hidden"
       title={label}
     >

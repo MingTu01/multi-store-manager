@@ -105,7 +105,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     let catId = category_id || null;
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
     const nt = normalizeType(type);
-    db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=? WHERE id=?').run(nt, categoryName, catId, amount, sanitizeNote(note||''), date, req.params.id);
+    db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=?,updated_at=datetime(\'now\',\'localtime\') WHERE id=?').run(nt, categoryName, catId, amount, sanitizeNote(note||''), date, req.params.id);
     const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
     const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
     opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }), req.ip);

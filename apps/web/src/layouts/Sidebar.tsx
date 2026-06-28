@@ -52,12 +52,12 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         {storeId && isAdmin && (
-          <button onClick={() => navigate('/')} className="mb-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 transition-all">
+          <button onClick={() => navigate('/')} aria-label="返回管理" className="mb-2 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 transition-all">
             <ArrowLeft className="h-4 w-4" />返回管理
           </button>
         )}
         {currentNav.filter(n => canAccess(n.key, role)).map((n) => (
-          <NavLink key={n.to} to={n.to} end={'end' in n && n.end === true ? true : undefined}
+          <NavLink key={n.to} to={n.to} aria-label={n.label} end={'end' in n && n.end === true ? true : undefined}
             className={({ isActive }) => 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ' + (isActive ? 'bg-indigo-50 font-semibold text-indigo-700' : 'text-slate-600 hover:bg-white/60 hover:text-slate-900')}>
             <span className="relative">
               <n.icon className="h-4 w-4" />
@@ -73,7 +73,7 @@ export function Sidebar() {
         </div>
       </div>
       <div className="border-t border-white/30 p-3 space-y-2">
-        <button onClick={() => navigate(storeId ? '/store/' + storeId + '/account' : '/admin-settings')} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-white/60 transition-all">
+        <button onClick={() => navigate(storeId ? '/store/' + storeId + '/account' : '/admin-settings')} aria-label="个人设置" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-600 hover:bg-white/60 transition-all">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600 shrink-0 overflow-hidden">
             {user?.avatar ? <img src={user.avatar} className="h-full w-full object-cover" alt=""  loading="lazy" /> : (user?.name?.[0] || '用')}
           </div>

@@ -35,7 +35,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/80 px-5 py-3 backdrop-blur-lg rounded-t-2xl">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100">
+          <button onClick={onClose} aria-label="关闭" className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100">
             <X className="h-4 w-4 text-slate-500" />
           </button>
         </div>

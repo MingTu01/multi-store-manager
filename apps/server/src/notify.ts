@@ -5,6 +5,11 @@ import { ROLES } from './lib/roles.js';
 import { validateWebhookUrl } from './lib/network.js';
 import { existsSync, readFileSync, writeFileSync as wf, mkdirSync as md } from 'fs';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const BASE_DIR = join(__dirname, '..');
 
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
@@ -13,7 +18,7 @@ function getEncKey(): Buffer {
     return crypto.createHash('sha256').update(process.env.NOTIFY_ENC_KEY).digest();
   }
   
-  const keyFile = join(process.cwd(), 'data', 'notify-enc-key');
+  const keyFile = join(BASE_DIR, 'data', 'notify-enc-key');
   try {
     if (existsSync(keyFile)) {
       const key = readFileSync(keyFile, 'utf-8').trim();
@@ -22,7 +27,7 @@ function getEncKey(): Buffer {
   } catch {}
   const newKey = crypto.randomBytes(32);
   try {
-    md(join(process.cwd(), 'data'), { recursive: true });
+    md(join(BASE_DIR, 'data'), { recursive: true });
     wf(keyFile, newKey.toString('hex'), 'utf-8');
     if (process.env.NODE_ENV !== 'production') console.log('[NOTIFY] Generated new notify encryption key');
   } catch (e) {

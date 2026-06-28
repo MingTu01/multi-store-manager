@@ -2,8 +2,9 @@ let isRedirectingToLogin = false;
 
 const headers = () => ({ 'Content-Type': 'application/json' });
 
-interface CacheEntry { data: any; ts: number; lastAccess: number }
+interface CacheEntry { data: any; ts: number }
 const cache = new Map<string, CacheEntry>();
+const accessOrder = new Map<string, number>(); // key -> timestamp, for LRU eviction
 const MAX_CACHE = 200;
 
 const TTL_MAP: [RegExp, number][] = [
@@ -37,29 +38,30 @@ function getCached(key: string): any | null {
   const entry = cache.get(key);
   if (!entry) return null;
   const ttl = getTTL(key);
-  if (Date.now() - entry.ts > ttl) { cache.delete(key); return null; }
-  entry.lastAccess = Date.now();
+  if (Date.now() - entry.ts > ttl) { cache.delete(key); accessOrder.delete(key); return null; }
+  accessOrder.set(key, Date.now());
   return entry.data;
 }
 
 
 function setCache(key: string, data: any) {
-  if (cache.size >= MAX_CACHE) {
-    let oldest = '';
+  if (cache.size >= MAX_CACHE && !cache.has(key)) {
+    // LRU: evict the least recently used entry
+    let oldestKey = '';
     let oldestTime = Infinity;
-    for (const [k, v] of cache) {
-      if (v.lastAccess < oldestTime) { oldestTime = v.lastAccess; oldest = k; }
+    for (const [k, t] of accessOrder) {
+      if (t < oldestTime) { oldestTime = t; oldestKey = k; }
     }
-    if (oldest) cache.delete(oldest);
+    if (oldestKey) { cache.delete(oldestKey); accessOrder.delete(oldestKey); }
   }
-  cache.set(key, { data, ts: Date.now(), lastAccess: Date.now() });
+  cache.set(key, { data, ts: Date.now() });
+  accessOrder.set(key, Date.now());
 }
 
-
 export function invalidateCache(pattern?: string) {
-  if (!pattern) { cache.clear(); return; }
+  if (!pattern) { cache.clear(); accessOrder.clear(); return; }
   for (const key of cache.keys()) {
-    if (key.includes(pattern)) cache.delete(key);
+    if (key.includes(pattern)) { cache.delete(key); accessOrder.delete(key); }
   }
 }
 
