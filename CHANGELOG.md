@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.5.7 (2026-06-28)
+
+容器入口改造 + 崩溃自动恢复
+
+### 容器入口改造
+- 新增 entrypoint.js 替代 startup.sh 作为容器入口
+- 使用 Node.js 执行，彻底避免 BOM/CRLF 导致启动失败
+- 自动检测依赖缺失并安装（tsx/express/better-sqlite3/sanitize-html）
+
+### 崩溃自动恢复
+- 应用崩溃 3 次（30秒内）自动进入 msl.js 恢复模式
+- msl.js 不依赖 startup.sh，可独立运行
+- 恢复模式下可备份数据库、重置密码、更新系统
+
+### 启动流程
+- entrypoint.js 先运行 startup-check.js 诊断
+- 然后检查依赖完整性
+- 最后启动应用，监控崩溃自动重启
+
 ## v1.5.6 (2026-06-28)
 
 权限修复 + 前端组件修复 + Docker优化

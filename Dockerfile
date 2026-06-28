@@ -18,8 +18,10 @@ COPY apps/server/tsconfig.json ./
 COPY apps/server/public ./public/
 COPY apps/server/msl.js ./msl.js
 COPY apps/server/startup-check.js ./startup-check.js
+COPY apps/server/entrypoint.js ./entrypoint.js
 COPY apps/server/startup.sh ./startup.sh
-RUN chmod +x /app/startup.sh && sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh
+RUN chmod +x /app/startup.sh /app/entrypoint.js && \
+    sed -i '1s/^\xEF\xBB\xBF//' /app/startup.sh /app/entrypoint.js 2>/dev/null || true
 
 # Create msl command, directories, and version.json from package.json
 RUN echo '#!/bin/sh' > /usr/local/bin/msl && \
@@ -39,4 +41,4 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["/app/startup.sh"]
+CMD ["node", "/app/entrypoint.js"]
