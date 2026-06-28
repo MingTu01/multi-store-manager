@@ -21,6 +21,13 @@ export function BrowserPushPrompt() {
     try {
       if (localStorage.getItem('msl_push_dismissed')) return;
       await JPush.startJPush();
+      // Re-apply status bar after JPush init (may reset it)
+      try {
+        const { StatusBar, Style } = await import('@capacitor/status-bar');
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#ffffff' });
+        await StatusBar.setOverlaysWebView({ overlay: false });
+      } catch {}
       const perm = await JPush.checkPermissions();
       if (perm.permission === 'granted') {
         await registerJPush();

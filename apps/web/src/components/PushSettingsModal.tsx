@@ -141,10 +141,10 @@ const role = user?.role ?? '';
     const ua = navigator.userAgent || '';
     setIsIOS(/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     if (isNativeApp()) {
-      import('@capacitor/push-notifications').then(({ PushNotifications }) => {
-        PushNotifications.checkPermissions().then(perm => {
-          setCapPushEnabled(perm.receive === 'granted');
-          setNotifPermission(perm.receive === 'granted' ? 'granted' : perm.receive === 'denied' ? 'denied' : 'default');
+      import('capacitor-plugin-jpush').then(({ JPush }) => {
+        JPush.checkPermissions().then(perm => {
+          setCapPushEnabled(perm.permission === 'granted');
+          setNotifPermission(perm.permission === 'granted' ? 'granted' : perm.permission === 'denied' ? 'denied' : 'default');
         }).catch(() => {});
       }).catch(() => {});
     } else if ('Notification' in window && 'serviceWorker' in navigator) {
@@ -178,21 +178,17 @@ const role = user?.role ?? '';
   const handleRequestNotifPermission = async () => {
     if (isNativeApp()) {
       try {
-        const { PushNotifications } = await import('@capacitor/push-notifications');
-        const perm = await PushNotifications.requestPermissions();
-        if (perm.receive !== 'granted') { showMsg(false, '通知权限被拒绝'); return; }
-        await PushNotifications.register();
-        const token = await new Promise((resolve) => {
-          const handler = (t) => { PushNotifications.removeListener('registration', handler); resolve(t.value); };
-          PushNotifications.addListener('registration', handler);
-          setTimeout(() => resolve(''), 15000);
-        });
-        if (token) {
-          await api.post('/system/push/capacitor-token', { token, platform: 'android' });
+        const { JPush } = await import('capacitor-plugin-jpush');
+        const perm = await JPush.requestPermissions();
+        if (perm.permission !== 'granted') { showMsg(false, '通知权限被拒绝'); return; }
+        await JPush.startJPush();
+        const { registrationId } = await JPush.getRegistrationID();
+        if (registrationId) {
+          await api.post('/system/push/jpush-register', { registrationId });
           setCapPushEnabled(true);
           setNotifPermission('granted');
           showMsg(true, 'APP推送已开启');
-        } else { showMsg(false, '获取推送Token失败'); }
+        } else { showMsg(false, '获取RegistrationID失败'); }
       } catch (e) { showMsg(false, '开启推送失败: ' + (e.message || '未知错误')); }
       return;
     }
