@@ -4,7 +4,6 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "url": "",
     "cleartext": true
   },
   "ios": {
