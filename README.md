@@ -2,7 +2,7 @@
 
 多店管理系统 — 适用于多门店经营的综合管理平台，支持桌面端和移动端 PWA，iOS 原生 UI 风格。
 
-**当前版本：v1.5.0**
+**当前版本：v1.5.9**
 
 ## 技术栈
 
@@ -11,6 +11,13 @@
 - **端口：** 3001（可通过 PORT 环境变量修改）
 
 ## 更新日志
+
+### v1.5.9 (2026-06-28)
+
+安全审计修复:
+- 后端: dividends STAFF拦截、payroll权限去重、purchase sanitizeText、shifts handover净化、inventory权限提升
+- 前端: StorePayrollPage canManage守卫、StoreShiftsPage 开闭店权限守卫、StoreDividendsPage 创建按钮守卫
+- 其他: StoreGuard返回按钮、StoreOverviewPage店名清理、data.ts登录页优化
 
 ### v1.5.0 (2026-06-28)
 
