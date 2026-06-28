@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import db from './db.js';
 import { formatMoney } from './lib/utils.js';
 import { ROLES } from './lib/roles.js';
@@ -240,19 +240,119 @@ function reportHtmlFooter(ti: number, te: number): string {
   return '</tbody></table><div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:8px"><strong>全店合计</strong>　收入 '+moneyStr(ti)+'　支出 '+moneyStr(te)+'　利润 '+moneyStr(p)+'　毛利率 '+pctStr(m)+'</div></div>';
 }
 
-export function buildDailyReport(): string {
+
+// 批量查询所有门店数据 - 解决 N+1 查询问题
+export function getBatchStoreData(storeIds: string[]): Map<string, { todayIncome: number; todayExpense: number; monthIncome: number; monthExpense: number }> {
+  const result = new Map<string, { todayIncome: number; todayExpense: number; monthIncome: number; monthExpense: number }>();
+  
+  if (storeIds.length === 0) return result;
+  
+  const today = todayStr();
+  const month = today.slice(0, 7);
+  const placeholders = storeIds.map(() => '?').join(',');
+  
+  // 一次查询所有门店的今日收入/支出
+  const todayData = db.prepare(
+    `SELECT store_id, type, COALESCE(SUM(amount), 0) as total 
+     FROM entries 
+     WHERE store_id IN (${placeholders}) AND date = ? 
+     GROUP BY store_id, type`
+  ).all(...storeIds, today) as any[];
+  
+  // 一次查询所有门店的本月收入/支出
+  const monthData = db.prepare(
+    `SELECT store_id, type, COALESCE(SUM(amount), 0) as total 
+     FROM entries 
+     WHERE store_id IN (${placeholders}) AND date LIKE ? 
+     GROUP BY store_id, type`
+  ).all(...storeIds, month + '%') as any[];
+  
+  // 初始化所有门店
+  for (const id of storeIds) {
+    result.set(id, { todayIncome: 0, todayExpense: 0, monthIncome: 0, monthExpense: 0 });
+  }
+  
+  // 填充今日数据
+  for (const row of todayData) {
+    const store = result.get(row.store_id)!;
+    if (row.type === '收入') store.todayIncome = row.total;
+    else store.todayExpense = row.total;
+  }
+  
+  // 填充本月数据
+  for (const row of monthData) {
+    const store = result.get(row.store_id)!;
+    if (row.type === '收入') store.monthIncome = row.total;
+    else store.monthExpense = row.total;
+  }
+  
+  return result;
+}
+
+// 批量查询指定日期范围的 entries - 用于周报/月报
+export function getBatchEntriesByDateRange(storeIds: string[], startDate: string, endDate: string): Map<string, { income: number; expense: number }> {
+  const result = new Map<string, { income: number; expense: number }>();
+  
+  if (storeIds.length === 0) return result;
+  
+  const placeholders = storeIds.map(() => '?').join(',');
+  const isMonthQuery = startDate.endsWith('%');
+  
+  let rows: any[];
+  if (isMonthQuery) {
+    rows = db.prepare(
+      `SELECT store_id, type, COALESCE(SUM(amount), 0) as total 
+       FROM entries 
+       WHERE store_id IN (${placeholders}) AND date LIKE ? 
+       GROUP BY store_id, type`
+    ).all(...storeIds, startDate) as any[];
+  } else {
+    rows = db.prepare(
+      `SELECT store_id, type, COALESCE(SUM(amount), 0) as total 
+       FROM entries 
+       WHERE store_id IN (${placeholders}) AND date >= ? AND date <= ? 
+       GROUP BY store_id, type`
+    ).all(...storeIds, startDate, endDate) as any[];
+  }
+  
+  // 初始化所有门店
+  for (const id of storeIds) {
+    result.set(id, { income: 0, expense: 0 });
+  }
+  
+  // 填充数据
+  for (const row of rows) {
+    const store = result.get(row.store_id)!;
+    if (row.type === '收入') store.income = row.total;
+    else store.expense = row.total;
+  }
+  
+  return result;
+}export function buildDailyReport(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchStoreData(storeIds);
   let ti=0,te=0;
   let r = '◆ 每日经营简报\n' + LINE + '\n' + todayStr() + '\n\n';
-  for (const s of stores) { const d = getStoreData(s.id); ti+=d.todayIncome; te+=d.todayExpense; r += storeBlock(s.name, d.todayIncome, d.todayExpense); }
+  for (const s of stores) { 
+    const d = batchData.get(s.id) || { todayIncome: 0, todayExpense: 0 }; 
+    ti+=d.todayIncome; te+=d.todayExpense; 
+    r += storeBlock(s.name, d.todayIncome, d.todayExpense); 
+  }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
   return r;
 }
 export function buildDailyReportHtml(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchStoreData(storeIds);
   let ti=0,te=0;
   let h = reportHtmlHeader('每日经营简报', todayStr()) + reportHtmlTable();
-  for (const s of stores) { const d = getStoreData(s.id); ti+=d.todayIncome; te+=d.todayExpense; h += storeRowHtml(s.name, d.todayIncome, d.todayExpense); }
+  for (const s of stores) { 
+    const d = batchData.get(s.id) || { todayIncome: 0, todayExpense: 0 }; 
+    ti+=d.todayIncome; te+=d.todayExpense; 
+    h += storeRowHtml(s.name, d.todayIncome, d.todayExpense); 
+  }
   h += reportHtmlFooter(ti, te);
   return h;
 }
@@ -264,12 +364,13 @@ export function buildWeeklyReport(): string {
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
   const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
   const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchEntriesByDateRange(storeIds, ss, es);
   let ti=0,te=0;
   let r = '◆ 每周经营报告\n' + LINE + '\n' + ss + ' 至 ' + es + '\n\n';
   for (const s of stores) {
-    const entries = db.prepare('SELECT type, SUM(amount) as total FROM entries WHERE store_id = ? AND date >= ? AND date <= ? GROUP BY type').all(s.id, ss, es) as any[];
-    let inc=0,exp=0; for (const e of entries) { if(e.type==='收入') inc=e.total; else exp=e.total; }
-    ti+=inc; te+=exp; r += storeBlock(s.name, inc, exp);
+    const d = batchData.get(s.id) || { income: 0, expense: 0 };
+    ti+=d.income; te+=d.expense; r += storeBlock(s.name, d.income, d.expense);
   }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
   return r;
@@ -281,12 +382,13 @@ export function buildWeeklyReportHtml(): string {
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
   const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
   const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchEntriesByDateRange(storeIds, ss, es);
   let ti=0,te=0;
   let h = reportHtmlHeader('每周经营报告', ss + ' 至 ' + es) + reportHtmlTable();
   for (const s of stores) {
-    const entries = db.prepare('SELECT type, SUM(amount) as total FROM entries WHERE store_id = ? AND date >= ? AND date <= ? GROUP BY type').all(s.id, ss, es) as any[];
-    let inc=0,exp=0; for (const e of entries) { if(e.type==='收入') inc=e.total; else exp=e.total; }
-    ti+=inc; te+=exp; h += storeRowHtml(s.name, inc, exp);
+    const d = batchData.get(s.id) || { income: 0, expense: 0 };
+    ti+=d.income; te+=d.expense; h += storeRowHtml(s.name, d.income, d.expense);
   }
   h += reportHtmlFooter(ti, te);
   return h;
@@ -297,12 +399,13 @@ export function buildMonthlyReport(): string {
   const now = new Date();
   const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
   let r = '◆ ' + mname + ' 月度经营报告\n' + LINE + '\n\n';
   for (const s of stores) {
-    const entries = db.prepare('SELECT type, SUM(amount) as total FROM entries WHERE store_id = ? AND date LIKE ? GROUP BY type').all(s.id, ms+'%') as any[];
-    let inc=0,exp=0; for (const e of entries) { if(e.type==='收入') inc=e.total; else exp=e.total; }
-    ti+=inc; te+=exp; r += storeBlock(s.name, inc, exp);
+    const d = batchData.get(s.id) || { income: 0, expense: 0 };
+    ti+=d.income; te+=d.expense; r += storeBlock(s.name, d.income, d.expense);
   }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
   return r;
@@ -312,12 +415,13 @@ export function buildMonthlyReportHtml(): string {
   const now = new Date();
   const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  const storeIds = stores.map(s => s.id);
+  const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
   let h = reportHtmlHeader(mname + ' 月度经营报告', '') + reportHtmlTable();
   for (const s of stores) {
-    const entries = db.prepare('SELECT type, SUM(amount) as total FROM entries WHERE store_id = ? AND date LIKE ? GROUP BY type').all(s.id, ms+'%') as any[];
-    let inc=0,exp=0; for (const e of entries) { if(e.type==='收入') inc=e.total; else exp=e.total; }
-    ti+=inc; te+=exp; h += storeRowHtml(s.name, inc, exp);
+    const d = batchData.get(s.id) || { income: 0, expense: 0 };
+    ti+=d.income; te+=d.expense; h += storeRowHtml(s.name, d.income, d.expense);
   }
   h += reportHtmlFooter(ti, te);
   return h;

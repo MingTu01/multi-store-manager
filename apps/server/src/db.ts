@@ -18,6 +18,7 @@ db.pragma('foreign_keys = ON');
 db.pragma('busy_timeout = 5000');
 
 db.exec(`
+-- TODO: [外键约束] users.store_id -> stores.id (SQLite不支持ALTER TABLE ADD CONSTRAINT，需重建表)
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS shareholders (
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- TODO: [外键约束] entries.store_id -> stores.id (SQLite不支持ALTER TABLE ADD CONSTRAINT，需重建表)
 CREATE TABLE IF NOT EXISTS entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   store_id TEXT NOT NULL,
@@ -145,6 +147,7 @@ CREATE TABLE IF NOT EXISTS dividends (
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- TODO: [外键约束] dividend_details.dividend_id -> dividends.id (SQLite不支持ALTER TABLE ADD CONSTRAINT，需重建表)
 CREATE TABLE IF NOT EXISTS dividend_details (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dividend_id INTEGER NOT NULL,
@@ -163,6 +166,7 @@ CREATE TABLE IF NOT EXISTS payroll (
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- TODO: [外键约束] payroll_items.payroll_id -> payroll.id (SQLite不支持ALTER TABLE ADD CONSTRAINT，需重建表)
 CREATE TABLE IF NOT EXISTS payroll_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   payroll_id INTEGER NOT NULL,
@@ -185,6 +189,7 @@ CREATE TABLE IF NOT EXISTS op_logs (
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- TODO: [外键约束] notifications.user_id -> users.id (SQLite不支持ALTER TABLE ADD CONSTRAINT，需重建表)
 CREATE TABLE IF NOT EXISTS notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -339,9 +344,47 @@ const migrations = [
   "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', iyuu_token TEXT DEFAULT '', push_entry INTEGER DEFAULT 1, push_payroll INTEGER DEFAULT 1, push_dividend INTEGER DEFAULT 1, push_inventory INTEGER DEFAULT 1, push_shift INTEGER DEFAULT 1, push_purchase INTEGER DEFAULT 1, push_health_cert INTEGER DEFAULT 1, push_staff INTEGER DEFAULT 1, push_store INTEGER DEFAULT 1, push_report INTEGER DEFAULT 1, push_review INTEGER DEFAULT 1, push_alert INTEGER DEFAULT 1, updated_at TEXT DEFAULT '')",
 ];
 
-for (const sql of migrations) {
-  try { db.exec(sql); } catch (e) {
-    if (!String(e).includes('already exists') && !String(e).includes('duplicate column')) console.error('Migration error:', e);
+// 迁移版本追踪表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT DEFAULT (datetime('now','localtime')),
+    success INTEGER DEFAULT 1,
+    error_msg TEXT DEFAULT ''
+  )
+`);
+
+// 获取已执行的迁移版本集合
+const appliedVersions = new Set(
+  db.prepare('SELECT version FROM schema_version WHERE success = 1').all().map((r: any) => r.version)
+);
+
+// 版本化迁移执行
+interface MigrationEntry { version: number; name: string; sql: string; }
+const versionedMigrations: MigrationEntry[] = migrations.map((sql: string, i: number) => ({
+  version: i + 1,
+  name: sql.substring(0, 80),
+  sql,
+}));
+
+for (const migration of versionedMigrations) {
+  if (appliedVersions.has(migration.version)) continue;
+  try {
+    db.exec(migration.sql);
+    db.prepare("INSERT OR REPLACE INTO schema_version (version, name, success, error_msg) VALUES (?, ?, 1, '')")
+      .run(migration.version, migration.name);
+  } catch (e: any) {
+    const errMsg = String(e);
+    // 兼容已有列/表的情况，视为成功并记录
+    if (errMsg.includes('already exists') || errMsg.includes('duplicate column')) {
+      db.prepare("INSERT OR REPLACE INTO schema_version (version, name, success, error_msg) VALUES (?, ?, 1, 'already applied')")
+        .run(migration.version, migration.name);
+    } else {
+      console.error(`[迁移失败] v${migration.version}: ${migration.name}`, e);
+      db.prepare('INSERT OR REPLACE INTO schema_version (version, name, success, error_msg) VALUES (?, ?, 0, ?)')
+        .run(migration.version, migration.name, errMsg);
+    }
   }
 }
 

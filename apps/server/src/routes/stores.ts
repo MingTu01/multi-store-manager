@@ -9,6 +9,7 @@ import { opLog } from '../oplog.js';
 import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
+import { AppError, ErrorCode } from '../error-handler.js';
 import { validateWebhookUrl } from '../lib/network.js';
 
 const router = Router();
@@ -54,10 +55,10 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
     if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(storeId)) {
       // 检查是否是股东
       const sh = db.prepare('SELECT id FROM shareholders WHERE store_id = ? AND name = ?').get(storeId, user.username) as any;
-      if (!sh) return res.status(403).json({ error: '无权访问该门店' });
+      if (!sh) throw new AppError(ErrorCode.PERM_STORE_DENIED, '无权访问该门店', 403);
     }
     const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(req.params.storeId) as any;
-    if (!store) return res.status(404).json({ error: '门店不存在' });
+    if (!store) throw new AppError(ErrorCode.RES_NOT_FOUND, '门店不存在', 404);
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(store.id) as any).count || 0;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
     res.json({ ...store, staff_count: staffCount, shareholders });
@@ -68,9 +69,9 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
 
 router.post('/', (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const { id, name, address, initial_capital } = req.body;
-    if (!name) return res.status(400).json({ error: '请输入门店名称' });
+    if (!name) throw new AppError(ErrorCode.INPUT_REQUIRED, '请输入门店名称', 400);
     const storeId = id || 'store_' + Date.now();
     const photos = JSON.stringify(req.body.photos || []);
     const tx = db.transaction(() => {
@@ -99,7 +100,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:storeId', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const { name, address, initial_capital } = req.body;
     const now = localDateTime();
     const tx = db.transaction(() => {
@@ -133,15 +134,15 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const { password } = req.body;
-    if (!password) return res.status(400).json({ error: '请输入管理员密码' });
+    if (!password) throw new AppError(ErrorCode.INPUT_REQUIRED, '请输入管理员密码', 400);
     const admin = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id) as any;
     if (!admin || !await bcrypt.compare(password, admin.password_hash)) {
-      return res.status(401).json({ error: '密码错误' });
+      throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '密码错误', 401);
     }
     const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(req.params.id) as any;
-    if (!store) return res.status(404).json({ error: '门店不存在' });
+    if (!store) throw new AppError(ErrorCode.RES_NOT_FOUND, '门店不存在', 404);
     const deleteStore = db.transaction((storeId: string) => {
       db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM entries WHERE store_id = ?').run(storeId);
@@ -181,34 +182,34 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
   try {
     const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
-    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
+    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const today = localDate();
     const income = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('收入','income') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(storeId) as any).count || 0;
     res.json({ income, expense, profit: income - expense, staffCount });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
   try {
     const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
-    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
+    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at, health_cert_url, health_cert_name, health_cert_expiry, health_cert_verified FROM users WHERE store_id = ?').all(storeId);
     res.json({ staff });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isManagerOrAbove(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
   try {
     const storeId = req.params.storeId;
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
-    if (!name || !phone) return res.status(400).json({ error: '请填写姓名和手机号' });
+    if (!name || !phone) throw new AppError(ErrorCode.INPUT_REQUIRED, '请填写姓名和手机号', 400);
     const username = phone;
-    if (password && password.length < 6) return res.status(400).json({ error: '密码至少6位' });
+    if (password && password.length < 6) throw new AppError(ErrorCode.INPUT_LENGTH, '密码至少6位', 400);
     const pw = (password && password.length > 0) ? password : '123456';
     const passwordHash = bcrypt.hashSync(pw, 10);
     // Determine allowed role based on creator's role
@@ -235,17 +236,17 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
-  if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+  if (!isManagerOrAbove(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
   try {
     const targetUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id) as any;
-    if (!targetUser) return res.status(404).json({ error: '员工不存在' });
-    if (targetUser.role === 'ADMIN') return res.status(403).json({ error: '不允许修改管理员账户，请联系管理员' });
+    if (!targetUser) throw new AppError(ErrorCode.RES_NOT_FOUND, '员工不存在', 404);
+    if (targetUser.role === 'ADMIN') throw new AppError(ErrorCode.PERM_ROLE_DENIED, '不允许修改管理员账户，请联系管理员', 403);
     if (targetUser.store_id && String(targetUser.store_id) !== String(req.params.storeId)) {
-      return res.status(403).json({ error: '该员工不属于此门店' });
+      throw new AppError(ErrorCode.PERM_STORE_DENIED, '该员工不属于此门店', 403);
     }
     const { name, phone, position, address, monthly_salary, role, password, avatar, status } = req.body;
     const fields = [];
@@ -261,7 +262,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     if (monthly_salary !== undefined) { fields.push('salary=?'); vals.push(monthly_salary); }
     if (role !== undefined) {
       const allowedRoles = ['STAFF', 'MANAGER', 'SHAREHOLDER', 'STORE_ADMIN'];
-      if (!allowedRoles.includes(role)) return res.status(400).json({ error: '无效的角色' });
+      if (!allowedRoles.includes(role)) throw new AppError(ErrorCode.INPUT_FORMAT, '无效的角色', 400);
       fields.push('role=?'); vals.push(role);
     }
     if (avatar !== undefined) { fields.push('avatar=?'); vals.push(avatar); }
@@ -283,34 +284,34 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '员工信息已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     db.prepare('DELETE FROM users WHERE id = ? AND store_id = ?').run(req.params.id, req.params.storeId);
     opLog(req.user.id, req.params.storeId, '删除员工', '删除员工 #' + req.params.id);
     res.json({ message: '员工已删除' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
   try {
     const user = db.prepare('SELECT role, store_id FROM users WHERE id = ?').get(req.user.id) as any;
-    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) return res.status(403).json({ error: '无权限' });
+    if (!isManagerOrAbove(user.role) && String(user.store_id) !== String(req.params.storeId)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     res.json(shareholders);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const { shareholders } = req.body;
-    if (!Array.isArray(shareholders)) return res.status(400).json({ error: '参数错误' });
+    if (!Array.isArray(shareholders)) throw new AppError(ErrorCode.INPUT_REQUIRED, '参数错误', 400);
     const tx = db.transaction(() => {
       db.prepare('DELETE FROM shareholders WHERE store_id = ?').run(storeId);
       const stmt = db.prepare('INSERT INTO shareholders (store_id, name, phone, ratio) VALUES (?,?,?,?)');
@@ -328,7 +329,7 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
 // 店铺通知设置 - GET
 router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isManagerOrAbove(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     let settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
     if (!settings) {
@@ -354,19 +355,19 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       return res.json(masked);
     }
     res.json(settings);
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // 店铺通知设置 - PUT
 router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const s = req.body;
     // SSRF protection: validate wecom_proxy_url
     if (s.wecom_proxy_url) {
       const urlCheck = validateWebhookUrl(s.wecom_proxy_url);
-      if (!urlCheck.valid) return res.status(400).json({ error: urlCheck.error });
+      if (!urlCheck.valid) throw new AppError(ErrorCode.INPUT_FORMAT, urlCheck.error || 'URL 格式不正确', 400);
     }
     const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);
     if (!exists) {
@@ -387,13 +388,13 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
       s.push_review_reminder, s.push_alert, storeId
     );
     res.json({ message: '通知设置已更新' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 // 店铺通知测试
 router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
     if (dbSettings) {
@@ -414,7 +415,7 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
         }
       })
       .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "�������ڲ�����" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
 
