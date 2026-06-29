@@ -375,6 +375,18 @@ const userRole = user?.role || '';
     try {
       await api.put('/system/user-notification-settings', settings);
       showMsg(true, '设置已保存');
+      // 重新拉取最新数据
+      const d: any = await api.get('/system/user-notification-settings');
+      const defaults: Record<string, any> = {};
+      visiblePushOptions.forEach(o => {
+        if (d[o.key] === undefined) defaults[o.key] = o.defaultSelected;
+      });
+      setSettings({ ...defaults, ...d });
+      const status: Record<string, boolean> = {};
+      visibleChannels.forEach((ch) => {
+        status[ch.key] = ch.fields.every((f) => !!d[f.f]);
+      });
+      setChannelStatus(status);
     } catch (e: any) {
       showMsg(false, e.message || '保存失败');
     } finally {

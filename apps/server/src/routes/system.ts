@@ -987,14 +987,14 @@ router.put('/user-notification-settings', async (req: AuthRequest, res: Response
     const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert','push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify'];
     const pushValues: Record<string, number> = {};
     for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
-    // 如果传了值就加密，没传(null/undefined)就保留原值（UPDATE 用 COALESCE，INSERT 用空串）
-    const encToken = pushplus_token !== undefined ? (pushplus_token ? encryptToken(pushplus_token) : '') : null;
-    const encSecret = wecom_secret !== undefined ? (wecom_secret ? encryptToken(wecom_secret) : '') : null;
-    const encIyuu = iyuu_token !== undefined ? (iyuu_token ? encryptToken(iyuu_token) : '') : null;
+    // 如果传了值就加密，空串/null/undefined 都返回 null，让 COALESCE 在 UPDATE 时保留原值（INSERT 用 ?? '' 转空串）
+    const encToken = pushplus_token ? encryptToken(pushplus_token) : null;
+    const encSecret = wecom_secret ? encryptToken(wecom_secret) : null;
+    const encIyuu = iyuu_token ? encryptToken(iyuu_token) : null;
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      let sql = 'UPDATE user_notification_settings SET pushplus_token=COALESCE(?, pushplus_token), wecom_corpid=?, wecom_agentid=?, wecom_secret=COALESCE(?, wecom_secret), wecom_userid=?, wecom_proxy_url=?, iyuu_token=COALESCE(?, iyuu_token), method=?, updated_at=?';
-      const params: any[] = [encToken, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
+      let sql = 'UPDATE user_notification_settings SET pushplus_token=COALESCE(?, pushplus_token), wecom_corpid=COALESCE(?, wecom_corpid), wecom_agentid=COALESCE(?, wecom_agentid), wecom_secret=COALESCE(?, wecom_secret), wecom_userid=COALESCE(?, wecom_userid), wecom_proxy_url=COALESCE(?, wecom_proxy_url), iyuu_token=COALESCE(?, iyuu_token), method=?, updated_at=?';
+      const params: any[] = [encToken, wecom_corpid || null, wecom_agentid || null, encSecret, wecom_userid || null, wecom_proxy_url !== undefined ? wecom_proxy_url : null, encIyuu, method || 'none', new Date().toISOString()];
       for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);

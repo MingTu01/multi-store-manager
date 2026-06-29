@@ -15,6 +15,7 @@ export interface User {
   phone?: string;
   avatar?: string;
   address?: string;
+  must_change_password?: number;
 }
 
 interface AppState {

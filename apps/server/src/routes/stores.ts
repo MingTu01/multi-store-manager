@@ -2,7 +2,6 @@ import { requireAdmin, requireStoreAdminOrAbove } from '../middleware/require-ro
 import { localDate, localDateTime } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../lib/roles.js';
@@ -214,8 +213,9 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     if (!name || !phone) throw new AppError(ErrorCode.INPUT_REQUIRED, '请填写姓名和手机号', 400);
     const username = phone;
     if (password && password.length < 6) throw new AppError(ErrorCode.INPUT_LENGTH, '密码至少6位', 400);
-    const pw = (password && password.length > 0) ? password : crypto.randomBytes(6).toString('hex');
-    const generatedPassword = (password && password.length > 0) ? null : pw;
+    // 改回固定默认密码 123456
+    const pw = (password && password.length > 0) ? password : '123456';
+    const mustChangePwd = (password && password.length > 0) ? 0 : 1;
     const passwordHash = bcrypt.hashSync(pw, 10);
     // Determine allowed role based on creator's role
     const creatorRole = req.user.role?.toUpperCase();
@@ -230,7 +230,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
         finalRole = ['STAFF'].includes(r) ? r : 'STAFF';
       }
     }
-    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, finalRole, storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '');
+    const result = db.prepare('INSERT INTO users (username, password_hash, name, phone, role, store_id, avatar, salary, status, job_title, address, must_change_password) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)').run(username, passwordHash, name, phone, finalRole, storeId, avatar || '', monthly_salary || 0, status || 'active', position || '', address || '', mustChangePwd);
     opLog(req.user.id, storeId, '添加员工', '添加员工: ' + name);
 
     triggerNotification({
@@ -240,7 +240,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
       detail: '新员工已添加: ' + name + (position ? ' (' + position + ')' : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: result.lastInsertRowid, message: '员工添加成功', generatedPassword });
+    res.json({ id: result.lastInsertRowid, message: '员工添加成功，默认密码: 123456，首次登录需修改密码' });
   } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 

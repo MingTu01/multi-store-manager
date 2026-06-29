@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
   status TEXT DEFAULT 'active',
   job_title TEXT DEFAULT '',
   address TEXT DEFAULT '',
+  must_change_password INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now','localtime')),
   updated_at TEXT DEFAULT (datetime('now','localtime'))
 );
@@ -345,7 +346,11 @@ const migrations = [
   "CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now','localtime')), UNIQUE(user_id, endpoint))",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
   "ALTER TABLE notification_settings ADD COLUMN iyuu_token TEXT DEFAULT ''",
+  "ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0",
 ];
+
+// 保险：确保 must_change_password 列存在（已有库升级，防止重复执行报错）
+try { db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0"); } catch(e: any) { if (!e.message.includes('duplicate column')) throw e; }
 
 // 迁移版本追踪表
 db.exec(`
@@ -423,8 +428,8 @@ const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('a
 if (!adminExists) {
   const randomPassword = crypto.randomBytes(8).toString('hex');
   const hash = bcrypt.hashSync(randomPassword, 10);
-  db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")
-    .run('admin', hash, '管理员', 'ADMIN');
+  db.prepare("INSERT INTO users (username, password_hash, name, role, must_change_password) VALUES (?, ?, ?, ?, ?)")
+    .run('admin', hash, '管理员', 'ADMIN', 1);
   writeFileSync(join(BASE_DIR, 'data', 'admin-initial-password.txt'), randomPassword + '\n', { mode: 0o600 });
   logger.info('========================================');
   logger.info('管理员账号已创建:');
