@@ -344,6 +344,7 @@ const migrations = [
   "CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now','localtime')), UNIQUE(user_id, endpoint))",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
   "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', iyuu_token TEXT DEFAULT '', push_entry INTEGER DEFAULT 1, push_payroll INTEGER DEFAULT 1, push_dividend INTEGER DEFAULT 1, push_inventory INTEGER DEFAULT 1, push_shift INTEGER DEFAULT 1, push_purchase INTEGER DEFAULT 1, push_health_cert INTEGER DEFAULT 1, push_staff INTEGER DEFAULT 1, push_store INTEGER DEFAULT 1, push_report INTEGER DEFAULT 1, push_review INTEGER DEFAULT 1, push_alert INTEGER DEFAULT 1, updated_at TEXT DEFAULT '')",
+  "ALTER TABLE notification_settings ADD COLUMN iyuu_token TEXT DEFAULT ''",
 ];
 
 // 迁移版本追踪表

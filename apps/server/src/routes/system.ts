@@ -561,9 +561,10 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     // 字段白名单验证，防止写入非法字段
-    const allowedFields = ['pushplus_enabled', 'pushplus_token',
-      'wecom_enabled', 'wecom_corp_id', 'wecom_agent_id', 'wecom_secret', 'wecom_user_id', 'wecom_proxy_url',
-      'report_daily', 'report_weekly', 'report_monthly', 'report_review', 'report_warning'];
+    const allowedFields = ['method', 'pushplus_enabled', 'pushplus_token',
+      'wecom_enabled', 'wecom_corpid', 'wecom_agentid', 'wecom_secret', 'wecom_userid', 'wecom_proxy_url',
+      'iyuu_token',
+      'push_daily_report', 'push_weekly_report', 'push_monthly_report', 'push_review_reminder', 'push_alert'];
     const safeBody: any = {};
     for (const key of allowedFields) {
       if (req.body[key] !== undefined) safeBody[key] = req.body[key];
@@ -576,10 +577,11 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     }
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
-    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
+    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
       s.method || 'none', s.pushplus_token || '',
       s.wecom_corpid || '', s.wecom_agentid || '', s.wecom_secret || '',
       s.wecom_userid || '', s.wecom_proxy_url || 'https://wx.908521.xyz/',
+      s.iyuu_token || '',
       s.push_daily_report ? 1 : 0, s.push_weekly_report ? 1 : 0,
       s.push_monthly_report ? 1 : 0, s.push_review_reminder ? 1 : 0,
       s.push_alert ? 1 : 0
