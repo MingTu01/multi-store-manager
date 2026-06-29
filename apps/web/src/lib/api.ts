@@ -82,12 +82,15 @@ async function parseError(r: Response, silent = false): Promise<Error> {
       if ((r.url && r.url.includes('/auth/login')) || (typeof window !== 'undefined' && window.location.pathname === '/login')) {
         return new Error(data.error || data.message || '用户名或密码错误');
       }
-      if (!isRedirectingToLogin) {
-        isRedirectingToLogin = true;
-        fetch(getBaseURL() + '/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
-        if (!silent && location.pathname !== '/login') {
-          location.href = '/login';
-        }
+      if (isRedirectingToLogin) {
+        // 5秒后自动重置标志，防止卡死
+        setTimeout(() => { isRedirectingToLogin = false; }, 5000);
+        return Promise.reject(new Error('正在跳转登录页'));
+      }
+      isRedirectingToLogin = true;
+      fetch(getBaseURL() + '/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+      if (!silent && location.pathname !== '/login') {
+        location.href = '/login';
       }
       return new Error(data.error || data.message || '登录已过期，请重新登录');
     }

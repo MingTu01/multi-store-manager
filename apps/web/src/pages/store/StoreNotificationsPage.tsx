@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Bell, CheckCircle, AlertCircle, Info, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
 import { PushSettingsButton } from '../../components/PushSettingsButton';
 import { Modal } from '../../components/Modal';
+import { showToast } from '../../components/Toast';
 
 const TYPE_COLORS: Record<string, string> = {
   entry: 'bg-emerald-50 text-emerald-600',
@@ -56,25 +57,39 @@ export default function StoreNotificationsPage() {
     setDetailItem(n);
     setShowDetail(true);
     if (!n.read) {
-      await api.put('/notifications/' + n.id + '/read', {});
-      setList((prev) => prev.map((item) => item.id === n.id ? { ...item, read: 1 } : item));
-      setUnread((u) => Math.max(0, u - 1));
-      decrementUnread();
+      try {
+        await api.put('/notifications/' + n.id + '/read', {});
+        setList((prev) => prev.map((item) => item.id === n.id ? { ...item, read: 1 } : item));
+        setUnread((u) => Math.max(0, u - 1));
+        decrementUnread();
+      } catch (e: any) {
+        setList((prev) => prev.map((item) => item.id === n.id ? { ...item, read: 0 } : item));
+        showToast(e.message || '操作失败', 'error');
+      }
     }
   };
 
   const markRead = async (id: number) => {
-    await api.put('/notifications/' + id + '/read', {});
-    setList((prev) => prev.map((n) => n.id === id ? { ...n, read: 1 } : n));
-    setUnread((u) => Math.max(0, u - 1));
-    decrementUnread();
+    try {
+      await api.put('/notifications/' + id + '/read', {});
+      setList((prev) => prev.map((n) => n.id === id ? { ...n, read: 1 } : n));
+      setUnread((u) => Math.max(0, u - 1));
+      decrementUnread();
+    } catch (e: any) {
+      setList((prev) => prev.map((n) => n.id === id ? { ...n, read: 0 } : n));
+      showToast(e.message || '操作失败', 'error');
+    }
   };
 
   const markAllRead = async () => {
-    await api.put('/notifications/read-all', {});
-    setList((prev) => prev.map((n) => ({ ...n, read: 1 })));
-    setUnread(0);
-    resetUnread();
+    try {
+      await api.put('/notifications/read-all', {});
+      setList((prev) => prev.map((n) => ({ ...n, read: 1 })));
+      setUnread(0);
+      resetUnread();
+    } catch (e: any) {
+      showToast(e.message || '操作失败', 'error');
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

@@ -1,6 +1,6 @@
 import db from './db.js';
 import { ROLES } from './lib/roles.js';
-import { sendNotification } from './notify.js';
+import { sendNotification, getUserPushSettings } from './notify.js';
 import { sendPushNotification } from './push-notify.js';
 import { eventBus } from './event-bus.js';
 import logger from './logger.js';
@@ -60,6 +60,11 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
     }
   }
 
+  if (type === 'payroll') {
+    const staffs = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.STAFF, 'active') as any[];
+    staffs.forEach((u: any) => userIds.push(u.id));
+  }
+
   return [...new Set(userIds)];
 }
 
@@ -94,8 +99,17 @@ export function triggerNotification(params: NotifyParams): void {
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', link, now);
     }
-    // External push (with retry)
-    withRetry(() => sendNotification(title, content, type), 'sendNotification');
+    // External push (with retry) — 优先用户个人推送设置，无个人设置则用全局兜底
+    let globalPushSent = false;
+    for (const uid of targets) {
+      const userSettings = getUserPushSettings(uid);
+      if (userSettings && (userSettings.pushplus_token || userSettings.wecom_secret || userSettings.iyuu_token)) {
+        withRetry(() => sendNotification(title, content, type, userSettings), 'sendNotification-user-' + uid);
+      } else if (!globalPushSent) {
+        withRetry(() => sendNotification(title, content, type), 'sendNotification-global');
+        globalPushSent = true;
+      }
+    }
     // Browser Web Push (with retry)
     for (const uid of targets) {
       withRetry(() => sendPushNotification(uid, title, content, link), 'sendPushNotification-' + uid);

@@ -95,26 +95,26 @@ function globalConnect() {
 
   source.onmessage = function(e) {
     try {
-      var data = JSON.parse(e.data);
+      const data = JSON.parse(e.data);
       handleEvent('message', data);
       channel.postMessage({ eventName: 'message', data });
-    } catch {}
+    } catch (err) { console.warn('[SSE] message parse error:', err); }
   };
 
   source.addEventListener('data-change', function(e: MessageEvent) {
     try {
-      var data = JSON.parse(e.data);
+      const data = JSON.parse(e.data);
       handleEvent('data-change', data);
       channel.postMessage({ eventName: 'data-change', data });
-    } catch {}
+    } catch (err) { console.warn('[SSE] data-change parse error:', err); }
   });
 
   source.addEventListener('system', function(e: MessageEvent) {
     try {
-      var data = JSON.parse(e.data);
+      const data = JSON.parse(e.data);
       handleEvent('system', data);
       channel.postMessage({ eventName: 'system', data });
-    } catch {}
+    } catch (err) { console.warn('[SSE] system parse error:', err); }
   });
 
   source.onerror = function() {

@@ -54,8 +54,15 @@ const corsOptions: cors.CorsOptions = {
     if (origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('http://localhost')) return callback(null, true);
     // Explicitly configured origins
     if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // No CORS_ORIGIN configured — allow all (self-hosted mode)
-    if (ALLOWED_ORIGINS.length === 0) return callback(null, true);
+    // No CORS_ORIGIN configured
+    if (ALLOWED_ORIGINS.length === 0) {
+      if (process.env.NODE_ENV === 'production') {
+        // 生产环境必须配置 CORS_ORIGIN
+        return callback(new Error('CORS not configured for production'));
+      }
+      // 开发环境允许所有来源
+      return callback(null, true);
+    }
     callback(null, false);
   },
   credentials: true
@@ -114,6 +121,7 @@ const globalLimiter = rateLimit({
   standardHeaders: false,
   legacyHeaders: false,
   message: '请求过于频繁，请稍后重试',
+  keyGenerator: (req: any) => req.socket?.remoteAddress || 'unknown',
   skip: (req) => {
     if (!req.path.startsWith('/api/')) return true;
     if (req.path === '/api/sse') return true;
@@ -158,19 +166,20 @@ app.get('/api/health', (_req, res) => { res.json({ status: 'ok', ts: Date.now() 
 // SSE - Server-Sent Events for real-time data push
 app.get('/api/sse', authMiddleware, (req, res) => {
   const userId = (req as any).user?.id || 0;
+  const role = (req as any).user?.role || 'STAFF';
+  const storeId = (req as any).user?.store_id || null;
+
+  // 先检查 SSE 连接数限制；超限时直接返回 429，避免 SSE 头已 flushHeaders 导致状态码失效
+  const clientId = eventBus.addClient(userId, role, storeId, res);
+  if (!clientId) {
+    return res.status(429).json({ error: 'SSE 连接数超限，请稍后重试' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
-
-  const role = (req as any).user?.role || 'STAFF';
-  const storeId = (req as any).user?.store_id || null;
-  const clientId = eventBus.addClient(userId, role, storeId, res);
-  if (!clientId) {
-    res.status(429).json({ error: 'SSE 连接数超限，请稍后重试' });
-    return;
-  }
 
   const heartbeat = setInterval(() => {
     try { res.write('data: {"type":"heartbeat","ts":' + Date.now() + '}\n\n'); } catch {}

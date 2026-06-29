@@ -29,7 +29,7 @@ function getEncKey(): Buffer {
   const newKey = crypto.randomBytes(32);
   try {
     md(join(BASE_DIR, 'data'), { recursive: true });
-    wf(keyFile, newKey.toString('hex'), 'utf-8');
+    wf(keyFile, newKey.toString('hex'), { encoding: 'utf-8', mode: 0o600 });
     if (process.env.NODE_ENV !== 'production') logger.info('[NOTIFY] Generated new notify encryption key');
   } catch (e) {
     if (process.env.NODE_ENV !== 'production') logger.error('[NOTIFY] Failed to save notify encryption key:', e);
@@ -106,6 +106,7 @@ export function getUserPushSettings(userId: number): any {
     ...row,
     pushplus_token: decryptToken(row.pushplus_token || ''),
     wecom_secret: decryptToken(row.wecom_secret || ''),
+    iyuu_token: decryptToken(row.iyuu_token || ''),
   };
 }
 

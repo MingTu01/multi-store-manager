@@ -3,7 +3,7 @@
 // 用 IIFE 包裹，避免变量泄露到全局
 // =====================================================
 (function() {
-  var marker = '__msl_app_loaded__';
+  const marker = '__msl_app_loaded__';
   if ((window as any)[marker]) {
 
     // 创建一个空的 div 替代 root，防止后续脚本报错
@@ -21,10 +21,10 @@
             await mod.StatusBar.setStyle({ style: mod.Style.Dark });
             await mod.StatusBar.setBackgroundColor({ color: '#ffffff' });
             await mod.StatusBar.setOverlaysWebView({ overlay: false });
-          } catch {}
+          } catch (e) { console.warn('[MSL] Status bar style on resume failed:', e); }
         }
       });
-    }).catch(() => {});
+    }).catch((e) => { console.warn('[MSL] Capacitor app import failed:', e); });
   }
 
   // Capacitor native status bar
@@ -33,7 +33,7 @@
       StatusBar.setStyle({ style: Style.Dark });
       StatusBar.setBackgroundColor({ color: '#ffffff' });
       StatusBar.setOverlaysWebView({ overlay: false });
-    }).catch(() => {});
+    }).catch((e) => { console.warn('[MSL] Status bar setup failed:', e); });
   }
 
   // =====================================================
@@ -47,7 +47,7 @@
       reg.update();
       if (reg.installing) { reg.installing.postMessage({ type: 'SKIP_WAITING' }); }
       if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
-    }).catch(function() {});
+    }).catch(function(err) { console.warn('[MSL] ServiceWorker registration failed:', err); });
   }
 
   // =====================================================
@@ -59,9 +59,9 @@
     import('./App'),
     import('./index.css')
   ]).then(function(mods) {
-    var createRoot = mods[0].createRoot;
-    var BrowserRouter = mods[1].BrowserRouter;
-    var App = mods[2].default;
+    const createRoot = mods[0].createRoot;
+    const BrowserRouter = mods[1].BrowserRouter;
+    const App = mods[2].default;
 
     createRoot(document.getElementById('root')!).render(
       <BrowserRouter>

@@ -540,10 +540,14 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
   if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   try {
     const settings = getSettings();
+    // 返回前先解密 token（数据库存储为密文）
+    if (settings.pushplus_token) settings.pushplus_token = decryptToken(settings.pushplus_token);
+    if (settings.wecom_secret) settings.wecom_secret = decryptToken(settings.wecom_secret);
+    if (settings.iyuu_token) settings.iyuu_token = decryptToken(settings.iyuu_token);
     // 脱敏：只有 ADMIN 才能看到完整密钥
     if (!isAdmin(req.user.role)) {
       const masked = { ...settings };
-      const sensitiveFields = ['pushplus_token', 'wecom_secret'];
+      const sensitiveFields = ['pushplus_token', 'wecom_secret', 'iyuu_token'];
       for (const field of sensitiveFields) {
         if (masked[field]) {
           const val = String(masked[field]);
@@ -578,10 +582,10 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
     db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
-      s.method || 'none', s.pushplus_token || '',
-      s.wecom_corpid || '', s.wecom_agentid || '', s.wecom_secret || '',
-      s.wecom_userid || '', s.wecom_proxy_url || 'https://wx.908521.xyz/',
-      s.iyuu_token || '',
+      s.method || 'none', encryptToken(s.pushplus_token || ''),
+      s.wecom_corpid || '', s.wecom_agentid || '', encryptToken(s.wecom_secret || ''),
+      s.wecom_userid || '', s.wecom_proxy_url !== undefined ? s.wecom_proxy_url : 'https://wx.908521.xyz/',
+      encryptToken(s.iyuu_token || ''),
       s.push_daily_report ? 1 : 0, s.push_weekly_report ? 1 : 0,
       s.push_monthly_report ? 1 : 0, s.push_review_reminder ? 1 : 0,
       s.push_alert ? 1 : 0
@@ -962,6 +966,7 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
     const result = { ...row };
     if (result.pushplus_token) result.pushplus_token = decryptToken(result.pushplus_token);
     if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
+    if (result.iyuu_token) result.iyuu_token = decryptToken(result.iyuu_token);
     res.json(result);
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
@@ -982,19 +987,20 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
     const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert','push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify'];
     const pushValues: Record<string, number> = {};
     for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
-    const encToken = pushplus_token ? encryptToken(pushplus_token) : '';
-    const encSecret = wecom_secret ? encryptToken(wecom_secret) : '';
-    const encIyuu = iyuu_token ? encryptToken(iyuu_token) : '';
+    // 如果传了值就加密，没传(null/undefined)就保留原值（UPDATE 用 COALESCE，INSERT 用空串）
+    const encToken = pushplus_token !== undefined ? (pushplus_token ? encryptToken(pushplus_token) : '') : null;
+    const encSecret = wecom_secret !== undefined ? (wecom_secret ? encryptToken(wecom_secret) : '') : null;
+    const encIyuu = iyuu_token !== undefined ? (iyuu_token ? encryptToken(iyuu_token) : '') : null;
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, method=?, updated_at=?';
+      let sql = 'UPDATE user_notification_settings SET pushplus_token=COALESCE(?, pushplus_token), wecom_corpid=?, wecom_agentid=?, wecom_secret=COALESCE(?, wecom_secret), wecom_userid=?, wecom_proxy_url=?, iyuu_token=COALESCE(?, iyuu_token), method=?, updated_at=?';
       const params: any[] = [encToken, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
       for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);
     } else {
       const cols = ['user_id','pushplus_token','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
-      const vals: any[] = [req.user.id, encToken, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
+      const vals: any[] = [req.user.id, encToken ?? '', wecom_corpid||'', wecom_agentid||'', encSecret ?? '', wecom_userid||'', wecom_proxy_url||'', encIyuu ?? '', method||'none', new Date().toISOString()];
       for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
@@ -1076,7 +1082,7 @@ router.post('/push/jpush-register', (req: AuthRequest, res: Response) => {
 router.get('/push/jpush-config', requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const cfg = getJPushConfig();
-    res.json({ appKey: cfg.appKey, masterSecret: cfg.masterSecret ? '***' : '' });
+    res.json({ appKey: cfg?.appKey || '', masterSecret: cfg?.masterSecret ? '***' : '' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 

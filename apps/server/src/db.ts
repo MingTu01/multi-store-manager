@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import bcrypt from 'bcryptjs';
-import { mkdirSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -318,6 +318,7 @@ const migrations = [
   "ALTER TABLE notifications ADD COLUMN content TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN type TEXT DEFAULT ''",
   "ALTER TABLE notifications ADD COLUMN store_id TEXT DEFAULT ''",
+  "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', iyuu_token TEXT DEFAULT '', push_entry INTEGER DEFAULT 1, push_payroll INTEGER DEFAULT 1, push_dividend INTEGER DEFAULT 1, push_inventory INTEGER DEFAULT 1, push_shift INTEGER DEFAULT 1, push_purchase INTEGER DEFAULT 1, push_health_cert INTEGER DEFAULT 1, push_staff INTEGER DEFAULT 1, push_store INTEGER DEFAULT 1, push_report INTEGER DEFAULT 1, push_review INTEGER DEFAULT 1, push_alert INTEGER DEFAULT 1, updated_at TEXT DEFAULT '')",
   "ALTER TABLE user_notification_settings ADD COLUMN push_entry INTEGER DEFAULT 1",
   "ALTER TABLE user_notification_settings ADD COLUMN push_payroll INTEGER DEFAULT 1",
   "ALTER TABLE user_notification_settings ADD COLUMN push_dividend INTEGER DEFAULT 1",
@@ -343,7 +344,6 @@ const migrations = [
   "ALTER TABLE user_notification_settings ADD COLUMN push_dividend_notify INTEGER DEFAULT 1",
   "CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now','localtime')), UNIQUE(user_id, endpoint))",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
-  "CREATE TABLE IF NOT EXISTS user_notification_settings (user_id INTEGER PRIMARY KEY, pushplus_token TEXT DEFAULT '', serverchan_key TEXT DEFAULT '', wecom_corpid TEXT DEFAULT '', wecom_agentid TEXT DEFAULT '', wecom_secret TEXT DEFAULT '', wecom_userid TEXT DEFAULT '', wecom_proxy_url TEXT DEFAULT '', method TEXT DEFAULT 'none', iyuu_token TEXT DEFAULT '', push_entry INTEGER DEFAULT 1, push_payroll INTEGER DEFAULT 1, push_dividend INTEGER DEFAULT 1, push_inventory INTEGER DEFAULT 1, push_shift INTEGER DEFAULT 1, push_purchase INTEGER DEFAULT 1, push_health_cert INTEGER DEFAULT 1, push_staff INTEGER DEFAULT 1, push_store INTEGER DEFAULT 1, push_report INTEGER DEFAULT 1, push_review INTEGER DEFAULT 1, push_alert INTEGER DEFAULT 1, updated_at TEXT DEFAULT '')",
   "ALTER TABLE notification_settings ADD COLUMN iyuu_token TEXT DEFAULT ''",
 ];
 
@@ -425,10 +425,11 @@ if (!adminExists) {
   const hash = bcrypt.hashSync(randomPassword, 10);
   db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)")
     .run('admin', hash, '管理员', 'ADMIN');
+  writeFileSync(join(BASE_DIR, 'data', 'admin-initial-password.txt'), randomPassword + '\n', { mode: 0o600 });
   logger.info('========================================');
   logger.info('管理员账号已创建:');
-  logger.info('用户名: admin');
-  logger.info('密码: ' + randomPassword);
+  logger.info('初始账号: admin');
+  logger.info('初始密码已生成，请查看 data/admin-initial-password.txt 文件');
   logger.info('请立即登录并修改密码！');
   logger.info('========================================');
 }

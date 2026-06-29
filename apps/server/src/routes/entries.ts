@@ -43,14 +43,14 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }
     if (user.role?.toUpperCase() === 'STAFF') whereClause += ' AND e.is_system=0';
     if (period === 'day') { whereClause += ' AND e.date=?'; params.push(localDate()); }
-    else if (period === 'week') { const d = new Date(); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
+    else if (period === 'week') { const d = new Date(); const s = new Date(d); const dow = d.getDay(); s.setDate(d.getDate()-(dow===0?6:dow-1)); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     else if (period === 'month') { const m = localDate().slice(0,7); whereClause += " AND e.date >= ? AND e.date < ?"; params.push(m + '-01'); params.push(m + '-32'); }
     else if (period === 'year') { whereClause += " AND strftime('%Y',e.date)=?"; params.push(new Date().getFullYear().toString()); }
     if (date) { whereClause += ' AND e.date=?'; params.push(date); }
     if (dateFrom && dateTo) { whereClause += ' AND e.date>=? AND e.date<=?'; params.push(dateFrom, dateTo); }
     if (month) { whereClause += " AND e.date >= ? AND e.date < ?"; params.push(month + '-01'); params.push(month + '-32'); }
     if (year) { whereClause += " AND strftime('%Y',e.date)=?"; params.push(year); }
-    if (week) { const d = new Date(week as string); const s = new Date(d); s.setDate(d.getDate()-d.getDay()+1); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
+    if (week) { const d = new Date(week as string); const s = new Date(d); const dow = d.getDay(); s.setDate(d.getDate()-(dow===0?6:dow-1)); const e = new Date(s); e.setDate(s.getDate()+6); whereClause += ' AND e.date>=? AND e.date<=?'; params.push(localDate(s), localDate(e)); }
     const total = (db.prepare('SELECT COUNT(*) as count FROM entries e' + whereClause).get(...params) as any).count;
     const qp = [...params];
     let sql = 'SELECT e.*, COALESCE(c.name, e.category) AS category_name, u.name AS creator_name FROM entries e LEFT JOIN categories c ON e.category_id = c.id LEFT JOIN users u ON e.created_by = u.id' + whereClause + ' ORDER BY e.created_at DESC';
@@ -104,17 +104,35 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     let categoryName = category || '';
     let catId = category_id || null;
     if (catId) { const cat = db.prepare('SELECT name FROM categories WHERE id = ?').get(catId) as any; if (cat) categoryName = cat.name; }
-    const nt = normalizeType(type);
-    db.prepare('UPDATE entries SET type=?,category=?,category_id=?,amount=?,note=?,date=?,updated_at=datetime(\'now\',\'localtime\') WHERE id=?').run(nt, categoryName, catId, amount, sanitizeNote(note||''), date, req.params.id);
+    const nt = type !== undefined ? normalizeType(type) : '';
+    // 仅更新提供的字段，未传字段保留原值
+    const updates: string[] = [];
+    const params: any[] = [];
+    if (type !== undefined) { updates.push('type=?'); params.push(nt); }
+    if (category !== undefined || category_id !== undefined) { updates.push('category=?'); params.push(categoryName); }
+    if (category_id !== undefined) { updates.push('category_id=?'); params.push(catId); }
+    if (amount !== undefined) { updates.push('amount=?'); params.push(amount); }
+    if (note !== undefined) { updates.push('note=?'); params.push(sanitizeNote(note || '')); }
+    if (date !== undefined) { updates.push('date=?'); params.push(date); }
+    if (updates.length === 0) return res.status(400).json({ error: '没有要更新的字段' });
+    updates.push("updated_at=datetime('now','localtime')");
+    params.push(req.params.id);
+    db.prepare('UPDATE entries SET ' + updates.join(', ') + ' WHERE id=?').run(...params);
     const before = original ? { type: original.type, category: original.category || '未分类', amount: original.amount, note: original.note || '', date: original.date } : null;
-    const after = { type: nt, category: categoryName || '未分类', amount: Number(amount), note: note || '', date };
+    const after = {
+      type: type !== undefined ? nt : (original?.type || ''),
+      category: (category !== undefined || category_id !== undefined) ? (categoryName || '未分类') : (original?.category || '未分类'),
+      amount: amount !== undefined ? Number(amount) : (original?.amount || 0),
+      note: note !== undefined ? (note || '') : (original?.note || ''),
+      date: date !== undefined ? date : (original?.date || '')
+    };
     opLog(user.id, storeId, '记账', JSON.stringify({ action: 'modify', id: req.params.id, before, after }), req.ip);
 
     triggerNotification({
       type: 'entry',
       action: '修改记账',
       storeId,
-      detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + categoryName + ' ¥' + amount
+      detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + (categoryName || original?.category || '未分类') + ' ¥' + (amount !== undefined ? amount : original?.amount)
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id } });
@@ -129,7 +147,8 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     if (isReadonly(user.role)) return res.status(403).json({ error: '员工无权删除记账' });
     const { storeId } = req.params;
     const entry = db.prepare('SELECT * FROM entries WHERE id=?').get(req.params.id) as any;
-    if (entry && String(entry.store_id) !== String(storeId)) {
+    if (!entry) return res.status(404).json({ error: '记录不存在' });
+    if (String(entry.store_id) !== String(storeId)) {
       return res.status(404).json({ error: '记录不存在' });
     }
     if (entry.is_system && !isAdmin(user.role)) {

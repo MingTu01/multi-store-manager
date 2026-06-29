@@ -16,6 +16,7 @@ const loginLimiter = rateLimit({
   message: { error: '登录尝试过于频繁，请1分钟后再试' },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req: any) => req.socket?.remoteAddress || 'unknown',
 });
 
 
@@ -62,6 +63,11 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
         if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
           throw new AppError(ErrorCode.INPUT_FORMAT, '手机号格式不正确，必须是11位有效手机号', 400);
         }
+        // 查重：非管理员手机号同步为 username，必须唯一
+        if (phone) {
+          const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(phone, req.user.id) as any;
+          if (existing) throw new AppError(ErrorCode.INPUT_FORMAT, '该手机号已被其他用户使用', 400);
+        }
         updates.push('phone=?'); vals.push(phone);
         updates.push('username=?'); vals.push(phone);
       }
@@ -69,6 +75,7 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {
+      if (newPassword.length < 6) throw new AppError(ErrorCode.INPUT_FORMAT, '新密码至少6位', 400);
       if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);
       updates.push('password_hash=?'); vals.push(await bcrypt.hash(newPassword, 10));
     }

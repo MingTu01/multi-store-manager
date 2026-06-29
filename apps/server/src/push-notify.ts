@@ -32,19 +32,25 @@ export function getVapidPublicKey(): string {
 
 // ==================== JPush 极光推送 ====================
 
-// JPush hardcoded defaults (can be overridden via database)
-const JPUSH_DEFAULT_APP_KEY = 'ea63f270ecfe13b59700ff5a';
-const JPUSH_DEFAULT_MASTER_SECRET = '9b9080037e2f08a696e3c71d';
+// JPush credentials must be configured via database/admin UI; no hardcoded defaults
+const JPUSH_DEFAULT_APP_KEY = '';
+const JPUSH_DEFAULT_MASTER_SECRET = '';
 
-export function getJPushConfig(): { appKey: string; masterSecret: string } {
+export function getJPushConfig(): { appKey: string; masterSecret: string } | null {
   try {
     const ak = db.prepare("SELECT value FROM app_settings WHERE key='jpush_app_key'").get() as any;
     const ms = db.prepare("SELECT value FROM app_settings WHERE key='jpush_master_secret'").get() as any;
-    return { 
-      appKey: ak?.value || JPUSH_DEFAULT_APP_KEY, 
-      masterSecret: ms?.value || JPUSH_DEFAULT_MASTER_SECRET 
-    };
-  } catch { return { appKey: JPUSH_DEFAULT_APP_KEY, masterSecret: JPUSH_DEFAULT_MASTER_SECRET }; }
+    const appKey = ak?.value || JPUSH_DEFAULT_APP_KEY;
+    const masterSecret = ms?.value || JPUSH_DEFAULT_MASTER_SECRET;
+    if (!appKey || !masterSecret) {
+      logger.warn('[JPush] Not configured: appKey or masterSecret is empty. Skipping JPush notifications.');
+      return null;
+    }
+    return { appKey, masterSecret };
+  } catch {
+    logger.warn('[JPush] Failed to read config from database; skipping JPush notifications.');
+    return null;
+  }
 }
 
 export function setJPushConfig(appKey: string, masterSecret: string): void {
@@ -56,8 +62,7 @@ export function setJPushConfig(appKey: string, masterSecret: string): void {
 
 async function sendJPush(registrationId: string, title: string, body: string, url?: string): Promise<boolean> {
   const cfg = getJPushConfig();
-  if (!cfg.appKey || !cfg.masterSecret) {
-    logger.warn('[JPush] Not configured');
+  if (!cfg || !cfg.appKey || !cfg.masterSecret) {
     return false;
   }
   try {

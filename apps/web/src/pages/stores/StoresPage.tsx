@@ -72,10 +72,10 @@ export default function StoresPage() {
   const removePhoto = (idx: number) => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
-    if (!form.name.trim()) { showToast( '请输入门店名称'); return; }
-      if (form.shareholders.length === 0) { showToast( '请至少添加一位股东'); return; }
+    if (!form.name.trim()) { showToast( '请输入门店名称', 'error'); return; }
+      if (form.shareholders.length === 0) { showToast( '请至少添加一位股东', 'error'); return; }
       const totalRatio = form.shareholders.reduce((s, sh) => s + (Number(sh.ratio) || 0), 0);
-      if (totalRatio !== 100) { showToast( '股东份额相加必须等于 100%，当前为 ' + totalRatio + '%'); return; }
+      if (totalRatio !== 100) { showToast( '股东份额相加必须等于 100%，当前为 ' + totalRatio + '%', 'error'); return; }
     setLoading(true);
     try {
       const body: any = { name: form.name, address: form.address, initial_capital: Number(form.initial_capital) || 0, photos: form.photos, shareholders: form.shareholders };

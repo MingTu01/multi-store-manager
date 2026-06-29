@@ -391,6 +391,8 @@ const dataVersion = useDataVersion('store', storeId);
           <button onClick={handleEditItem} className="w-full rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">保存</button>
         </div>
       </Modal>
+
+      <ConfirmDialog />
     </div>
   );
 }
@@ -462,7 +464,6 @@ function HeatmapChart({ data, itemNames }: { data: any[]; itemNames: string[] })
           ))}
         </div>
       </div>
-    <ConfirmDialog />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { requireAdmin, requireStoreAdminOrAbove } from '../middleware/require-ro
 ﻿import { localDate, localDateTime } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import db from '../db.js';
 import { AuthRequest } from '../auth.js';
 import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../lib/roles.js';
@@ -212,7 +213,8 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     if (!name || !phone) throw new AppError(ErrorCode.INPUT_REQUIRED, '请填写姓名和手机号', 400);
     const username = phone;
     if (password && password.length < 6) throw new AppError(ErrorCode.INPUT_LENGTH, '密码至少6位', 400);
-    const pw = (password && password.length > 0) ? password : '123456';
+    const pw = (password && password.length > 0) ? password : crypto.randomBytes(6).toString('hex');
+    const generatedPassword = (password && password.length > 0) ? null : pw;
     const passwordHash = bcrypt.hashSync(pw, 10);
     // Determine allowed role based on creator's role
     const creatorRole = req.user.role?.toUpperCase();
@@ -237,7 +239,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
       detail: '新员工已添加: ' + name + (position ? ' (' + position + ')' : '')
     , operatorName: req.user.name || req.user.username});
 
-    res.json({ id: result.lastInsertRowid, message: '员工添加成功' });
+    res.json({ id: result.lastInsertRowid, message: '员工添加成功', generatedPassword });
   } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
@@ -265,6 +267,9 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     if (role !== undefined) {
       const allowedRoles = ['STAFF', 'MANAGER', 'SHAREHOLDER', 'STORE_ADMIN'];
       if (!allowedRoles.includes(role)) throw new AppError(ErrorCode.INPUT_FORMAT, '无效的角色', 400);
+      if (!isStoreAdmin(req.user.role) && role && role !== 'STAFF') {
+        return res.status(403).json({ error: '无权设置该角色' });
+      }
       fields.push('role=?'); vals.push(role);
     }
     if (avatar !== undefined) { fields.push('avatar=?'); vals.push(avatar); }
@@ -292,7 +297,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
-    db.prepare('DELETE FROM users WHERE id = ? AND store_id = ?').run(req.params.id, req.params.storeId);
+    db.prepare('DELETE FROM users WHERE id = ? AND store_id = ? AND role != ?').run(req.params.id, req.params.storeId, 'ADMIN');
     opLog(req.user.id, req.params.storeId, '删除员工', '删除员工 #' + req.params.id);
     res.json({ message: '员工已删除' });
   } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }

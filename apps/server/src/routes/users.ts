@@ -80,7 +80,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     // 非管理员只能修改自己的基本信息（字段白名单）
     let body = req.body;
     if (!isAdmin(req.user.role)) {
-      const allowedFields = ['name', 'phone', 'address', 'avatar', 'password'];
+      const allowedFields = ['name', 'phone', 'address', 'avatar', 'password', 'oldPassword'];
       const safeBody: any = {};
       for (const key of allowedFields) {
         if (req.body[key] !== undefined) safeBody[key] = req.body[key];

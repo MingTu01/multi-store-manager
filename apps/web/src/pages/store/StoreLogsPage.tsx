@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../lib/api';
 import { Clock, Search, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, Store, Users, ClipboardCheck, Wallet, Building, Calendar } from 'lucide-react';
 import { Pagination } from '../../components/Pagination';
+import { showToast } from '../../components/Toast';
 
 // Action type config
 const ACTION_TYPES: Record<string, { label: string; color: string; bgColor: string; icon: any }> = {
@@ -117,7 +118,7 @@ export default function StoreLogsPage() {
 
   useEffect(() => {
     if (!storeId) {
-      api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch(() => {});
+      api.get('/stores').then((d: any) => setStores(d.stores || (Array.isArray(d) ? d : []))).catch((e) => { console.warn('加载门店失败:', e); });
     }
   }, [storeId]);
 
@@ -134,7 +135,7 @@ export default function StoreLogsPage() {
     const url = storeId ? '/logs?storeId=' + storeId + '&' + params.toString() : '/logs?' + params.toString();
     api.get(url)
       .then((d: any) => { setLogs(d.logs || d.data || []); setTotal(d.total || 0); })
-      .catch(() => { setLogs([]); setTotal(0); })
+      .catch((e) => { console.warn('加载日志失败:', e); showToast('加载日志失败', 'error'); setLogs([]); setTotal(0); })
       .finally(() => setLoading(false));
   }, [storeId, page, pageSize, search, dateFrom, dateTo, filterStore]);
 

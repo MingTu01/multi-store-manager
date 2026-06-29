@@ -7,6 +7,10 @@ import crypto from 'crypto';
 import { isTokenBlacklisted, hashToken } from './token-blacklist.js';
 import { userCache } from './cache.js';
 import logger from './logger.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // 安全的 JWT Secret 管理：优先使用环境变量，否则从文件读取或生成随机 secret
 function getJwtSecret(): string {
@@ -24,7 +28,7 @@ function getJwtSecret(): string {
     const secret = crypto.randomBytes(64).toString('hex');
     mkdirSync(dataDir, { recursive: true });
     try {
-      writeFileSync(secretFile, secret, 'utf-8');
+      writeFileSync(secretFile, secret, { encoding: 'utf-8', mode: 0o600 });
       logger.info('[AUTH] Generated new JWT secret and saved to', secretFile);
     } catch (writeErr) {
       if (process.env.NODE_ENV === 'production') {

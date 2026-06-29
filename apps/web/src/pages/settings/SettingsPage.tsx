@@ -295,7 +295,7 @@ export default function SettingsPage() {
     try {
       let maxStep = 0;
       let restartDetected = false;
-      const es = new EventSource('/api/system/upgrade-progress', { withCredentials: true });
+      const es = new EventSource(getBaseURL() + '/api/system/upgrade-progress', { withCredentials: true });
       es.addEventListener('progress', (e) => {
         try {
           const d = JSON.parse(e.data);

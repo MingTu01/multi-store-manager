@@ -76,8 +76,8 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
     if (status !== undefined) { fields.push('status=?'); vals.push(status); }
     if (sort_order !== undefined) { fields.push('sort_order=?'); vals.push(sort_order); }
     if (fields.length > 0) {
-      vals.push(req.params.id);
-      db.prepare('UPDATE inventory_master SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
+      vals.push(req.params.id, req.params.storeId);
+      db.prepare('UPDATE inventory_master SET ' + fields.join(',') + ' WHERE id=? AND store_id = ?').run(...vals);
     }
       // Log the edit
       const editedItem = db.prepare('SELECT name FROM inventory_master WHERE id = ?').get(req.params.id) as any;
@@ -100,7 +100,8 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
     // Delete related check items first
     db.prepare('DELETE FROM inventory_check_items WHERE master_id = ?').run(itemId);
     // Delete the master item
-    db.prepare('DELETE FROM inventory_master WHERE id = ?').run(itemId);
+    if (String(item.store_id) !== String(req.params.storeId)) return res.status(404).json({ error: '物品不存在' });
+    db.prepare('DELETE FROM inventory_master WHERE id = ? AND store_id = ?').run(itemId, req.params.storeId);
     opLog(req.user.id, item.store_id, '删除盘点物品', item.name);
     res.json({ success: true, data: null, message: '删除成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
@@ -121,17 +122,6 @@ router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE inventory_master SET quantity = ?, status = ? WHERE id = ?').run(newQty, newStatus, req.params.id);
     opLog(req.user.id, storeId, '盘点', '领出 ' + item.name + ' x' + quantity + ' (剩余' + newQty + ')');
     res.json({ success: true, data: { newQuantity: newQty }, message: '领出成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
-});
-
-router.delete('/items/:id', (req: AuthRequest, res: Response) => {
-  try {
-    const { storeId } = req.params;
-    const item = db.prepare('SELECT store_id FROM inventory_master WHERE id = ?').get(req.params.id) as any;
-    if (!item) return res.status(404).json({ error: '物品不存在' });
-    if (String(item.store_id) !== String(storeId)) return res.status(404).json({ error: '物品不存在' });
-    db.prepare('DELETE FROM inventory_master WHERE id = ?').run(req.params.id);
-    res.json({ success: true, data: null, message: '物品已删除' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 

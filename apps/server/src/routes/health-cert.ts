@@ -4,7 +4,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BASE_DIR = join(__dirname, '..', '..');
-import { join, resolve } from 'path';
+import { join, resolve, sep } from 'path';
 import { existsSync, mkdirSync, readFileSync } from 'fs';
 import multer from 'multer';
 import db from '../db.js';
@@ -60,7 +60,7 @@ router.post('/ocr', async (req: AuthRequest, res: Response) => {
     // Path traversal protection
     const resolvedPath = resolve(imagePath);
     const uploadsDir = resolve(BASE_DIR, 'uploads');
-    if (!resolvedPath.startsWith(uploadsDir)) {
+    if (resolvedPath !== uploadsDir && !resolvedPath.startsWith(uploadsDir + sep)) {
       return res.status(400).json({ error: '无效的文件路径' });
     }
     if (!existsSync(imagePath)) return res.status(404).json({ error: '图片不存在' });

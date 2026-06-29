@@ -51,8 +51,8 @@ router.put('/items/:id', (req: AuthRequest, res: Response) => {
     if (name !== undefined) { fields.push('name=?'); vals.push(sanitizeText(name)); }
     if (sort_order !== undefined) { fields.push('sort_order=?'); vals.push(sort_order); }
     if (fields.length === 0) return res.status(400).json({ error: '无更新内容' });
-    vals.push(req.params.id);
-    db.prepare('UPDATE purchase_items SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
+    vals.push(req.params.id, req.params.storeId);
+    db.prepare('UPDATE purchase_items SET ' + fields.join(',') + ' WHERE id=? AND store_id = ?').run(...vals);
     res.json({ message: '更新成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
@@ -66,7 +66,7 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
 
       db.prepare('DELETE FROM purchase_records WHERE item_id = ?').run(itemId);
 
-      db.prepare('DELETE FROM purchase_items WHERE id = ?').run(itemId);
+      db.prepare('DELETE FROM purchase_items WHERE id = ? AND store_id = ?').run(itemId, req.params.storeId);
 
     });
 
