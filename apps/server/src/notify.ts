@@ -14,27 +14,32 @@ const BASE_DIR = join(__dirname, '..');
 
 // ── Token 加密 (AES-256-GCM) ──
 const ENC_ALGO = 'aes-256-gcm';
+let _encKey: Buffer | null = null;
 function getEncKey(): Buffer {
+  if (_encKey) return _encKey;
   if (process.env.NOTIFY_ENC_KEY) {
-    return crypto.createHash('sha256').update(process.env.NOTIFY_ENC_KEY).digest();
+    _encKey = crypto.createHash('sha256').update(process.env.NOTIFY_ENC_KEY).digest();
+    return _encKey;
   }
-  
   const keyFile = join(BASE_DIR, 'data', 'notify-enc-key');
   try {
     if (existsSync(keyFile)) {
       const key = readFileSync(keyFile, 'utf-8').trim();
-      if (key) return Buffer.from(key, 'hex');
+      if (key) { _encKey = Buffer.from(key, 'hex'); return _encKey; }
     }
-  } catch {}
+  } catch (e) {
+    logger.error('[NOTIFY] Failed to read encryption key file:', e);
+  }
   const newKey = crypto.randomBytes(32);
   try {
     md(join(BASE_DIR, 'data'), { recursive: true });
     wf(keyFile, newKey.toString('hex'), { encoding: 'utf-8', mode: 0o600 });
-    if (process.env.NODE_ENV !== 'production') logger.info('[NOTIFY] Generated new notify encryption key');
+    logger.info('[NOTIFY] Generated new notify encryption key');
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') logger.error('[NOTIFY] Failed to save notify encryption key:', e);
+    logger.error('[NOTIFY] Failed to save notify encryption key:', e);
   }
-  return newKey;
+  _encKey = newKey;
+  return _encKey;
 }
 
 export function encryptToken(plain: string): string {
@@ -60,9 +65,9 @@ export function decryptToken(enc: string): string {
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final('utf8');
   } catch (e) {
-    // 解密失败（3段格式但解密出错）
+    // 解密失败（key可能已变更）：返回原密文而非空字符串，避免前端误判为"未配置"
     logger.warn('[Notify] Token decryption failed, key may have changed');
-    return '';
+    return enc;
   }
 }
 
