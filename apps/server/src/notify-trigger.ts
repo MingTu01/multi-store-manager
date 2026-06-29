@@ -5,7 +5,29 @@ import { sendPushNotification } from './push-notify.js';
 import { eventBus } from './event-bus.js';
 import logger from './logger.js';
 
-type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'staff_change' | 'inventory_alert' | 'store_alert';
+type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'staff_change' | 'inventory_alert' | 'store_alert' | 'daily_report' | 'weekly_report' | 'monthly_report' | 'review_reminder' | 'alert';
+
+// 通知类型 → 用户推送开关字段名映射
+const TYPE_TO_PUSH_FIELD: Record<string, string> = {
+  entry: 'push_bookkeeping_notify',
+  payroll: 'push_salary_notify',
+  dividend: 'push_dividend_notify',
+  inventory: 'push_inventory_notify',
+  shift: 'push_openclose_notify',
+  purchase: 'push_purchase_notify',
+  health_cert: 'push_health_cert',
+  staff: 'push_staff',
+  store: 'push_store',
+  salary_confirm: 'push_salary_confirm',
+  staff_change: 'push_staff_change',
+  inventory_alert: 'push_inventory_alert',
+  store_alert: 'push_store_alert',
+  daily_report: 'push_daily_report',
+  weekly_report: 'push_weekly_report',
+  monthly_report: 'push_monthly_report',
+  review_reminder: 'push_review_reminder',
+  alert: 'push_alert',
+};
 
 interface NotifyParams {
   type: NotifyType;
@@ -42,6 +64,11 @@ function getNotifyTitle(type: NotifyType): string {
     staff_change: '人员变动',
     inventory_alert: '库存预警',
     store_alert: '门店预警',
+    daily_report: '每日经营简报',
+    weekly_report: '每周经营报告',
+    monthly_report: '月度经营报告',
+    review_reminder: '待处理事项提醒',
+    alert: '系统告警',
   };
   return titles[type] || '系统通知';
 }
@@ -50,17 +77,40 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
   if (targetUserId) return [targetUserId];
 
   const userIds: number[] = [];
-  const admins = db.prepare('SELECT id FROM users WHERE role = ?').all(ROLES.ADMIN) as any[];
+
+  // 报表类通知：发给 ADMIN（全局）或店铺管理员（单店铺）
+  if (type === 'daily_report' || type === 'weekly_report' || type === 'monthly_report' || type === 'review_reminder') {
+    if (storeId) {
+      // 单店铺报表：发给该店铺的管理员
+      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
+      storeAdmins.forEach((u: any) => userIds.push(u.id));
+    } else {
+      // 全局报表：发给所有 ADMIN
+      const admins = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.ADMIN, 'active') as any[];
+      admins.forEach((u: any) => userIds.push(u.id));
+    }
+    return [...new Set(userIds)];
+  }
+
+  // 告警类通知：发给 ADMIN + 店铺管理员
+  if (type === 'alert') {
+    const admins = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.ADMIN, 'active') as any[];
+    admins.forEach((u: any) => userIds.push(u.id));
+    return [...new Set(userIds)];
+  }
+
+  // 其他通知类型
+  const admins = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.ADMIN, 'active') as any[];
   admins.forEach((u: any) => userIds.push(u.id));
 
   if (storeId) {
-    if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase') {
-      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?)').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER) as any[];
+    if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase' || type === 'health_cert' || type === 'staff' || type === 'store' || type === 'salary_confirm' || type === 'staff_change' || type === 'inventory_alert' || type === 'store_alert') {
+      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
       storeAdmins.forEach((u: any) => userIds.push(u.id));
     }
 
     if (type === 'dividend') {
-      const shareholders = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ?').all(storeId, ROLES.SHAREHOLDER) as any[];
+      const shareholders = db.prepare('SELECT id FROM users WHERE store_id = ? AND role = ? AND status = ?').all(storeId, ROLES.SHAREHOLDER, 'active') as any[];
       shareholders.forEach((u: any) => userIds.push(u.id));
     }
   }
@@ -97,6 +147,11 @@ export function triggerNotification(params: NotifyParams): void {
       staff_change: storeId ? '/store/' + storeId + '/staff' : '/staff',
       inventory_alert: storeId ? '/store/' + storeId + '/inventory' : '/inventory',
       store_alert: '/stores',
+      daily_report: storeId ? '/store/' + storeId + '/entries' : '/dashboard',
+      weekly_report: storeId ? '/store/' + storeId + '/entries' : '/dashboard',
+      monthly_report: storeId ? '/store/' + storeId + '/entries' : '/dashboard',
+      review_reminder: '/notifications',
+      alert: '/notifications',
     };
     const link = linkMap[type] || '/notifications';
 
@@ -104,19 +159,18 @@ export function triggerNotification(params: NotifyParams): void {
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', link, now);
     }
-    // External push (with retry) — 优先用户个人推送设置，无个人设置则用全局兜底
-    let globalPushSent = false;
+    // External push: 检查用户开关 + 有个人渠道才发，无个人渠道跳过
+    const pushField = TYPE_TO_PUSH_FIELD[type];
     for (const uid of targets) {
       const userSettings = getUserPushSettings(uid);
-      if (userSettings && (userSettings.pushplus_token || userSettings.wecom_secret || userSettings.iyuu_token)) {
+      if (!userSettings) continue; // 无个人设置，跳过
+      // 检查用户的推送开关（默认开启）
+      if (pushField && userSettings[pushField] === 0) continue; // 用户关闭了该类型推送
+      // 有个人渠道才发
+      if (userSettings.pushplus_token || userSettings.wecom_secret || userSettings.iyuu_token) {
         withRetry(() => sendNotification(title, content, type, userSettings), 'sendNotification-user-' + uid).catch(e => {
           logger.error('[Notify] sendNotification failed: ' + e.message);
         });
-      } else if (!globalPushSent) {
-        withRetry(() => sendNotification(title, content, type), 'sendNotification-global').catch(e => {
-          logger.error('[Notify] sendNotification failed: ' + e.message);
-        });
-        globalPushSent = true;
       }
     }
     // Browser Web Push (with retry)

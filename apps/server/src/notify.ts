@@ -53,10 +53,10 @@ export function encryptToken(plain: string): string {
 }
 
 export function decryptToken(enc: string): string {
-  if (!enc || !enc.includes(':')) return enc;
+  if (!enc || !enc.includes(':')) return enc || '';
   try {
     const parts = enc.split(':');
-    if (parts.length !== 3) return enc;
+    if (parts.length !== 3) return enc || '';
     const key = getEncKey();
     const iv = Buffer.from(parts[0], 'base64');
     const tag = Buffer.from(parts[1], 'base64');
@@ -65,15 +65,18 @@ export function decryptToken(enc: string): string {
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final('utf8');
   } catch (e) {
-    // 解密失败（key可能已变更）：返回原密文而非空字符串，避免前端误判为"未配置"
     logger.warn('[Notify] Token decryption failed, key may have changed');
-    return enc;
+    return '';
   }
 }
 
-// ── 全局设置 ──
+// ── 全局设置（返回解密后的明文） ──
 export function getSettings(): any {
-  return db.prepare('SELECT * FROM notification_settings WHERE id = 1').get() || {};
+  const row = db.prepare('SELECT * FROM notification_settings WHERE id = 1').get() as any || {};
+  if (row.pushplus_token) row.pushplus_token = decryptToken(row.pushplus_token);
+  if (row.wecom_secret) row.wecom_secret = decryptToken(row.wecom_secret);
+  if (row.iyuu_token) row.iyuu_token = decryptToken(row.iyuu_token);
+  return row;
 }
 
 // ── 角色可接收的推送类型 ──
@@ -474,4 +477,54 @@ export function buildReviewReminder(): string {
 
 export function buildAlert(message: string): string {
   return '◆ 系统告警通知\n' + LINE + '\n\n' + message + '\n';
+}
+
+// ── 单店铺报表函数 ──
+export function buildDailyReportForStore(storeId: string): string {
+  const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
+  if (!store) return '';
+  const d = getStoreData(storeId);
+  let r = '◆ ' + store.name + ' 每日经营简报\n' + LINE + '\n' + todayStr() + '\n\n';
+  r += storeBlock(store.name, d.todayIncome, d.todayExpense);
+  return r;
+}
+
+export function buildWeeklyReportForStore(storeId: string): string {
+  const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
+  if (!store) return '';
+  const now = new Date();
+  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
+  const we = new Date(ws); we.setDate(ws.getDate() + 6);
+  const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
+  const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
+  const data = getBatchEntriesByDateRange([storeId], ss, es);
+  const d = data.get(storeId) || { income: 0, expense: 0 };
+  let r = '◆ ' + store.name + ' 每周经营报告\n' + LINE + '\n' + ss + ' 至 ' + es + '\n\n';
+  r += storeBlock(store.name, d.income, d.expense);
+  return r;
+}
+
+export function buildMonthlyReportForStore(storeId: string): string {
+  const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
+  if (!store) return '';
+  const now = new Date();
+  const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  const data = getBatchEntriesByDateRange([storeId], ms+'%', '');
+  const d = data.get(storeId) || { income: 0, expense: 0 };
+  let r = '◆ ' + store.name + ' ' + mname + ' 月度经营报告\n' + LINE + '\n\n';
+  r += storeBlock(store.name, d.income, d.expense);
+  return r;
+}
+
+export function buildReviewReminderForStore(storeId: string): string {
+  const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
+  if (!store) return '';
+  const p = (db.prepare("SELECT COUNT(*) as c FROM inventory_checks WHERE status='pending' AND store_id = ?").get(storeId) as any)?.c||0;
+  const pw = (db.prepare("SELECT COUNT(*) as c FROM payroll WHERE status='draft' AND store_id = ?").get(storeId) as any)?.c||0;
+  const pd = (db.prepare("SELECT COUNT(*) as c FROM dividends WHERE status='draft' AND store_id = ?").get(storeId) as any)?.c||0;
+  let r = '◆ ' + store.name + ' 待处理事项提醒\n' + LINE + '\n\n';
+  r += '▸ 待审核盘点    ' + p + ' 条\n▸ 待确认工资    ' + pw + ' 条\n▸ 待确认分红    ' + pd + ' 条\n';
+  if (p+pw+pd === 0) r += '\n✓ 暂无待处理事项\n';
+  return r;
 }

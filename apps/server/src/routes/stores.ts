@@ -8,11 +8,7 @@ import { isAdmin, isStoreAdmin, isManagerOrAbove, entryFilterClause } from '../l
 import { opLog } from '../oplog.js';
 import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
-import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
 import { AppError, ErrorCode } from '../error-handler.js';
-import { validateWebhookUrlAsync } from '../lib/network.js';
-import { settingsCache } from '../cache.js';
-import logger from '../logger.js';
 
 const router = Router();
 
@@ -332,99 +328,5 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
   }
 });
-
-
-// 店铺通知设置 - GET
-router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
-  try {
-    if (!isManagerOrAbove(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
-    const storeId = req.params.storeId;
-    let settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
-    if (!settings) {
-      db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
-      settings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId);
-    }
-    if (settings) {
-      const s = settings as any;
-      if (s.pushplus_token) s.pushplus_token = decryptToken(s.pushplus_token);
-      if (s.wecom_secret) s.wecom_secret = decryptToken(s.wecom_secret);
-    }
-        // 脱敏：只有 ADMIN 才能看到完整密钥
-    if (!isAdmin(req.user.role)) {
-      const masked = { ...settings };
-      const sensitiveFields = ['pushplus_token', 'wecom_secret'];
-      for (const field of sensitiveFields) {
-        if (masked[field]) {
-          const val = String(masked[field]);
-          masked[field] = val.substring(0, 4) + '****' + val.substring(val.length - 4);
-        }
-      }
-      return res.json(masked);
-    }
-    res.json(settings);
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
-});
-
-// 店铺通知设置 - PUT
-router.put('/:storeId/notification-settings', async (req: AuthRequest, res: Response) => {
-  try {
-    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
-    const storeId = req.params.storeId;
-    const s = req.body;
-    // SSRF protection: validate wecom_proxy_url
-    if (s.wecom_proxy_url) {
-      const urlCheck = await validateWebhookUrlAsync(s.wecom_proxy_url);
-      if (!urlCheck.valid) throw new AppError(ErrorCode.INPUT_FORMAT, urlCheck.error || 'URL 格式不正确', 400);
-    }
-    const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);
-    if (!exists) {
-      db.prepare('INSERT INTO store_notification_settings (store_id) VALUES (?)').run(storeId);
-    }
-    db.prepare(`UPDATE store_notification_settings SET
-      method=COALESCE(?, method), pushplus_token=COALESCE(?, pushplus_token),
-      wecom_corpid=COALESCE(?, wecom_corpid),
-      wecom_agentid=COALESCE(?, wecom_agentid), wecom_secret=COALESCE(?, wecom_secret),
-      wecom_userid=COALESCE(?, wecom_userid), wecom_proxy_url=COALESCE(?, wecom_proxy_url),
-      push_daily_report=COALESCE(?, push_daily_report), push_weekly_report=COALESCE(?, push_weekly_report),
-      push_monthly_report=COALESCE(?, push_monthly_report), push_review_reminder=COALESCE(?, push_review_reminder),
-      push_alert=COALESCE(?, push_alert), updated_at=datetime('now','localtime')
-      WHERE store_id=?`).run(
-      s.method, encryptToken(s.pushplus_token || ''), s.wecom_corpid, s.wecom_agentid,
-      encryptToken(s.wecom_secret || ''), s.wecom_userid, s.wecom_proxy_url,
-      s.push_daily_report, s.push_weekly_report, s.push_monthly_report,
-      s.push_review_reminder, s.push_alert, storeId
-    );
-    settingsCache.invalidate('settings');
-    res.json({ message: '通知设置已更新' });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
-});
-
-// 店铺通知测试
-router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Response) => {
-  try {
-    if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
-    const storeId = req.params.storeId;
-    const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
-    if (dbSettings) {
-      if (dbSettings.pushplus_token) dbSettings.pushplus_token = decryptToken(dbSettings.pushplus_token);
-      if (dbSettings.wecom_secret) dbSettings.wecom_secret = decryptToken(dbSettings.wecom_secret);
-    }
-    const bodyConfig = req.body && req.body.config ? req.body.config : {};
-    const settings = Object.assign({}, dbSettings || {}, bodyConfig);
-    const channel = (req.query.channel as string) || '';
-    logger.info('[Test] channel:', channel, 'settings keys:', Object.keys(settings).filter(k => settings[k] && k !== 'store_id' && k !== 'id' && k !== 'updated_at'));
-    sendStoreNotification(storeId, '测试通知', '这是一条测试通知\n发送时间: ' + new Date().toLocaleString('zh-CN'), settings, channel)
-      .then((result) => {
-        if (result.errors.length > 0 && result.results.length === 0) {
-          res.status(500).json({ error: '推送失败: ' + result.errors.join('; ') });
-        } else {
-          res.json({ message: '推送成功', results: result.results, errors: result.errors });
-        }
-      })
-      .catch((err: any) => res.status(500).json({ error: '发送失败: ' + err.message }));
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
-});
-
-
 
 export default router;

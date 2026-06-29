@@ -11,7 +11,7 @@ export function PushSettingsButton() {
 
   const checkStatus = () => {
     api.get('/system/user-notification-settings', { silent: true }).then((d: any) => {
-      if (!d || !d.method) { setConfigured(false); return; }
+      if (!d) { setConfigured(false); return; }
       const hasPushplus = !!d.pushplus_token;
       const hasWecom = !!(d.wecom_corpid && d.wecom_secret);
       const hasIyuu = !!d.iyuu_token;

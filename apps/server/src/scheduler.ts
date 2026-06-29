@@ -1,7 +1,8 @@
 import { join } from 'path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import db from './db.js';
-import { sendNotification, getSettings, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder } from './notify.js';
+import { triggerNotification } from './notify-trigger.js';
+import { buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildDailyReportForStore, buildWeeklyReportForStore, buildMonthlyReportForStore, buildReviewReminderForStore } from './notify.js';
 import { BASE_DIR } from './app.js';
 import logger from './logger.js';
 
@@ -46,34 +47,52 @@ export function setupAutoBackup() {
 
 // 通知定时任务（带数据库防重执行标记）
 export function setupCron() {
-  // 确保 app_settings 表存在
   db.exec("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)");
 
   setInterval(() => {
     try {
-      // 任务3: 数据库标记防止重复执行（1分钟内不重复）
       const lastRun = db.prepare("SELECT value FROM app_settings WHERE key='last_cron_run'").get() as any;
       if (lastRun && Date.now() - parseInt(lastRun.value) < 60000) return;
       db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('last_cron_run', ?)").run(Date.now().toString());
 
       const now = new Date();
       const h = now.getHours(), m = now.getMinutes(), day = now.getDay();
+      const stores = db.prepare('SELECT id, name FROM stores').all() as any[];
 
+      // 每日 22:00 — 每日经营简报
       if (h === 22 && m === 0) {
-        const s = getSettings();
-        if (s.push_daily_report) sendNotification('每日营业简报', buildDailyReport()).catch((e) => logger.error(e));
+        // ADMIN 收全店汇总
+        triggerNotification({ type: 'daily_report', action: buildDailyReport() });
+        // 每个店铺管理员收自己店铺的报表
+        for (const s of stores) {
+          triggerNotification({ type: 'daily_report', action: buildDailyReportForStore(s.id), storeId: s.id });
+        }
       }
+
+      // 每周一 09:00 — 每周经营报告
       if (day === 1 && h === 9 && m === 0) {
-        const s = getSettings();
-        if (s.push_weekly_report) sendNotification('每周周报', buildWeeklyReport()).catch((e) => logger.error(e));
+        triggerNotification({ type: 'weekly_report', action: buildWeeklyReport() });
+        for (const s of stores) {
+          triggerNotification({ type: 'weekly_report', action: buildWeeklyReportForStore(s.id), storeId: s.id });
+        }
       }
+
+      // 每月1日 09:00 — 月度经营报告
       if (now.getDate() === 1 && h === 9 && m === 0) {
-        const s = getSettings();
-        if (s.push_monthly_report) sendNotification('月度报告', buildMonthlyReport()).catch((e) => logger.error(e));
+        triggerNotification({ type: 'monthly_report', action: buildMonthlyReport() });
+        for (const s of stores) {
+          triggerNotification({ type: 'monthly_report', action: buildMonthlyReportForStore(s.id), storeId: s.id });
+        }
       }
+
+      // 每日 09:00 — 待处理事项提醒
       if (h === 9 && m === 0) {
-        const s = getSettings();
-        if (s.push_review_reminder) sendNotification('待审核提醒', buildReviewReminder()).catch((e) => logger.error(e));
+        // ADMIN 收所有店铺的汇总
+        triggerNotification({ type: 'review_reminder', action: buildReviewReminder() });
+        // 每个店铺管理员收自己店铺的待审核
+        for (const s of stores) {
+          triggerNotification({ type: 'review_reminder', action: buildReviewReminderForStore(s.id), storeId: s.id });
+        }
       }
     } catch (err) {
       logger.error('[Cron] setupCron interval error:', err);

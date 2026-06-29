@@ -563,33 +563,35 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
 router.put('/notification-settings', async (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-    const s = getSettings();
-    // 字段白名单验证，防止写入非法字段
-    const allowedFields = ['method', 'pushplus_enabled', 'pushplus_token',
-      'wecom_enabled', 'wecom_corpid', 'wecom_agentid', 'wecom_secret', 'wecom_userid', 'wecom_proxy_url',
-      'iyuu_token',
-      'push_daily_report', 'push_weekly_report', 'push_monthly_report', 'push_review_reminder', 'push_alert'];
-    const safeBody: any = {};
-    for (const key of allowedFields) {
-      if (req.body[key] !== undefined) safeBody[key] = req.body[key];
-    }
-    Object.assign(s, safeBody);
+    const b = req.body;
     // SSRF 防护：校验 webhook/proxy URL
-    if (s.wecom_proxy_url) {
-      const urlCheck = await validateWebhookUrlAsync(s.wecom_proxy_url);
+    if (b.wecom_proxy_url) {
+      const urlCheck = await validateWebhookUrlAsync(b.wecom_proxy_url);
       if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
     }
-    const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
-    mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
-    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
-      s.method || 'none', encryptToken(s.pushplus_token || ''),
-      s.wecom_corpid || '', s.wecom_agentid || '', encryptToken(s.wecom_secret || ''),
-      s.wecom_userid || '', s.wecom_proxy_url !== undefined ? s.wecom_proxy_url : 'https://wx.908521.xyz/',
-      encryptToken(s.iyuu_token || ''),
-      s.push_daily_report ? 1 : 0, s.push_weekly_report ? 1 : 0,
-      s.push_monthly_report ? 1 : 0, s.push_review_reminder ? 1 : 0,
-      s.push_alert ? 1 : 0
-    )
+    // 显式更新：只更新前端传来的字段，未传的字段保持原值
+    const encPushplus = b.pushplus_token !== undefined ? encryptToken(b.pushplus_token || '') : undefined;
+    const encSecret = b.wecom_secret !== undefined ? encryptToken(b.wecom_secret || '') : undefined;
+    const encIyuu = b.iyuu_token !== undefined ? encryptToken(b.iyuu_token || '') : undefined;
+    // 构建 SET 子句
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (b.method !== undefined) { sets.push('method=?'); params.push(b.method || 'none'); }
+    if (encPushplus !== undefined) { sets.push('pushplus_token=?'); params.push(encPushplus); }
+    if (b.wecom_corpid !== undefined) { sets.push('wecom_corpid=?'); params.push(b.wecom_corpid || ''); }
+    if (b.wecom_agentid !== undefined) { sets.push('wecom_agentid=?'); params.push(b.wecom_agentid || ''); }
+    if (encSecret !== undefined) { sets.push('wecom_secret=?'); params.push(encSecret); }
+    if (b.wecom_userid !== undefined) { sets.push('wecom_userid=?'); params.push(b.wecom_userid || ''); }
+    if (b.wecom_proxy_url !== undefined) { sets.push('wecom_proxy_url=?'); params.push(b.wecom_proxy_url || ''); }
+    if (encIyuu !== undefined) { sets.push('iyuu_token=?'); params.push(encIyuu); }
+    if (b.push_daily_report !== undefined) { sets.push('push_daily_report=?'); params.push(b.push_daily_report ? 1 : 0); }
+    if (b.push_weekly_report !== undefined) { sets.push('push_weekly_report=?'); params.push(b.push_weekly_report ? 1 : 0); }
+    if (b.push_monthly_report !== undefined) { sets.push('push_monthly_report=?'); params.push(b.push_monthly_report ? 1 : 0); }
+    if (b.push_review_reminder !== undefined) { sets.push('push_review_reminder=?'); params.push(b.push_review_reminder ? 1 : 0); }
+    if (b.push_alert !== undefined) { sets.push('push_alert=?'); params.push(b.push_alert ? 1 : 0); }
+    if (sets.length === 0) return res.json({ message: '无更新' });
+    sets.push("updated_at=datetime('now','localtime')");
+    db.prepare('UPDATE notification_settings SET ' + sets.join(', ') + ' WHERE id=1').run(...params);
     res.json({ message: '通知设置已更新' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
@@ -975,33 +977,55 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
 router.put('/user-notification-settings', async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user.role;
-    const { pushplus_token, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
+    const b = req.body;
     // SSRF 防护：校验 webhook/proxy URL
-    if (wecom_proxy_url) {
-      const urlCheck = await validateWebhookUrlAsync(wecom_proxy_url);
+    if (b.wecom_proxy_url) {
+      const urlCheck = await validateWebhookUrlAsync(b.wecom_proxy_url);
       if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
     }
-    if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {
+    if (!isAdmin(role) && (b.wecom_corpid || b.wecom_secret)) {
       return res.status(403).json({ error: '企业微信仅限系统管理员配置' });
     }
-    const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert','push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify'];
-    const pushValues: Record<string, number> = {};
-    for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
-    // 如果传了值就加密，空串/null/undefined 都返回 null，让 COALESCE 在 UPDATE 时保留原值（INSERT 用 ?? '' 转空串）
-    const encToken = pushplus_token ? encryptToken(pushplus_token) : null;
-    const encSecret = wecom_secret ? encryptToken(wecom_secret) : null;
-    const encIyuu = iyuu_token ? encryptToken(iyuu_token) : null;
+    // 所有推送开关字段
+    const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert',
+      'push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify',
+      'push_health_cert','push_staff','push_store','push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase',
+      'push_salary_confirm','push_staff_change','push_inventory_alert','push_store_alert'];
+    // 加密 token（空字符串也会被加密为空串）
+    const encPushplus = b.pushplus_token !== undefined ? encryptToken(b.pushplus_token || '') : undefined;
+    const encSecret = b.wecom_secret !== undefined ? encryptToken(b.wecom_secret || '') : undefined;
+    const encIyuu = b.iyuu_token !== undefined ? encryptToken(b.iyuu_token || '') : undefined;
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      let sql = 'UPDATE user_notification_settings SET pushplus_token=COALESCE(?, pushplus_token), wecom_corpid=COALESCE(?, wecom_corpid), wecom_agentid=COALESCE(?, wecom_agentid), wecom_secret=COALESCE(?, wecom_secret), wecom_userid=COALESCE(?, wecom_userid), wecom_proxy_url=COALESCE(?, wecom_proxy_url), iyuu_token=COALESCE(?, iyuu_token), method=?, updated_at=?';
-      const params: any[] = [encToken, wecom_corpid || null, wecom_agentid || null, encSecret, wecom_userid || null, wecom_proxy_url !== undefined ? wecom_proxy_url : null, encIyuu, method || 'none', new Date().toISOString()];
-      for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
-      sql += ' WHERE user_id=?'; params.push(req.user.id);
-      db.prepare(sql).run(...params);
+      const sets: string[] = [];
+      const params: any[] = [];
+      if (encPushplus !== undefined) { sets.push('pushplus_token=?'); params.push(encPushplus); }
+      if (b.wecom_corpid !== undefined) { sets.push('wecom_corpid=?'); params.push(b.wecom_corpid || ''); }
+      if (b.wecom_agentid !== undefined) { sets.push('wecom_agentid=?'); params.push(b.wecom_agentid || ''); }
+      if (encSecret !== undefined) { sets.push('wecom_secret=?'); params.push(encSecret); }
+      if (b.wecom_userid !== undefined) { sets.push('wecom_userid=?'); params.push(b.wecom_userid || ''); }
+      if (b.wecom_proxy_url !== undefined) { sets.push('wecom_proxy_url=?'); params.push(b.wecom_proxy_url || ''); }
+      if (encIyuu !== undefined) { sets.push('iyuu_token=?'); params.push(encIyuu); }
+      if (b.method !== undefined) { sets.push('method=?'); params.push(b.method || 'none'); }
+      for (const f of pushFields) { if (b[f] !== undefined) { sets.push(f + '=?'); params.push(b[f] ? 1 : 0); } }
+      if (sets.length === 0) return res.json({ message: '无更新' });
+      sets.push('updated_at=?'); params.push(new Date().toISOString());
+      params.push(req.user.id);
+      db.prepare('UPDATE user_notification_settings SET ' + sets.join(', ') + ' WHERE user_id=?').run(...params);
     } else {
-      const cols = ['user_id','pushplus_token','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
-      const vals: any[] = [req.user.id, encToken ?? '', wecom_corpid||'', wecom_agentid||'', encSecret ?? '', wecom_userid||'', wecom_proxy_url||'', encIyuu ?? '', method||'none', new Date().toISOString()];
-      for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
+      // INSERT：用默认值 + 前端传来的值
+      const cols = ['user_id'];
+      const vals: any[] = [req.user.id];
+      if (encPushplus !== undefined) { cols.push('pushplus_token'); vals.push(encPushplus); }
+      if (b.wecom_corpid !== undefined) { cols.push('wecom_corpid'); vals.push(b.wecom_corpid || ''); }
+      if (b.wecom_agentid !== undefined) { cols.push('wecom_agentid'); vals.push(b.wecom_agentid || ''); }
+      if (encSecret !== undefined) { cols.push('wecom_secret'); vals.push(encSecret); }
+      if (b.wecom_userid !== undefined) { cols.push('wecom_userid'); vals.push(b.wecom_userid || ''); }
+      if (b.wecom_proxy_url !== undefined) { cols.push('wecom_proxy_url'); vals.push(b.wecom_proxy_url || ''); }
+      if (encIyuu !== undefined) { cols.push('iyuu_token'); vals.push(encIyuu); }
+      if (b.method !== undefined) { cols.push('method'); vals.push(b.method || 'none'); }
+      for (const f of pushFields) { if (b[f] !== undefined) { cols.push(f); vals.push(b[f] ? 1 : 0); } }
+      cols.push('updated_at'); vals.push(new Date().toISOString());
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
     res.json({ message: '推送设置已保存' });

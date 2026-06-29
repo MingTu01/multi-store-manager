@@ -343,10 +343,15 @@ const migrations = [
   "ALTER TABLE user_notification_settings ADD COLUMN push_purchase_notify INTEGER DEFAULT 1",
   "ALTER TABLE user_notification_settings ADD COLUMN push_salary_notify INTEGER DEFAULT 1",
   "ALTER TABLE user_notification_settings ADD COLUMN push_dividend_notify INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_salary_confirm INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_staff_change INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_inventory_alert INTEGER DEFAULT 1",
+  "ALTER TABLE user_notification_settings ADD COLUMN push_store_alert INTEGER DEFAULT 1",
   "CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now','localtime')), UNIQUE(user_id, endpoint))",
   "ALTER TABLE op_logs ADD COLUMN ip TEXT DEFAULT ''",
   "ALTER TABLE notification_settings ADD COLUMN iyuu_token TEXT DEFAULT ''",
   "ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0",
+  "DROP TABLE IF EXISTS store_notification_settings",
 ];
 
 // 保险：确保 must_change_password 列存在（已有库升级，防止重复执行报错）
@@ -415,7 +420,7 @@ const indexes = [
   "CREATE INDEX IF NOT EXISTS idx_dividend_details_dividend ON dividend_details(dividend_id)",
   "CREATE INDEX IF NOT EXISTS idx_payroll_items_payroll ON payroll_items(payroll_id)",
   "CREATE INDEX IF NOT EXISTS idx_inventory_check_items_check ON inventory_check_items(check_id)",
-  "CREATE INDEX IF NOT EXISTS idx_store_notification_settings_store ON store_notification_settings(store_id)",
+
     "CREATE INDEX IF NOT EXISTS idx_purchase_items_store ON purchase_items(store_id, sort_order)",
     "CREATE INDEX IF NOT EXISTS idx_purchase_records_store_date ON purchase_records(store_id, date)",
     "CREATE INDEX IF NOT EXISTS idx_purchase_records_item ON purchase_records(item_id)",
