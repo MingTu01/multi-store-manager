@@ -4,10 +4,12 @@ import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { ToastContainer } from "../components/Toast";
 import { BrowserPushPrompt } from "../components/BrowserPushPrompt";
+import { useUnreadPolling } from "../hooks/useUnreadPolling";
 
 export function AppShell() {
   const user = useStore((s: any) => s.user);
   const { storeId } = useParams();
+  useUnreadPolling();
   
   if (user && (user as any).role !== "ADMIN" && !storeId && (user as any).store_id) {
     return <Navigate to={"/store/" + (user as any).store_id} replace />;

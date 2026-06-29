@@ -51,14 +51,15 @@ export default function StoreShiftsPage() {
   const dateStr = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const weekStr = '星期' + weekdays[now.getDay()];
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach((f) => {
-      const reader = new FileReader();
-      reader.onload = () => setPhotos((p) => [...p, reader.result as string]);
-      reader.readAsDataURL(f);
-    });
+    for (const file of Array.from(files)) {
+      try {
+        const url = await uploadImage(file, api, 'shifts');
+        setPhotos((p) => [...p, url]);
+      } catch (err: any) { showToast(err.message || '上传失败', 'error'); }
+    }
   };
 
   const handleOpen = async () => {
@@ -81,7 +82,7 @@ export default function StoreShiftsPage() {
     finally { setSaving(false); }
   };
 
-  const isOpen = true; // StoreGuard already verifies store is open
+  const isOpen = store ? store.is_open === 1 : true;
 
   const renderCameraButtons = () => (
     <div>

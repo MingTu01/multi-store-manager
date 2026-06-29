@@ -1,5 +1,5 @@
 import { requireAdmin } from '../middleware/require-role.js';
-﻿import { Router, Response } from 'express';
+import { Router, Response } from 'express';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +17,7 @@ import { isAdmin, isStoreAdmin } from '../lib/roles.js';
 import { AuthRequest } from '../auth.js';
 import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
-import { validateWebhookUrl } from '../lib/network.js';
+import { validateWebhookUrlAsync } from '../lib/network.js';
 
 
 // 安全校验：cleanup.json 路径白名单（CRITICAL安全加固）
@@ -560,7 +560,7 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
-router.put('/notification-settings', (req: AuthRequest, res: Response) => {
+router.put('/notification-settings', async (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
@@ -576,7 +576,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     Object.assign(s, safeBody);
     // SSRF 防护：校验 webhook/proxy URL
     if (s.wecom_proxy_url) {
-      const urlCheck = validateWebhookUrl(s.wecom_proxy_url);
+      const urlCheck = await validateWebhookUrlAsync(s.wecom_proxy_url);
       if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
     }
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
@@ -972,13 +972,13 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
 });
 
 // PUT: 保存自己的设置（加密存储，角色校验）
-router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
+router.put('/user-notification-settings', async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user.role;
     const { pushplus_token, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
     // SSRF 防护：校验 webhook/proxy URL
     if (wecom_proxy_url) {
-      const urlCheck = validateWebhookUrl(wecom_proxy_url);
+      const urlCheck = await validateWebhookUrlAsync(wecom_proxy_url);
       if (!urlCheck.valid) return res.status(400).json({ error: '代理URL不安全: ' + urlCheck.error });
     }
     if (!isAdmin(role) && (wecom_corpid || wecom_secret)) {

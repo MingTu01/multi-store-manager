@@ -1,5 +1,5 @@
 import { requireNotReadonly } from '../middleware/require-role.js';
-﻿import { triggerNotification } from '../notify-trigger.js';
+import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
 import { Router, Response } from 'express';
 import db from '../db.js';

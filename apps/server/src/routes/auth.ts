@@ -9,6 +9,13 @@ import { AppError, ErrorCode } from '../error-handler.js';
 
 const router = Router();
 
+// 密码复杂度校验：至少6位且包含字母和数字
+function validatePasswordStrength(pwd: string): string | null {
+  if (pwd.length < 6) return '密码至少6位';
+  if (!/[a-zA-Z]/.test(pwd) || !/\d/.test(pwd)) return '密码必须包含字母和数字';
+  return null;
+}
+
 // 登录速率限制：同一IP每分钟最多10次登录尝试
 const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -52,12 +59,21 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
 
 router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { phone, address, avatar, oldPassword, newPassword } = req.body;
+    const { username, phone, address, avatar, oldPassword, newPassword } = req.body;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) throw new AppError(ErrorCode.AUTH_USER_NOT_FOUND, '用户不存在', 404);
     const updates: string[] = [];
     const vals: any[] = [];
-    // username update removed for security}
+    // ADMIN 可修改账号（username），非 ADMIN 通过 phone 同步
+    if (username !== undefined && user.role === 'ADMIN') {
+      if (username && username.length < 3) throw new AppError(ErrorCode.INPUT_LENGTH, '账号至少3个字符', 400);
+      if (username && username.length > 30) throw new AppError(ErrorCode.INPUT_LENGTH, '账号最多30个字符', 400);
+      if (username) {
+        const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id) as any;
+        if (existing) throw new AppError(ErrorCode.INPUT_FORMAT, '该账号已被使用', 400);
+      }
+      updates.push('username=?'); vals.push(username);
+    }
     if (phone !== undefined) {
       if (user.role !== 'ADMIN') {
         if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
@@ -75,7 +91,8 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (address !== undefined) { updates.push('address=?'); vals.push(address); }
     if (avatar !== undefined) { updates.push('avatar=?'); vals.push(avatar); }
     if (oldPassword && newPassword) {
-      if (newPassword.length < 6) throw new AppError(ErrorCode.INPUT_FORMAT, '新密码至少6位', 400);
+      const pwdErr = validatePasswordStrength(newPassword);
+      if (pwdErr) throw new AppError(ErrorCode.INPUT_FORMAT, pwdErr, 400);
       if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);
       updates.push('password_hash=?'); vals.push(await bcrypt.hash(newPassword, 10));
     }
@@ -96,7 +113,8 @@ router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) 
   try {
     const { oldPassword, newPassword } = req.body;
     if (!oldPassword || !newPassword) throw new AppError(ErrorCode.INPUT_REQUIRED, '请输入旧密码和新密码', 400);
-    if (newPassword.length < 6) throw new AppError(ErrorCode.INPUT_LENGTH, '新密码至少6位', 400);
+    const pwdErr = validatePasswordStrength(newPassword);
+    if (pwdErr) throw new AppError(ErrorCode.INPUT_FORMAT, pwdErr, 400);
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
     if (!user) throw new AppError(ErrorCode.AUTH_USER_NOT_FOUND, '用户不存在', 404);
     if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);

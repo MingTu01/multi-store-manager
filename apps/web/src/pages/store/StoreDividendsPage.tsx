@@ -1,5 +1,5 @@
 import { showToast } from '../../components/Toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
 import { api } from '../../lib/api';
@@ -28,7 +28,7 @@ const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
   const [showEdit, setShowEdit] = useState<any>(null);
   const [editForm, setEditForm] = useState({ total_amount: '', note: '' });
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!storeId) return;
     setLoading(true);
     api.get('/stores/' + storeId + '/dividends').then((d) => {
@@ -37,8 +37,8 @@ const canManage = myRole === 'ADMIN' || myRole === 'STORE_ADMIN';
       setShareholders(d.data?.shareholders || d.shareholders || []);
       setLoading(false);
     }).catch(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, [storeId]);
+  }, [storeId]);
+  useEffect(() => { load(); }, [load]);
 
   const totalRatio = shareholders.reduce((s: number, sh: any) => s + (sh.ratio || 0), 0);
 

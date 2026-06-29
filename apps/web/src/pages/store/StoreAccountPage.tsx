@@ -124,15 +124,16 @@ export default function StoreAccountPage() {
       d.setFullYear(d.getFullYear() + 1);
       finalDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     }
+    const isVerified = manualEdit ? (manualName === (user?.name || '')) : !!(ocrResult?.match);
     setSaving(true);
     try {
       await api.put('/health-cert/save', {
         url: uploadedUrl,
         name: finalName,
         expiry: finalDate,
-        verified: manualEdit ? (manualName === (user?.name || '')) : (ocrResult?.match || false),
+        verified: isVerified,
       });
-      setHealthCert({ url: uploadedUrl || '', name: finalName, expiry: finalDate, verified: manualEdit ? false : (ocrResult?.match || false) });
+      setHealthCert({ url: uploadedUrl || '', name: finalName, expiry: finalDate, verified: isVerified });
       setShowOcrConfirm(false);
       setOcrResult(null);
       setManualEdit(false);

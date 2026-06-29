@@ -138,7 +138,7 @@ export async function sendPushNotification(userId: number, title: string, body: 
       );
     } catch (e: any) {
       if (process.env.NODE_ENV !== 'production') logger.warn('[Push] Failed user' + userId + ':', e.message);
-      if (e.statusCode === 410) removeSubscription(userId, sub.endpoint);
+      if (e.statusCode === 410 || e.statusCode === 404) removeSubscription(userId, sub.endpoint);
     }
   }
 }

@@ -85,6 +85,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const { user_id, title, link, content, type, store_id } = req.body;
     if (!user_id || !title) return res.status(400).json({ error: '参数不完整' });
+    const targetUser = db.prepare('SELECT id FROM users WHERE id = ? AND status = ?').get(user_id, 'active');
+    if (!targetUser) return res.status(400).json({ error: '目标用户不存在或已禁用' });
     const result = db.prepare(
       'INSERT INTO notifications (user_id, title, link, type, content, store_id, read, created_at) VALUES (?,?,?,?,?,?,0,datetime(\'now\',\'localtime\'))'
     ).run(user_id, title, link || '', type || '', content || '', store_id || null);

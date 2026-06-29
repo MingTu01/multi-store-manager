@@ -56,7 +56,15 @@ router.post('/', (req: AuthRequest, res: Response) => {
     if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权限' });
     const storeId = req.params.storeId;
     const { period, items } = req.body;
-    if (items && Array.isArray(items)) { for (const item of items) { if (item.base_amount < 0 || item.bonus < 0 || item.deduction < 0) return res.status(400).json({ error: '工资金额不能为负数' }); } }
+    const numCheck = (v: any) => typeof v === 'number' && !isNaN(v) && v >= 0;
+    if (items && Array.isArray(items)) {
+      for (const item of items) {
+        const baseVal = item.base_amount ?? item.base_salary ?? 0;
+        if (!numCheck(baseVal) || !numCheck(item.bonus ?? 0) || !numCheck(item.deduction ?? 0)) {
+          return res.status(400).json({ error: '金额必须为非负数字' });
+        }
+      }
+    }
     if (!period) return res.status(400).json({ error: '请输入工资周期' });
     let totalAmount = 0;
     if (Array.isArray(items)) {
@@ -137,6 +145,12 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
       if (dbStaff.length === 0) return res.status(400).json({ error: '该门店没有在职员工' });
       items = dbStaff.map((s: any) => ({ user_id: s.id, user_name: s.name, base_amount: s.salary || 0, bonus: 0, deduction: 0, total_amount: s.salary || 0, job_title: s.job_title || '' }));
     }
+    const numCheck = (v: any) => typeof v === 'number' && !isNaN(v) && v >= 0;
+    for (const item of items) {
+      if (!numCheck(item.base_amount) || !numCheck(item.bonus) || !numCheck(item.deduction)) {
+        return res.status(400).json({ error: '金额必须为非负数字' });
+      }
+    }
     let totalAmount = 0;
     for (const item of items) totalAmount += item.total_amount;
     let payrollId: any;
@@ -184,11 +198,16 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
     if (!payroll) return res.status(404).json({ error: '工资单不存在' });
     if (payroll.status === 'confirmed') return res.status(400).json({ error: '工资单已确认' });
     const confirmPayroll = db.transaction((payrollId: number, storeId: string, userId: number) => {
-      db.prepare("UPDATE payroll SET status = 'confirmed', confirmed_at = datetime('now','localtime') WHERE id = ?").run(payrollId);
+      const result = db.prepare("UPDATE payroll SET status = ?, confirmed_at = datetime('now','localtime') WHERE id = ? AND status != ?").run('confirmed', payrollId, 'confirmed');
+      if (result.changes === 0) throw new Error('工资单已确认或不存在');
       const dateStr = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })();
       db.prepare("INSERT INTO entries (store_id, type, category, amount, note, date, created_by, is_system) VALUES (?,?,?,?,?,?,?,1)").run(storeId, '支出', '工资', payroll.total_amount, '工资支出 ' + payroll.period + ' #' + payrollId, dateStr, userId);
     });
-    confirmPayroll(Number(req.params.id), req.params.storeId, req.user.id);
+    try {
+      confirmPayroll(Number(req.params.id), req.params.storeId, req.user.id);
+    } catch (e: any) {
+      return res.status(400).json({ error: e.message });
+    }
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
 
     // Notify admin about total

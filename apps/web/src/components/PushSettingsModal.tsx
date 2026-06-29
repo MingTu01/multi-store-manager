@@ -99,7 +99,7 @@ const INPUT_CLS =
 export function PushSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { confirm, ConfirmDialog } = useConfirm();
   const user = useStore((s) => s.user);
-const role = user?.role ?? '';
+const userRole = user?.role || '';
 
 
   const [settings, setSettings] = useState<Record<string, any>>({});
@@ -126,9 +126,9 @@ const role = user?.role ?? '';
 
   /* ---- 可见渠道 & 推送选项 ---- */
   const visibleChannels = CHANNELS.filter(
-    (ch) => !ch.adminOnly || role === 'ADMIN',
+    (ch) => !ch.adminOnly || userRole === 'ADMIN',
   );
-  const visiblePushOptions = PUSH_OPTIONS.filter((o) => o.roles.includes(role));
+  const visiblePushOptions = PUSH_OPTIONS.filter((o) => o.roles.includes(userRole));
 
   /* ---- 提示 ---- */
   const showMsg = useCallback((ok: boolean, text: string) => {

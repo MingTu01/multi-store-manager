@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, ReactNode } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useStore } from '../stores/data';
@@ -11,7 +11,7 @@ import { Modal } from './Modal';
 import { showToast } from './Toast';
 import { Clock } from './Clock';
 
-export function StoreGuard({ children }: { children: React.ReactNode }) {
+export function StoreGuard({ children }: { children: ReactNode }) {
   const { storeId } = useParams();
   const nav = useNavigate();
   const location = useLocation();

@@ -48,6 +48,9 @@ router.post('/', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const { total_amount, note } = req.body;
     if (!total_amount) return res.status(400).json({ error: '请输入总金额' });
+    if (isNaN(Number(total_amount)) || Number(total_amount) <= 0) {
+      return res.status(400).json({ error: '分红总额必须为正数' });
+    }
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId) as any[];
     const totalRatio = shareholders.reduce((s: number, sh: any) => s + (sh.ratio || 0), 0);
     const result = db.prepare('INSERT INTO dividends (store_id, total_amount, note, status) VALUES (?,?,?,?)').run(storeId, total_amount, note || '', 'draft');

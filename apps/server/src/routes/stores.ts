@@ -1,5 +1,5 @@
 import { requireAdmin, requireStoreAdminOrAbove } from '../middleware/require-role.js';
-﻿import { localDate, localDateTime } from '../lib/utils.js';
+import { localDate, localDateTime } from '../lib/utils.js';
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -11,7 +11,7 @@ import { sanitizeText } from '../sanitize.js';
 import { triggerNotification } from '../notify-trigger.js';
 import { sendStoreNotification, encryptToken, decryptToken } from '../notify.js';
 import { AppError, ErrorCode } from '../error-handler.js';
-import { validateWebhookUrl } from '../lib/network.js';
+import { validateWebhookUrlAsync } from '../lib/network.js';
 import { settingsCache } from '../cache.js';
 import logger from '../logger.js';
 
@@ -164,6 +164,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       db.prepare('DELETE FROM purchase_items WHERE store_id = ?').run(storeId);
       db.prepare('DELETE FROM store_notification_settings WHERE store_id = ?').run(storeId);
       db.prepare("DELETE FROM users WHERE store_id = ? AND role != 'ADMIN'").run(storeId);
+      db.prepare('UPDATE users SET store_id = NULL WHERE store_id = ? AND role = ?').run(storeId, 'ADMIN');
       db.prepare('DELETE FROM stores WHERE id = ?').run(storeId);
     });
     deleteStore(req.params.id);
@@ -365,14 +366,14 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
 });
 
 // 店铺通知设置 - PUT
-router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) => {
+router.put('/:storeId/notification-settings', async (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
     const storeId = req.params.storeId;
     const s = req.body;
     // SSRF protection: validate wecom_proxy_url
     if (s.wecom_proxy_url) {
-      const urlCheck = validateWebhookUrl(s.wecom_proxy_url);
+      const urlCheck = await validateWebhookUrlAsync(s.wecom_proxy_url);
       if (!urlCheck.valid) throw new AppError(ErrorCode.INPUT_FORMAT, urlCheck.error || 'URL 格式不正确', 400);
     }
     const exists = db.prepare('SELECT id FROM store_notification_settings WHERE store_id = ?').get(storeId);

@@ -201,12 +201,13 @@ export function reconnectSSE() {
 }
 
 // ── Leader takeover on tab close ───────────────────────────────────
-window.addEventListener('beforeunload', () => {
+// 命名处理器：便于在 cleanupSSEListeners 中移除，避免内存泄漏
+const beforeUnloadHandler = () => {
   disconnectSSE();
-});
+};
 
 // When the leader tab closes, storage events let followers take over
-window.addEventListener('storage', (e) => {
+const storageHandler = (e: StorageEvent) => {
   if (e.key === LEADER_KEY && e.newValue === null) {
     if (!globalStopped) {
       setTimeout(() => {
@@ -216,7 +217,16 @@ window.addEventListener('storage', (e) => {
       }, 100);
     }
   }
-});
+};
+
+window.addEventListener('beforeunload', beforeUnloadHandler);
+window.addEventListener('storage', storageHandler);
+
+// 移除模块级 window 事件监听器，供需要清理时（如热更新/测试）手动调用，避免内存泄漏
+export function cleanupSSEListeners() {
+  window.removeEventListener('beforeunload', beforeUnloadHandler);
+  window.removeEventListener('storage', storageHandler);
+}
 
 export function useSSE(): ConnectionStatus {
   const [status, setStatus] = useState<ConnectionStatus>(globalStatus);

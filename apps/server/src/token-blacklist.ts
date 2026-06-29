@@ -44,7 +44,14 @@ export function blacklistToken(tokenHash: string, expiresAt: number): void {
  * @param tokenHash - SHA256 hash of the JWT token
  */
 export function isTokenBlacklisted(tokenHash: string): boolean {
-  return blacklist.has(tokenHash);
+  if (!blacklist.has(tokenHash)) return false;
+  const expiresAt = expiryMap.get(tokenHash);
+  if (expiresAt && Date.now() > expiresAt) {
+    blacklist.delete(tokenHash);
+    expiryMap.delete(tokenHash);
+    return false;
+  }
+  return true;
 }
 
 /**

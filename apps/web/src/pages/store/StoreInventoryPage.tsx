@@ -1,5 +1,5 @@
 import { showToast } from '../../components/Toast';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useStore } from '../../stores/data';
 import { uploadImage } from '../../lib/image';
@@ -124,7 +124,7 @@ const isReadonly = user?.role === 'SHAREHOLDER';
     } catch (e: any) { showToast(e.message || '领出失败', 'error'); }
   };
 
-  const loadItems = () => {
+  const loadItems = useCallback(() => {
     if (!storeId) return;
     setLoading(true);
     api.get('/stores/' + storeId + '/inventory')
@@ -154,9 +154,9 @@ const isReadonly = user?.role === 'SHAREHOLDER';
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  };
+  }, [storeId]);
 
-  useEffect(() => { loadItems(); }, [storeId]);
+  useEffect(() => { loadItems(); }, [loadItems]);
 
   // --- Add Item ---
   const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {

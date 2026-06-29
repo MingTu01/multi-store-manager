@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useDataVersion } from '../../stores/data-sync';
 import { api } from '../../lib/api';
 import { useNotificationStore } from '../../stores/notification';
@@ -42,16 +42,16 @@ export default function StoreNotificationsPage() {
   const [detailItem, setDetailItem] = useState<any>(null);
   const pageSize = 20;
 
-  const fetchList = () => {
+  const fetchList = useCallback(() => {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     api.get('/notifications?' + params.toString()).then((d) => {
       setList(d.data?.notifications || d.notifications || []);
       setTotal(d.pagination?.total || d.total || 0);
       setUnread(d.data?.unread || d.unread || 0);
     }).catch(() => {});
-  };
+  }, [page]);
 
-  useEffect(() => { fetchList(); }, [page, notifVersion]);
+  useEffect(() => { fetchList(); }, [fetchList, notifVersion]);
 
   const openDetail = async (n: any) => {
     setDetailItem(n);

@@ -59,8 +59,11 @@ const dataVersion = useDataVersion('store', storeId);
     }).catch(() => {});
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [storeId, dateStr, dataVersion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadTrend(); }, [storeId, trendDays, dataVersion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadWeekday(); }, [storeId, dataVersion]);
 
   const changeDate = (offset: number) => {

@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, ReactNode } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useStore } from './stores/data';
@@ -38,7 +38,7 @@ function Loading() {
   );
 }
 
-function Guard({ perm, children }: { perm: string; children: React.ReactNode }) {
+function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const user = useStore((s) => s.user);
   const loading = useStore((s) => s.loading);
   // Native app: redirect to server config if no URL set

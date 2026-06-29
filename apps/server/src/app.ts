@@ -111,7 +111,7 @@ app.use((req, res, next) => {
 app.use(cors(corsOptions));
 
 // P5: JSON body 大小限制可配置
-const jsonLimit = process.env.JSON_LIMIT || '5mb';
+const jsonLimit = process.env.JSON_LIMIT || '1mb';
 app.use(express.json({ limit: jsonLimit }));
 
 // Security: Global rate limit

@@ -5,7 +5,6 @@ import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
-import { useUnreadPolling } from '../hooks/useUnreadPolling';
 import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft, Truck } from 'lucide-react';
 
 // All store tabs in priority order
@@ -43,7 +42,6 @@ export function BottomNav() {
   const [hidden, setHidden] = useState(false);
   const [storeOpen, setStoreOpen] = useState<boolean | null>(null);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
-  useUnreadPolling();
   useEffect(() => {
     if (!storeId) { setStoreOpen(null); return; }
     api.get('/stores/' + storeId).then((d: any) => {
