@@ -105,7 +105,6 @@ export function getUserPushSettings(userId: number): any {
   return {
     ...row,
     pushplus_token: decryptToken(row.pushplus_token || ''),
-    serverchan_key: decryptToken(row.serverchan_key || ''),
     wecom_secret: decryptToken(row.wecom_secret || ''),
   };
 }
@@ -122,16 +121,7 @@ export async function sendPushPlus(title: string, content: string, htmlContent: 
   if (data.code !== 200) throw new Error('PushPlus: ' + (data.msg || '发送失败'));
 }
 
-export async function sendServerChan(title: string, content: string, s: any): Promise<void> {
-  if (!s.serverchan_key) throw new Error('Server酱 Key 未配置');
-  const res = await fetch('https://sctapi.ftqq.com/' + s.serverchan_key + '.send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, desp: content })
-  });
-  const data = await res.json() as any;
-  if (data.code !== 0) throw new Error('Server酱: ' + (data.message || '发送失败'));
-}
+
 
 export async function sendWeCom(title: string, content: string, s: any): Promise<void> {
   if (!s.wecom_corpid || !s.wecom_agentid || !s.wecom_secret) throw new Error('企业微信配置不完整');
@@ -182,7 +172,6 @@ export async function sendNotification(title: string, content: string, type?: st
     try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
   };
   if (s.pushplus_token) await sendOne('PushPlus', () => sendPushPlus(title, content, '', s));
-  if (s.serverchan_key) await sendOne('Server酱', () => sendServerChan(title, content, s));
   if (s.wecom_corpid && s.wecom_agentid && s.wecom_secret) await sendOne('企业微信', () => sendWeCom(title, content, s));
   if (s.iyuu_token) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
   if (results.length === 0 && errors.length === 0) throw new Error('未配置任何推送渠道');
@@ -198,7 +187,6 @@ export async function sendStoreNotification(storeId: string, title: string, cont
     try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
   };
   if (s.pushplus_token && (!testChannel || testChannel === 'pushplus')) await sendOne('PushPlus', () => sendPushPlus(title, content, '', s));
-  if (s.serverchan_key && (!testChannel || testChannel === 'serverchan')) await sendOne('Server酱', () => sendServerChan(title, content, s));
   if (s.wecom_corpid && (!testChannel || testChannel === 'wecom')) await sendOne('企业微信', () => sendWeCom(title, content, s));
   if (s.iyuu_token && (!testChannel || testChannel === 'iyuu')) await sendOne('爱语飞飞', () => sendIyuu(title, content, s));
   return { results, errors };

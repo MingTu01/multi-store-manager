@@ -341,13 +341,12 @@ router.get('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
     if (settings) {
       const s = settings as any;
       if (s.pushplus_token) s.pushplus_token = decryptToken(s.pushplus_token);
-      if (s.serverchan_key) s.serverchan_key = decryptToken(s.serverchan_key);
       if (s.wecom_secret) s.wecom_secret = decryptToken(s.wecom_secret);
     }
         // 脱敏：只有 ADMIN 才能看到完整密钥
     if (!isAdmin(req.user.role)) {
       const masked = { ...settings };
-      const sensitiveFields = ['pushplus_token', 'serverchan_key', 'wecom_secret'];
+      const sensitiveFields = ['pushplus_token', 'wecom_secret'];
       for (const field of sensitiveFields) {
         if (masked[field]) {
           const val = String(masked[field]);
@@ -377,14 +376,14 @@ router.put('/:storeId/notification-settings', (req: AuthRequest, res: Response) 
     }
     db.prepare(`UPDATE store_notification_settings SET
       method=COALESCE(?, method), pushplus_token=COALESCE(?, pushplus_token),
-      serverchan_key=COALESCE(?, serverchan_key), wecom_corpid=COALESCE(?, wecom_corpid),
+      wecom_corpid=COALESCE(?, wecom_corpid),
       wecom_agentid=COALESCE(?, wecom_agentid), wecom_secret=COALESCE(?, wecom_secret),
       wecom_userid=COALESCE(?, wecom_userid), wecom_proxy_url=COALESCE(?, wecom_proxy_url),
       push_daily_report=COALESCE(?, push_daily_report), push_weekly_report=COALESCE(?, push_weekly_report),
       push_monthly_report=COALESCE(?, push_monthly_report), push_review_reminder=COALESCE(?, push_review_reminder),
       push_alert=COALESCE(?, push_alert), updated_at=datetime('now','localtime')
       WHERE store_id=?`).run(
-      s.method, encryptToken(s.pushplus_token || ''), encryptToken(s.serverchan_key || ''), s.wecom_corpid, s.wecom_agentid,
+      s.method, encryptToken(s.pushplus_token || ''), s.wecom_corpid, s.wecom_agentid,
       encryptToken(s.wecom_secret || ''), s.wecom_userid, s.wecom_proxy_url,
       s.push_daily_report, s.push_weekly_report, s.push_monthly_report,
       s.push_review_reminder, s.push_alert, storeId
@@ -402,7 +401,6 @@ router.post('/:storeId/notification-settings/test', (req: AuthRequest, res: Resp
     const dbSettings = db.prepare('SELECT * FROM store_notification_settings WHERE store_id = ?').get(storeId) as any;
     if (dbSettings) {
       if (dbSettings.pushplus_token) dbSettings.pushplus_token = decryptToken(dbSettings.pushplus_token);
-      if (dbSettings.serverchan_key) dbSettings.serverchan_key = decryptToken(dbSettings.serverchan_key);
       if (dbSettings.wecom_secret) dbSettings.wecom_secret = decryptToken(dbSettings.wecom_secret);
     }
     const bodyConfig = req.body && req.body.config ? req.body.config : {};

@@ -13,9 +13,9 @@ export function PushSettingsButton() {
     api.get('/system/user-notification-settings', { silent: true }).then((d: any) => {
       if (!d || !d.method) { setConfigured(false); return; }
       const hasPushplus = !!d.pushplus_token;
-      const hasServerchan = !!d.serverchan_key;
       const hasWecom = !!(d.wecom_corpid && d.wecom_secret);
-      setConfigured(hasPushplus || hasServerchan || hasWecom);
+      const hasIyuu = !!d.iyuu_token;
+      setConfigured(hasPushplus || hasWecom || hasIyuu);
     }).catch(() => setConfigured(false));
   };
 

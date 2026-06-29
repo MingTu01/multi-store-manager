@@ -83,7 +83,6 @@ export default function SettingsPage() {
   // Notification channels config
   const channels = [
     { key: 'pushplus', label: 'PushPlus', fields: [{ f: 'pushplus_token', label: 'Token', secret: true }] },
-    { key: 'serverchan', label: 'Server酱', fields: [{ f: 'serverchan_key', label: 'SendKey', secret: true }] },
     { key: 'wecom', label: '企业微信', fields: [{ f: 'wecom_corpid', label: 'CorpID' }, { f: 'wecom_agentid', label: 'AgentID' }, { f: 'wecom_secret', label: 'Secret', secret: true }, { f: 'wecom_userid', label: 'UserID' }, { f: 'wecom_proxy_url', label: '代理地址' }] },
   ];
   const reportOptions = [

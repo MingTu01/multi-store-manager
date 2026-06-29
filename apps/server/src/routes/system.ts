@@ -543,7 +543,7 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
     // 脱敏：只有 ADMIN 才能看到完整密钥
     if (!isAdmin(req.user.role)) {
       const masked = { ...settings };
-      const sensitiveFields = ['pushplus_token', 'serverchan_key', 'wecom_secret'];
+      const sensitiveFields = ['pushplus_token', 'wecom_secret'];
       for (const field of sensitiveFields) {
         if (masked[field]) {
           const val = String(masked[field]);
@@ -561,7 +561,7 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const s = getSettings();
     // 字段白名单验证，防止写入非法字段
-    const allowedFields = ['pushplus_enabled', 'pushplus_token', 'serverchan_enabled', 'serverchan_key',
+    const allowedFields = ['pushplus_enabled', 'pushplus_token',
       'wecom_enabled', 'wecom_corp_id', 'wecom_agent_id', 'wecom_secret', 'wecom_user_id', 'wecom_proxy_url',
       'report_daily', 'report_weekly', 'report_monthly', 'report_review', 'report_warning'];
     const safeBody: any = {};
@@ -576,8 +576,8 @@ router.put('/notification-settings', (req: AuthRequest, res: Response) => {
     }
     const configPath = join(BASE_DIR, 'data', 'notification-settings.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
-    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
-      s.method || 'none', s.pushplus_token || '', s.serverchan_key || '',
+    db.prepare("UPDATE notification_settings SET method=?, pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, push_daily_report=?, push_weekly_report=?, push_monthly_report=?, push_review_reminder=?, push_alert=? WHERE id=1").run(
+      s.method || 'none', s.pushplus_token || '',
       s.wecom_corpid || '', s.wecom_agentid || '', s.wecom_secret || '',
       s.wecom_userid || '', s.wecom_proxy_url || 'https://wx.908521.xyz/',
       s.push_daily_report ? 1 : 0, s.push_weekly_report ? 1 : 0,
@@ -681,7 +681,7 @@ async function fetchWithProxy(url: string, opts?: any): Promise<Response | null>
   return null;
 }
 
-// Check for updates - 已禁用 GitHub 在线更新
+// Check for updates
 router.get('/check-update', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
@@ -689,29 +689,62 @@ router.get('/check-update', async (req: AuthRequest, res: Response) => {
     let currentVersion = '1.0.0';
     try { currentVersion = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
     
+    const versionUrl = 'https://raw.githubusercontent.com/' + DEPLOY_REPO + '/main/data/version.json';
+    const versionRes = await fetchWithProxy(versionUrl);
+    if (!versionRes) return res.json({ currentVersion, latestVersion: null, error: '无法连接到更新服务器' });
+    
+    const latestData = await versionRes.json();
+    const latestVersion = latestData.version;
+    
+    const hasUpdate = compareVersions(currentVersion, latestVersion) < 0;
+    
+    const diff = getVersionDiff(currentVersion, latestVersion);
+    const isCompatible = diff.totalMinor <= MAX_MINOR_JUMP;
+    let upgradePath = [];
+    let warning = '';
+    
+    if (hasUpdate && !isCompatible) {
+      const currentParts = parseVersion(currentVersion);
+      const latestParts = parseVersion(latestVersion);
+      let stepMajor = currentParts[0];
+      let stepMinor = currentParts[1];
+      
+      while (stepMajor < latestParts[0] || (stepMajor === latestParts[0] && stepMinor < latestParts[1])) {
+        stepMinor += MAX_MINOR_JUMP;
+        if (stepMinor > 99) {
+          stepMajor++;
+          stepMinor = stepMinor - 100;
+        }
+        const stepVersion = stepMajor + '.' + stepMinor + '.0';
+        upgradePath.push('v' + stepVersion);
+      }
+      upgradePath.push('v' + latestVersion);
+      
+      warning = '当前版本与目标版本差距过大（跨越 ' + diff.totalMinor + ' 个次版本），建议分步升级以确保数据安全';
+    }
+    
     res.json({
       currentVersion,
-      latestVersion: currentVersion,
-      hasUpdate: false,
-      error: '在线更新已禁用，请使用 ZIP 升级包进行手动升级',
+      latestVersion,
+      hasUpdate,
       compatibility: {
-        isCompatible: true,
-        diff: { major: 0, minor: 0, patch: 0, totalMinor: 0 },
+        isCompatible,
+        diff,
         maxMinorJump: MAX_MINOR_JUMP,
-        upgradePath: [],
-        warning: ''
+        upgradePath,
+        warning
       }
     });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
-// Execute update - 已禁用 GitHub 在线更新
+// Execute update
 router.post('/do-update', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-    res.json({ error: '在线更新已禁用，请使用 ZIP 升级包进行手动升级' });
+    res.json({ message: '更新已开始..' });
     
-    return;
+    (async () => {
       try {
         logger.info('[Update] Async function started');
         logger.info('[Update] BASE_DIR:', BASE_DIR);
@@ -915,7 +948,7 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
 
 
 // ── 用户个人推送设置（改造版） ──
-import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendServerChan, sendWeCom, sendIyuu } from '../notify.js';
+import { encryptToken, decryptToken, checkTestRateLimit, isContentTypeAllowed, sendPushPlus, sendWeCom, sendIyuu } from '../notify.js';
 import { getVapidPublicKey, saveSubscription, removeSubscription, getUserSubscriptions, sendPushNotification, getJPushConfig, setJPushConfig } from '../push-notify.js';
 import logger from '../logger.js';
 
@@ -926,7 +959,6 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
     if (!row) return res.json({});
     const result = { ...row };
     if (result.pushplus_token) result.pushplus_token = decryptToken(result.pushplus_token);
-    if (result.serverchan_key) result.serverchan_key = decryptToken(result.serverchan_key);
     if (result.wecom_secret) result.wecom_secret = decryptToken(result.wecom_secret);
     res.json(result);
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
@@ -936,7 +968,7 @@ router.get('/user-notification-settings', (req: AuthRequest, res: Response) => {
 router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
   try {
     const role = req.user.role;
-    const { pushplus_token, serverchan_key, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
+    const { pushplus_token, wecom_corpid, wecom_agentid, wecom_secret, wecom_userid, wecom_proxy_url, iyuu_token, method } = req.body;
     // SSRF 防护：校验 webhook/proxy URL
     if (wecom_proxy_url) {
       const urlCheck = validateWebhookUrl(wecom_proxy_url);
@@ -949,19 +981,18 @@ router.put('/user-notification-settings', (req: AuthRequest, res: Response) => {
     const pushValues: Record<string, number> = {};
     for (const f of pushFields) { if (req.body[f] !== undefined) pushValues[f] = req.body[f] ? 1 : 0; }
     const encToken = pushplus_token ? encryptToken(pushplus_token) : '';
-    const encKey = serverchan_key ? encryptToken(serverchan_key) : '';
     const encSecret = wecom_secret ? encryptToken(wecom_secret) : '';
     const encIyuu = iyuu_token ? encryptToken(iyuu_token) : '';
     const existing = db.prepare('SELECT user_id FROM user_notification_settings WHERE user_id = ?').get(req.user.id);
     if (existing) {
-      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, serverchan_key=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, method=?, updated_at=?';
-      const params: any[] = [encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
+      let sql = 'UPDATE user_notification_settings SET pushplus_token=?, wecom_corpid=?, wecom_agentid=?, wecom_secret=?, wecom_userid=?, wecom_proxy_url=?, iyuu_token=?, method=?, updated_at=?';
+      const params: any[] = [encToken, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
       for (const [k, v] of Object.entries(pushValues)) { sql += ', ' + k + '=?'; params.push(v); }
       sql += ' WHERE user_id=?'; params.push(req.user.id);
       db.prepare(sql).run(...params);
     } else {
-      const cols = ['user_id','pushplus_token','serverchan_key','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
-      const vals: any[] = [req.user.id, encToken, encKey, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
+      const cols = ['user_id','pushplus_token','wecom_corpid','wecom_agentid','wecom_secret','wecom_userid','wecom_proxy_url','iyuu_token','method','updated_at'];
+      const vals: any[] = [req.user.id, encToken, wecom_corpid||'', wecom_agentid||'', encSecret, wecom_userid||'', wecom_proxy_url||'', encIyuu, method||'none', new Date().toISOString()];
       for (const [k, v] of Object.entries(pushValues)) { cols.push(k); vals.push(v); }
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
@@ -987,7 +1018,6 @@ router.post('/user-notification-settings/test', async (req: AuthRequest, res: Re
       try { await fn(); results.push(key); } catch (e: any) { errors.push(key + ': ' + e.message); }
     };
     if (channel === 'pushplus' || (!channel && config.pushplus_token)) await sendOne('PushPlus', () => sendPushPlus(title, content, '', config));
-    if (channel === 'serverchan' || (!channel && config.serverchan_key)) await sendOne('Server酱', () => sendServerChan(title, content, config));
     if (channel === 'wecom' || (!channel && config.wecom_corpid)) await sendOne('企业微信', () => sendWeCom(title, content, config));
     if (channel === 'iyuu' || (!channel && config.iyuu_token)) await sendOne('爱语飞飞', () => sendIyuu(title, content, config));
     if (results.length === 0 && errors.length === 0) res.status(400).json({ error: '请先配置至少一个推送渠道' });
