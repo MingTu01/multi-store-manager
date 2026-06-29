@@ -681,76 +681,37 @@ async function fetchWithProxy(url: string, opts?: any): Promise<Response | null>
   return null;
 }
 
-// Check for updates
-// Check for updates
+// Check for updates - 已禁用 GitHub 在线更新
 router.get('/check-update', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     
-    // Get current version
     let currentVersion = '1.0.0';
     try { currentVersion = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
     
-    // Get latest version from deploy repo
-    const versionUrl = 'https://raw.githubusercontent.com/' + DEPLOY_REPO + '/main/data/version.json';
-    const versionRes = await fetchWithProxy(versionUrl);
-    if (!versionRes) return res.json({ currentVersion, latestVersion: null, error: '无法连接到更新服务器' });
-    
-    const latestData = await versionRes.json();
-    const latestVersion = latestData.version;
-    
-    // Compare versions using utility functions
-    const hasUpdate = compareVersions(currentVersion, latestVersion) < 0;
-    
-    // Version compatibility check
-    const diff = getVersionDiff(currentVersion, latestVersion);
-    const isCompatible = diff.totalMinor <= MAX_MINOR_JUMP;
-    let upgradePath = [];
-    let warning = '';
-    
-    if (hasUpdate && !isCompatible) {
-      // Generate intermediate upgrade path
-      const currentParts = parseVersion(currentVersion);
-      const latestParts = parseVersion(latestVersion);
-      let stepMajor = currentParts[0];
-      let stepMinor = currentParts[1];
-      
-      while (stepMajor < latestParts[0] || (stepMajor === latestParts[0] && stepMinor < latestParts[1])) {
-        stepMinor += MAX_MINOR_JUMP;
-        if (stepMinor > 99) {
-          stepMajor++;
-          stepMinor = stepMinor - 100;
-        }
-        const stepVersion = stepMajor + '.' + stepMinor + '.0';
-        upgradePath.push('v' + stepVersion);
-      }
-      upgradePath.push('v' + latestVersion);
-      
-      warning = '当前版本与目标版本差距过大（跨越 ' + diff.totalMinor + ' 个次版本），建议分步升级以确保数据安全';
-    }
-    
     res.json({
       currentVersion,
-      latestVersion,
-      hasUpdate,
+      latestVersion: currentVersion,
+      hasUpdate: false,
+      error: '在线更新已禁用，请使用 ZIP 升级包进行手动升级',
       compatibility: {
-        isCompatible,
-        diff,
+        isCompatible: true,
+        diff: { major: 0, minor: 0, patch: 0, totalMinor: 0 },
         maxMinorJump: MAX_MINOR_JUMP,
-        upgradePath,
-        warning
+        upgradePath: [],
+        warning: ''
       }
     });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });
 
-// Execute update
+// Execute update - 已禁用 GitHub 在线更新
 router.post('/do-update', async (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
-    res.json({ message: '更新已开始..' });
+    res.json({ error: '在线更新已禁用，请使用 ZIP 升级包进行手动升级' });
     
-    (async () => {
+    return;
       try {
         logger.info('[Update] Async function started');
         logger.info('[Update] BASE_DIR:', BASE_DIR);
