@@ -48,19 +48,17 @@ const ALLOWED_ORIGINS = corsOrigin
   : [];
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // No origin (native app, curl, server-to-server) — allow
+    // No origin (native app, curl, server-to-server, same-origin simple requests) — allow
     if (!origin) return callback(null, true);
     // Capacitor native app — allow
     if (origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('http://localhost')) return callback(null, true);
     // Explicitly configured origins
     if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // No CORS_ORIGIN configured
+    // No CORS_ORIGIN configured — allow all (CSRF protection via SameSite cookie)
     if (ALLOWED_ORIGINS.length === 0) {
       if (process.env.NODE_ENV === 'production') {
-        // 生产环境必须配置 CORS_ORIGIN
-        return callback(new Error('CORS not configured for production'));
+        logger.warn('[CORS] CORS_ORIGIN not configured. Set it for better security. Falling back to allow all origins.');
       }
-      // 开发环境允许所有来源
       return callback(null, true);
     }
     callback(null, false);
