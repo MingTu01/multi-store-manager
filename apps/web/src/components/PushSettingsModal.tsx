@@ -8,7 +8,7 @@ import { GlassCard } from './GlassCard';
 import { useConfirm } from './useConfirm';
 import {
   Send, Check, Edit2, Plus, Eye, EyeOff, Loader2, AlertCircle,
-  Bell, Settings2, Clock, ExternalLink, Smartphone,
+  Bell, Settings2, Clock, ExternalLink, Smartphone, Trash2,
 } from 'lucide-react';
 
 /* ---------- 常量 ---------- */
@@ -331,6 +331,33 @@ const userRole = user?.role || '';
     showMsg(true, '渠道配置已更新，请记得保存');
   };
 
+  /* ---- 清除渠道配置（立即同步到后端）---- */
+  const handleClearChannel = async (channelKey: string) => {
+    const ch = visibleChannels.find((c) => c.key === channelKey);
+    if (!ch) return;
+    // 把该渠道所有字段设为空字符串（不是 delete，确保 PUT 时发空值覆盖数据库）
+    const cleared: Record<string, string> = {};
+    ch.fields.forEach((f) => { cleared[f.f] = ''; });
+    const newSettings = { ...settings, ...cleared };
+    setSettings(newSettings);
+    setChannelStatus((s) => ({ ...s, [channelKey]: false }));
+    setEditingChannel(null);
+    // 立即 PUT 到后端，避免刷新后旧值回来
+    try {
+      await api.put('/system/user-notification-settings', cleared);
+      showMsg(true, '渠道配置已清除');
+      // 重新拉取确认
+      const d: any = await api.get('/system/user-notification-settings');
+      const defaults: Record<string, any> = {};
+      visiblePushOptions.forEach(o => {
+        if (d[o.key] === undefined) defaults[o.key] = o.defaultSelected;
+      });
+      setSettings({ ...defaults, ...d });
+    } catch (e: any) {
+      showMsg(false, e.message || '清除失败');
+    }
+  };
+
   /* ---- 测试推送 ---- */
   const handleTest = async () => {
     const ch = visibleChannels.find((c) => c.key === editingChannel);
@@ -460,6 +487,19 @@ const userRole = user?.role || '';
                             <ExternalLink className="h-3 w-3" />
                             教程
                           </a>
+                        )}
+                        {configured && (
+                          <button
+                            onClick={async () => {
+                              if (await confirm({ message: `确认清除 ${ch.label} 的配置吗？` })) {
+                                handleClearChannel(ch.key);
+                              }
+                            }}
+                            className="rounded-lg bg-rose-50 p-2 text-rose-500 hover:bg-rose-100"
+                            title="清除配置"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         )}
                         <button
                           onClick={() => openEditChannel(ch)}
@@ -628,26 +668,11 @@ const userRole = user?.role || '';
       {/* ===== 渠道编辑弹窗 ===== */}
       <Modal
         open={!!editingChannel}
-        onClose={async () => {
-          const ch = visibleChannels.find((c) => c.key === editingChannel);
-          if (ch && channelStatus[ch.key] && !channelTested[ch.key]) {
-            if (await confirm({ message: '测试未完成，当前配置将被清除。确认关闭？' })) {
-              setChannelForm((s) => {
-                const n = { ...s };
-                ch.fields.forEach((f) => delete n[f.f]);
-                return n;
-              });
-              setSettings((s) => {
-                const n = { ...s };
-                ch.fields.forEach((f) => delete n[f.f]);
-                return n;
-              });
-              setChannelStatus((s) => ({ ...s, [ch.key]: false }));
-              setEditingChannel(null);
-            }
-          } else {
-            setEditingChannel(null);
-          }
+        onClose={() => {
+          // 关闭编辑弹窗：只是放弃本次编辑，不修改任何已保存的配置
+          // 想清除配置请用渠道列表里的"清除"按钮（Trash2 图标）
+          setEditingChannel(null);
+          setTestResult(null);
         }}
         title={'配置 ' + (visibleChannels.find((c) => c.key === editingChannel)?.label || '')}
       >
