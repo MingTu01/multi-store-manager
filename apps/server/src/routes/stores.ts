@@ -87,7 +87,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '创建门店',
       storeId,
-      detail: '新门店已创建，' + name
+      storeName: name,
+      detail: '新门店已创建'
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: storeId, message: '门店创建成功' });
@@ -121,7 +122,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '修改门店',
       storeId: req.params.storeId,
-      detail: '门店信息已更新' + (name ? '，' + name : '')
+      detail: '门店信息已更新'
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店更新成功' });
@@ -169,7 +170,8 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '删除门店',
       storeId: req.params.id,
-      detail: '门店已删除，' + store.name
+      storeName: store.name,
+      detail: '门店已删除'
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店已删除' });

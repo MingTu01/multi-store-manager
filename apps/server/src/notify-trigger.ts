@@ -35,6 +35,7 @@ interface NotifyParams {
   detail?: string;
   targetUserId?: number;
   operatorName?: string;
+  storeName?: string; // 可选：预传店铺名（删除门店时 DB 已无记录，需调用方预传）
 }
 
 // 带指数退避的重试机制
@@ -130,11 +131,21 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
 
 export function triggerNotification(params: NotifyParams): void {
   try {
-    const { type, action, storeId, detail, targetUserId, operatorName } = params;
+    const { type, action, storeId, detail, targetUserId, operatorName, storeName } = params;
     const title = getNotifyTitle(type);
-    // 内容格式化：有操作人加前缀，有详情加换行
+    // 内容格式化：[操作人] [店铺名] action + 换行 detail
+    // 店铺名标签：ADMIN 收到所有店铺的推送，需要标签区分是哪个店
     const operator = operatorName ? '[' + operatorName + '] ' : '';
-    const content = operator + action + (detail ? '\n' + detail : '');
+    let storeTag = '';
+    if (storeName) {
+      storeTag = '[' + storeName + '] ';
+    } else if (storeId) {
+      try {
+        const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(storeId) as any;
+        if (store && store.name) storeTag = '[' + store.name + '] ';
+      } catch {}
+    }
+    const content = operator + storeTag + action + (detail ? '\n' + detail : '');
     // health_cert 特殊处理：同时发给 targetUserId（员工本人）+ ADMIN + 店铺管理员 + 店长
     let targets: number[];
     if (type === 'health_cert' && targetUserId && storeId) {
