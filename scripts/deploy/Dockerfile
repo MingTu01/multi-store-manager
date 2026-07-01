@@ -21,6 +21,9 @@ COPY tsconfig.json ./
 COPY public ./public/
 # 备份 web-dist 到非 volume 位置，用于启动时同步（解决 volume 缓存旧文件问题）
 RUN cp -r /app/public/web-dist /app/web-dist-seed
+# 备份 src 到非 volume 位置，用于启动时同步（解决容器 down/up 后 src 回退到镜像旧版本问题）
+# 这样在线升级写入的新 src 也会被同步到 src-seed，容器重启后能恢复到升级后版本
+RUN cp -r /app/src /app/src-seed
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
 COPY entrypoint.js ./entrypoint.js

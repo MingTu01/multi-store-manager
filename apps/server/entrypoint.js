@@ -131,6 +131,109 @@ if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
   console.log('[Startup] web-dist-seed 不存在，跳过同步（旧版镜像兼容）');
 }
 
+// --- Step 0.5: 同步 src（解决容器 down/up 后 src 回退到镜像旧版本问题）---
+// 镜像构建时备份了 /app/src-seed，在线升级也会同步更新 src-seed
+// 容器 down/up 后 src 会回退到镜像版本，此时通过比较版本号判断是否需要从 src-seed 恢复
+// 关键：src-seed 始终保存"最新版本"（镜像构建时=镜像版本，在线升级后=升级后版本）
+const srcSeedDir = '/app/src-seed';
+const srcDir = '/app/src';
+
+function readVersionFile(dir) {
+  // 读取 src 目录下的 version.ts 或 package.json 中的版本号
+  // 优先用 /app/data/version.json（升级时会更新）
+  const verFile = path.join('/app/data', 'version.json');
+  if (fs.existsSync(verFile)) {
+    try {
+      const v = JSON.parse(fs.readFileSync(verFile, 'utf8'));
+      return v.version || '';
+    } catch {}
+  }
+  return '';
+}
+
+function checkSrcIntegrity(dir) {
+  // 校验 src 目录完整性：关键入口文件必须存在
+  const indexPath = path.join(dir, 'index.ts');
+  if (!fs.existsSync(indexPath)) {
+    return { ok: false, reason: 'src/index.ts 不存在' };
+  }
+  const dbPath = path.join(dir, 'db.ts');
+  if (!fs.existsSync(dbPath)) {
+    return { ok: false, reason: 'src/db.ts 不存在' };
+  }
+  const appPath = path.join(dir, 'app.ts');
+  if (!fs.existsSync(appPath)) {
+    return { ok: false, reason: 'src/app.ts 不存在' };
+  }
+  return { ok: true };
+}
+
+function syncSrcFromSeed() {
+  console.log('[Startup] 开始从 src-seed 同步 src...');
+  // 1. 清空当前 src
+  rmrfDirContents(srcDir);
+  console.log('[Startup] 旧 src 已清空');
+  // 2. 从 seed 拷贝
+  cpDirContents(srcSeedDir, srcDir);
+  console.log('[Startup] 新 src 已拷贝');
+  // 3. 验证
+  const afterCheck = checkSrcIntegrity(srcDir);
+  if (afterCheck.ok) {
+    console.log('[Startup] src 已从 seed 同步完成，校验通过');
+  } else {
+    console.error('[Startup] ERROR: src 同步后校验失败: ' + afterCheck.reason);
+  }
+}
+
+if (fs.existsSync(srcSeedDir) && fs.existsSync(path.join(srcSeedDir, 'index.ts'))) {
+  try {
+    // 读取 src-seed 中保存的版本号（src-seed/version.json 在升级时由 system.ts 写入）
+    const seedVerFile = path.join(srcSeedDir, 'version.json');
+    let seedVersion = '';
+    try { seedVersion = JSON.parse(fs.readFileSync(seedVerFile, 'utf8')).version || ''; } catch {}
+
+    // 读取当前 data/version.json（这是升级后写入的最新版本号）
+    const dataVersion = readVersionFile('/app/data');
+
+    // 校验当前 src 完整性
+    const srcCheck = checkSrcIntegrity(srcDir);
+
+    // 判断是否需要同步：
+    // 1. src 完整性校验失败（关键文件缺失）→ 必须同步
+    // 2. src-seed 版本号存在 且 与 data/version.json 一致，但当前 src 可能是镜像旧版本
+    //    通过比较 src-seed 和 src 的 index.ts 内容判断是否一致
+    let needSync = false;
+    let syncReason = '';
+
+    if (!srcCheck.ok) {
+      needSync = true;
+      syncReason = 'src 完整性校验失败: ' + srcCheck.reason;
+    } else {
+      // 比较 src-seed/index.ts 和 src/index.ts 的内容
+      // 如果不一致，说明容器 down/up 后 src 回退到了镜像版本，而 src-seed 保存的是最新版本
+      const seedIndexContent = fs.readFileSync(path.join(srcSeedDir, 'index.ts'), 'utf8');
+      const srcIndexContent = fs.readFileSync(path.join(srcDir, 'index.ts'), 'utf8');
+      if (seedIndexContent !== srcIndexContent) {
+        needSync = true;
+        syncReason = 'src 与 src-seed 内容不一致（容器可能 down/up 过）';
+      }
+    }
+
+    if (needSync) {
+      console.log('[Startup] 检测到 src 需要同步，原因:', syncReason);
+      if (seedVersion) console.log('[Startup] src-seed 版本:', seedVersion);
+      if (dataVersion) console.log('[Startup] data 版本:', dataVersion);
+      syncSrcFromSeed();
+    } else {
+      console.log('[Startup] src 完整性校验通过，与 src-seed 一致，跳过同步');
+    }
+  } catch (e) {
+    console.error('[Startup] src 同步检查失败:', e.message);
+  }
+} else {
+  console.log('[Startup] src-seed 不存在，跳过同步（旧版镜像兼容）');
+}
+
 // Run startup-check.js
 console.log('[Startup] Running diagnostic checks...');
 try {

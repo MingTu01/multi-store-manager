@@ -162,6 +162,36 @@ function atomicReplaceSrc(newSrcDir: string, destSrc: string): void {
   }
 }
 
+// 同步 src-seed：升级成功后把最新 src 复制到 /app/src-seed
+// 这样容器 down/up 后 entrypoint.js 能从 src-seed 恢复升级后的版本
+function syncSrcSeed(srcDir: string): void {
+  const seedDir = join(BASE_DIR, 'src-seed');
+  try {
+    // 读取当前版本号，写入 src-seed/version.json 便于诊断
+    let version = '';
+    try { version = JSON.parse(readFileSync(join(BASE_DIR, 'data', 'version.json'), 'utf-8')).version; } catch {}
+    // 清空旧 seed
+    if (existsSync(seedDir)) {
+      for (const entry of readdirSync(seedDir, { withFileTypes: true })) {
+        const target = join(seedDir, entry.name);
+        try {
+          if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
+          else unlinkSync(target);
+        } catch (e: any) { logger.warn('[Upgrade] 清理旧 src-seed 失败:', entry.name, e.message); }
+      }
+    } else {
+      mkdirSync(seedDir, { recursive: true });
+    }
+    // 拷贝最新 src 到 seed
+    cpSync(srcDir, seedDir, { recursive: true, force: true });
+    // 写入版本标记
+    writeFileSync(join(seedDir, 'version.json'), JSON.stringify({ version, syncedAt: new Date().toISOString() }, null, 2));
+    logger.info('[Upgrade] src-seed 已同步，版本:', version);
+  } catch (e: any) {
+    logger.warn('[Upgrade] src-seed 同步失败（非致命，下次容器 down/up 可能回退到镜像版本）:', e.message);
+  }
+}
+
 // 从备份恢复（用于 npm install 失败等场景）
 function restoreFromBackup(backupDir: string): void {
   try {
@@ -674,6 +704,8 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             writeFileSync(join(BASE_DIR, 'data', 'version.json'), JSON.stringify({ version: pkg.version || '2.0.0' }, null, 2));
           }
         } catch {}
+        // === 同步 src-seed（保证容器 down/up 后能恢复到升级后版本）===
+        syncSrcSeed(join(BASE_DIR, 'src'));
         // 清理临时解压目录
         try { rmSync(extractDir, { recursive: true, force: true }); } catch {}
         logger.info('[Upgrade] Step 3: File copy complete, starting step 4...');
@@ -1127,6 +1159,8 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
           copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
           logger.info('[Update] version.json updated');
         }
+        // === 同步 src-seed（保证容器 down/up 后能恢复到升级后版本）===
+        syncSrcSeed(join(BASE_DIR, 'src'));
         const postUpgradeScript = join(realExtractedFolder, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
           try {
