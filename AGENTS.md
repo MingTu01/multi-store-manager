@@ -24,12 +24,54 @@ SQLite数据库(apps/server/data/store.db)
 构建: cd apps/web && 删除dist && npx vite build
 版本规范
 版本格式: v主版本.次版本.修订号（如 v1.0.0）
-当前阶段: v1.0.0 正式版已部署
+当前阶段: v2.1.4 正式版已部署
 次版本号: 新增功能时递增（如 v1.0.0 -> v1.1.0）
 修订号: Bug修复时递增（如 v1.0.0 -> v1.0.1）
 打包ZIP: 必须用tar命令或Node.js，确保路径用正斜杠
 --- project-doc ---
 
+## 项目概述
+
+多店管理系统（Multi Shop Link），支持多店铺统一管理。ADMIN 可管理所有店铺，店铺有独立的店铺管理员（STORE_ADMIN）、店长（MANAGER）、员工（STAFF）、股东（SHAREHOLDER）。
+
+## 版本演进
+
+| 版本 | 日期 | 内容 |
+|------|------|------|
+| v2.1.4 | 2026-07-01 | 推送按角色区分content：ADMIN带[店铺名]标签，其他角色不带 |
+| v2.1.3 | 2026-06-27 | 修复5个问题：标签回退、股东删除、CORS日志、改密码401、错误提示 |
+| v2.1.2 | 2026-06-27 | 推送内容添加店铺名标签（已回退，逻辑错误） |
+| v2.1.1 | 2026-06-27 | 修复推送设置保存500——数据库缺列强制补偿迁移 |
+| v2.1.0 | 2026-06-26 | src-seed持久化同步机制 + entrypoint.js Bug修复 |
+| v2.0.x | 2026-06 | 多店铺支持、推送通知系统、SSE实时推送 |
+
+## 核心架构决策
+
+### 推送通知系统
+- 入口：`notify-trigger.ts` 的 `triggerNotification()`
+- 按角色区分content（方案A）：ADMIN且storeId存在时带[店铺名]标签，其他角色不带
+- 推送渠道：PushPlus / 企业微信 / 爱语飞飞 / 浏览器Web Push
+- 用户开关：26个推送类型字段，存储在 `user_notification_settings` 表
+
+### 数据库
+- SQLite 单文件（`apps/server/data/store.db`）
+- 版本化迁移 + 强制补偿迁移（ALTER COLUMN 独立 try-catch）
+- 表结构：users, stores, entries, notifications, user_notification_settings 等
+
+### 部署
+- Docker 容器化，端口 6778
+- src-seed 同步：`/app/data/src-seed`（持久化 volume），容器 down/up 后自动恢复
+- 在线升级 + ZIP 升级双通道
+- 双仓库：源码 `multi-store-manager` + 部署 `multi-shop-link-deploy`（CI 自动推送）
+
+### 认证
+- JWT token + HttpOnly cookie
+- 改密码时更新 `updated_at`，中间件检查 `iat < updated_at` 使旧 token 失效
+- 改密码后返回新 token + 更新 cookie
+
+## 后续计划
+- 方案B：API进店通道（ADMIN通过API获取店铺管理员权限操作店铺内信息）
+- 架构拆分：管理端和店铺端完全分开，店铺端做成可插拔模板
 
 ## 升级功能红线规则（2026-06-21 血泪教训）
 
