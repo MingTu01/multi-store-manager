@@ -1,5 +1,5 @@
 {
-  "version": "v1.9.2",
-  "buildTime": "2026-07-01T00:25:32.793Z",
-  "description": "Fix: 推送渠道配置保存后刷新丢失问题修复"
+  "version": "v2.0.0",
+  "buildTime": "2026-07-01T00:32:42.665Z",
+  "description": "推送通知模块重构"
 }
