@@ -203,7 +203,7 @@ function initSrcSeed() {
 }
 
 // 主同步逻辑
-if (fs.existsSync(srcDir) && existsSync(path.join(srcDir, 'index.ts'))) {
+if (fs.existsSync(srcDir) && fs.existsSync(path.join(srcDir, 'index.ts'))) {
   // 确保 data 目录存在（volume mount）
   if (!fs.existsSync('/app/data')) {
     fs.mkdirSync('/app/data', { recursive: true });
