@@ -1,5 +1,5 @@
 {
-  "version": "v1.7.3",
-  "buildTime": "2026-06-28T17:31:33.263Z",
-  "description": "Fix: native app image loading, status bar safe area, JPush integration"
+  "version": "v1.9.2",
+  "buildTime": "2026-07-01T00:25:32.793Z",
+  "description": "Fix: 推送渠道配置保存后刷新丢失问题修复"
 }
