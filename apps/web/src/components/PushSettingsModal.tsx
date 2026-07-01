@@ -317,18 +317,36 @@ const userRole = user?.role || '';
     setChannelTested((s) => ({ ...s, [ch.key]: false }));
   };
 
-  /* ---- 渠道表单中保存配置到本地 ---- */
-  const handleChannelSave = () => {
-    if (!channelTested[editingChannel!]) {
-      showMsg(false, '请先测试成功后再保存');
+  /* ---- 渠道表单中保存配置（立即PUT到后端）---- */
+  const handleChannelSave = async () => {
+    const ch = visibleChannels.find((c) => c.key === editingChannel);
+    if (!ch) return;
+    const hasConfig = ch.fields.every((f) => !!channelForm[f.f]);
+    if (!hasConfig) {
+      showMsg(false, '请先填写所有必填配置项');
       return;
     }
-    setSettings((s) => ({ ...s, ...channelForm }));
-    const ch = visibleChannels.find((c) => c.key === editingChannel);
-    const hasConfig = ch?.fields.every((f) => !!channelForm[f.f]) ?? false;
-    setChannelStatus((s) => ({ ...s, [editingChannel!]: hasConfig }));
-    setEditingChannel(null);
-    showMsg(true, '渠道配置已更新，请记得保存');
+    setSaving(true);
+    try {
+      // 立即 PUT 到后端，确保配置真正持久化（不再只更新本地state）
+      await api.put('/system/user-notification-settings', channelForm);
+      // 更新本地 state
+      setSettings((s) => ({ ...s, ...channelForm }));
+      setChannelStatus((s) => ({ ...s, [editingChannel!]: hasConfig }));
+      setEditingChannel(null);
+      showMsg(true, '渠道配置已保存');
+      // 重新拉取确认后端已持久化
+      const d: any = await api.get('/system/user-notification-settings');
+      const defaults: Record<string, any> = {};
+      visiblePushOptions.forEach(o => {
+        if (d[o.key] === undefined) defaults[o.key] = o.defaultSelected;
+      });
+      setSettings({ ...defaults, ...d });
+    } catch (e: any) {
+      showMsg(false, e.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* ---- 清除渠道配置（立即同步到后端）---- */
