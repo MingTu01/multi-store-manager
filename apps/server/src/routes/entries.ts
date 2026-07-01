@@ -81,7 +81,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       type: 'entry',
       action: '新增记账',
       storeId,
-      detail: user.name + ' 在门店新增' + nt + ': ' + categoryName + ' ¥' + amount
+      detail: nt + '，' + categoryName + '，¥' + amount + (sanitizeNote(note||'') ? '，' + sanitizeNote(note||'') : '')
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'create', storeId, data: { id: result.lastInsertRowid } });
@@ -132,7 +132,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
       type: 'entry',
       action: '修改记账',
       storeId,
-      detail: user.name + ' 修改了记账 #' + req.params.id + ': ' + (categoryName || original?.category || '未分类') + ' ¥' + (amount !== undefined ? amount : original?.amount)
+      detail: '#' + req.params.id + '，' + (categoryName || original?.category || '未分类') + '，¥' + (amount !== undefined ? amount : original?.amount)
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'update', storeId, data: { id: req.params.id } });
@@ -162,7 +162,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
       type: 'entry',
       action: '删除记账',
       storeId,
-      detail: user.name + ' 删除了记账 #' + req.params.id + (entry ? ': ' + entry.type + ' ' + entry.category + ' ¥' + entry.amount : '')
+      detail: '#' + req.params.id + (entry ? '，' + entry.type + '，' + entry.category + '，¥' + entry.amount + '（' + entry.date + '）' : '')
     , operatorName: req.user.name || req.user.username});
 
     eventBus.broadcast({ type: 'entry', action: 'delete', storeId, data: { id: req.params.id } });

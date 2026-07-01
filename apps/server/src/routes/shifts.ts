@@ -84,7 +84,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       type: 'shift',
       action,
       storeId,
-      detail: (req.user.name || req.user.username) + ' 执行了' + action + '操作' + (note ? ': ' + note : '')
+      detail: '执行了' + action + '操作' + (note ? '，' + note : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: action + '成功' });
@@ -110,7 +110,7 @@ router.post('/open', (req: AuthRequest, res: Response) => {
       type: 'shift',
       action: '开店',
       storeId,
-      detail: (req.user.name || req.user.username) + ' 执行了开店操作' + (note ? ': ' + note : '')
+      detail: '执行了开店操作' + (note ? '，' + note : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: '开店成功' });
@@ -132,7 +132,7 @@ router.post('/close', (req: AuthRequest, res: Response) => {
       type: 'shift',
       action: '关店',
       storeId,
-      detail: (req.user.name || req.user.username) + ' 执行了关店操作' + (note ? ': ' + note : '')
+      detail: '执行了关店操作' + (note ? '，' + note : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: '关店成功' });

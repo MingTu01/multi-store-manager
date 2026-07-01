@@ -87,7 +87,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '创建门店',
       storeId,
-      detail: '新门店已创建: ' + name
+      detail: '新门店已创建，' + name
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: storeId, message: '门店创建成功' });
@@ -121,7 +121,7 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '修改门店',
       storeId: req.params.storeId,
-      detail: '门店信息已更新' + (name ? ': ' + name : '')
+      detail: '门店信息已更新' + (name ? '，' + name : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店更新成功' });
@@ -169,7 +169,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '删除门店',
       storeId: req.params.id,
-      detail: '门店已删除: ' + store.name
+      detail: '门店已删除，' + store.name
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店已删除' });
@@ -233,7 +233,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
       type: 'staff',
       action: '添加员工',
       storeId,
-      detail: '新员工已添加: ' + name + (position ? ' (' + position + ')' : '')
+      detail: '新员工已添加，' + name + (position ? '，' + position : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '员工添加成功，默认密码: 123456，首次登录需修改密码' });
@@ -284,7 +284,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
       type: 'staff',
       action: '修改员工',
       storeId: req.params.storeId,
-      detail: '员工 #' + req.params.id + ' 信息已更新' + (name ? ': ' + name : '')
+      detail: '员工 #' + req.params.id + ' 信息已更新' + (name ? '，' + name : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '员工信息已更新' });
@@ -298,12 +298,12 @@ router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     const staff = db.prepare('SELECT name, job_title FROM users WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     db.prepare('DELETE FROM users WHERE id = ? AND store_id = ? AND role != ?').run(req.params.id, req.params.storeId, 'ADMIN');
     opLog(req.user.id, req.params.storeId, '删除员工', '删除员工 #' + req.params.id);
-    // 触发人员变动通知（ADMIN + 店铺管理员 + 店长）
+    // 触发员工通知（ADMIN + 店铺管理员 + 店长），统一用 staff 类型
     triggerNotification({
-      type: 'staff_change',
+      type: 'staff',
       action: '删除员工',
       storeId: req.params.storeId,
-      detail: '员工 #' + req.params.id + (staff ? ' ' + (staff.name || '') + (staff.job_title ? ' (' + staff.job_title + ')' : '') : '') + ' 已删除',
+      detail: '员工 #' + req.params.id + (staff ? '，' + (staff.name || '') + (staff.job_title ? '，' + staff.job_title : '') : '') + ' 已删除',
       operatorName: req.user.name || req.user.username
     });
     res.json({ message: '员工已删除' });

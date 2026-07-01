@@ -241,16 +241,16 @@ router.post('/checks/batch-complete', (req: AuthRequest, res: Response) => {
       return (con + act !== exp) || (act === 0 && con === 0);
     });
     const detailParts: string[] = [];
-    if (anomalies.length > 0) detailParts.push(anomalies.length + '项异常: ' + anomalies.map((a: any) => a.name + '(应' + a.expected_qty + '/实' + a.actual_qty + ')').join('、'));
+    if (anomalies.length > 0) detailParts.push(anomalies.length + '项异常，' + anomalies.map((a: any) => a.name + '（应' + a.expected_qty + '/实' + a.actual_qty + '）').join('、'));
     detailParts.push(results.length + '项盘点完成');
-    triggerNotification({ type: 'inventory', action: '日常盘点', storeId, detail: detailParts.join(' | '), operatorName: req.user.name || req.user.username });
+    triggerNotification({ type: 'inventory', action: '日常盘点', storeId, detail: detailParts.join('；'), operatorName: req.user.name || req.user.username });
     // 有异常时额外触发库存预警（inventory_alert）
     if (anomalies.length > 0) {
       triggerNotification({
         type: 'inventory_alert',
         action: '库存异常',
         storeId,
-        detail: '盘点发现' + anomalies.length + '项异常: ' + anomalies.map((a: any) => a.name + '(应' + a.expected_qty + '/实' + a.actual_qty + ')').join('、'),
+        detail: '盘点发现' + anomalies.length + '项异常，' + anomalies.map((a: any) => a.name + '（应' + a.expected_qty + '/实' + a.actual_qty + '）').join('、'),
         operatorName: req.user.name || req.user.username
       });
     }

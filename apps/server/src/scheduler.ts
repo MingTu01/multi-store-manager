@@ -64,38 +64,38 @@ export function setupCron() {
       // 每日 22:00 — 每日经营简报
       if (h === 22 && m === 0) {
         // ADMIN 收全店汇总
-        triggerNotification({ type: 'daily_report', action: buildDailyReport() });
+        triggerNotification({ type: 'daily_report', action: '推送日报', detail: buildDailyReport(), operatorName: '系统' });
         // 每个店铺管理员+店长收自己店铺的报表（getTargetUsers 中 daily_report 发给 STORE_ADMIN+MANAGER）
         for (const s of stores) {
-          triggerNotification({ type: 'daily_report', action: buildDailyReportForStore(s.id), storeId: s.id });
+          triggerNotification({ type: 'daily_report', action: '推送日报', detail: buildDailyReportForStore(s.id), storeId: s.id, operatorName: '系统' });
         }
       }
 
       // 每周一 09:00 — 每周经营报告
       if (day === 1 && h === 9 && m === 0) {
-        triggerNotification({ type: 'weekly_report', action: buildWeeklyReport() });
+        triggerNotification({ type: 'weekly_report', action: '推送周报', detail: buildWeeklyReport(), operatorName: '系统' });
         // weekly_report 只发给 STORE_ADMIN（MANAGER 不收）
         for (const s of stores) {
-          triggerNotification({ type: 'weekly_report', action: buildWeeklyReportForStore(s.id), storeId: s.id });
+          triggerNotification({ type: 'weekly_report', action: '推送周报', detail: buildWeeklyReportForStore(s.id), storeId: s.id, operatorName: '系统' });
         }
       }
 
       // 每月1日 09:00 — 月度经营报告
       if (date === 1 && h === 9 && m === 0) {
-        triggerNotification({ type: 'monthly_report', action: buildMonthlyReport() });
+        triggerNotification({ type: 'monthly_report', action: '推送月报', detail: buildMonthlyReport(), operatorName: '系统' });
         // monthly_report 只发给 STORE_ADMIN（MANAGER 不收）
         for (const s of stores) {
-          triggerNotification({ type: 'monthly_report', action: buildMonthlyReportForStore(s.id), storeId: s.id });
+          triggerNotification({ type: 'monthly_report', action: '推送月报', detail: buildMonthlyReportForStore(s.id), storeId: s.id, operatorName: '系统' });
         }
       }
 
       // 每日 09:00 — 待处理事项提醒（MANAGER 不收）
       if (h === 9 && m === 0) {
         // ADMIN 收所有店铺的汇总
-        triggerNotification({ type: 'review_reminder', action: buildReviewReminder() });
+        triggerNotification({ type: 'review_reminder', action: '推送待办提醒', detail: buildReviewReminder(), operatorName: '系统' });
         // review_reminder 只发给 STORE_ADMIN（MANAGER 不收）
         for (const s of stores) {
-          triggerNotification({ type: 'review_reminder', action: buildReviewReminderForStore(s.id), storeId: s.id });
+          triggerNotification({ type: 'review_reminder', action: '推送待办提醒', detail: buildReviewReminderForStore(s.id), storeId: s.id, operatorName: '系统' });
         }
       }
     } catch (err) {

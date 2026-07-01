@@ -89,7 +89,6 @@ const PUSH_OPTIONS: PushOption[] = [
   { key: 'push_salary_confirm', label: '工资确认通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'STAFF'], priority: 'medium', defaultSelected: true },
   { key: 'push_dividend_notify', label: '分红发放通知', category: '人事财务', roles: ['SHAREHOLDER', 'ADMIN'], priority: 'medium', defaultSelected: true },
   { key: 'push_health_cert', label: '健康证到期提醒', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'high', defaultSelected: true },
-  { key: 'push_staff_change', label: '员工变动通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'medium', defaultSelected: false },
 ];
 
 const INPUT_CLS =
@@ -646,6 +645,7 @@ const userRole = user?.role || '';
                   <Bell className="h-4 w-4 text-indigo-500" />
                   推送内容
                 </h3>
+                <p className="mb-2 text-xs text-slate-400">以下开关仅控制外部推送（PushPlus/企业微信/爱语飞飞/浏览器推送），内部消息记录始终保留</p>
                 <div className="flex flex-wrap gap-2">
                   {visiblePushOptions.filter(o => settings[o.key]).map(o => (
                     <span key={o.key} className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${(CATEGORY_COLORS[o.category] || CATEGORY_COLORS['经营报表']).bg}`}>

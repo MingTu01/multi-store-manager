@@ -5,7 +5,7 @@ import { sendPushNotification } from './push-notify.js';
 import { eventBus } from './event-bus.js';
 import logger from './logger.js';
 
-type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'staff_change' | 'inventory_alert' | 'store_alert' | 'daily_report' | 'weekly_report' | 'monthly_report' | 'review_reminder' | 'alert';
+type NotifyType = 'entry' | 'payroll' | 'dividend' | 'inventory' | 'shift' | 'health_cert' | 'staff' | 'store' | 'purchase' | 'salary_confirm' | 'inventory_alert' | 'store_alert' | 'daily_report' | 'weekly_report' | 'monthly_report' | 'review_reminder' | 'alert';
 
 // 通知类型 → 用户推送开关字段名映射
 const TYPE_TO_PUSH_FIELD: Record<string, string> = {
@@ -19,7 +19,6 @@ const TYPE_TO_PUSH_FIELD: Record<string, string> = {
   staff: 'push_staff',
   store: 'push_store',
   salary_confirm: 'push_salary_confirm',
-  staff_change: 'push_staff_change',
   inventory_alert: 'push_inventory_alert',
   store_alert: 'push_store_alert',
   daily_report: 'push_daily_report',
@@ -61,7 +60,6 @@ function getNotifyTitle(type: NotifyType): string {
     store: '门店通知',
     purchase: '进货通知',
     salary_confirm: '工资确认',
-    staff_change: '人员变动',
     inventory_alert: '库存预警',
     store_alert: '门店预警',
     daily_report: '每日经营简报',
@@ -109,7 +107,7 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
     // 业务事件推送：ADMIN + 店铺管理员 + 店长
     if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase' ||
         type === 'health_cert' || type === 'staff' || type === 'store' ||
-        type === 'salary_confirm' || type === 'staff_change' ||
+        type === 'salary_confirm' ||
         type === 'inventory_alert' || type === 'store_alert') {
       const storeUsers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
       storeUsers.forEach((u: any) => userIds.push(u.id));
@@ -134,8 +132,9 @@ export function triggerNotification(params: NotifyParams): void {
   try {
     const { type, action, storeId, detail, targetUserId, operatorName } = params;
     const title = getNotifyTitle(type);
+    // 内容格式化：有操作人加前缀，有详情加换行
     const operator = operatorName ? '[' + operatorName + '] ' : '';
-    const content = operator + action + (detail ? ': ' + detail : '');
+    const content = operator + action + (detail ? '\n' + detail : '');
     // health_cert 特殊处理：同时发给 targetUserId（员工本人）+ ADMIN + 店铺管理员 + 店长
     let targets: number[];
     if (type === 'health_cert' && targetUserId && storeId) {
@@ -158,7 +157,6 @@ export function triggerNotification(params: NotifyParams): void {
       store: '/stores',
       purchase: storeId ? '/store/' + storeId + '/purchase' : '/purchase',
       salary_confirm: storeId ? '/store/' + storeId + '/payroll' : '/payroll',
-      staff_change: storeId ? '/store/' + storeId + '/staff' : '/staff',
       inventory_alert: storeId ? '/store/' + storeId + '/inventory' : '/inventory',
       store_alert: '/stores',
       daily_report: storeId ? '/store/' + storeId + '/entries' : '/dashboard',
@@ -173,22 +171,21 @@ export function triggerNotification(params: NotifyParams): void {
     for (const uid of targets) {
       stmt.run(uid, title, content, type, storeId || '', link, now);
     }
-    // External push: 检查用户开关 + 有个人渠道才发，无个人渠道跳过
+    // 外部推送 + 浏览器推送：都受用户开关控制（方案C：分离控制）
+    // 内部通知永远写入（消息记录），外部推送/浏览器推送受开关控制
     const pushField = TYPE_TO_PUSH_FIELD[type];
     for (const uid of targets) {
       const userSettings = getUserPushSettings(uid);
       if (!userSettings) continue; // 无个人设置，跳过
       // 检查用户的推送开关（默认开启）
       if (pushField && userSettings[pushField] === 0) continue; // 用户关闭了该类型推送
-      // 有个人渠道才发
+      // 外部渠道推送（PushPlus/企业微信/爱语飞飞）：有个人渠道才发
       if (userSettings.pushplus_token || userSettings.wecom_secret || userSettings.iyuu_token) {
         withRetry(() => sendNotification(title, content, type, userSettings), 'sendNotification-user-' + uid).catch(e => {
           logger.error('[Notify] sendNotification failed: ' + e.message);
         });
       }
-    }
-    // Browser Web Push (with retry)
-    for (const uid of targets) {
+      // 浏览器 Web Push（同样受开关控制）
       withRetry(() => sendPushNotification(uid, title, content, link), 'sendPushNotification-' + uid).catch(e => {
         logger.error('[Notify] sendPushNotification failed: ' + e.message);
       });

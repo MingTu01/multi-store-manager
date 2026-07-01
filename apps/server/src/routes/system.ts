@@ -1199,7 +1199,7 @@ router.put('/user-notification-settings', async (req: AuthRequest, res: Response
     const pushFields = ['push_daily_report','push_weekly_report','push_monthly_report','push_review_reminder','push_alert',
       'push_bookkeeping_notify','push_inventory_notify','push_openclose_notify','push_purchase_notify','push_salary_notify','push_dividend_notify',
       'push_health_cert','push_staff','push_store','push_entry','push_payroll','push_dividend','push_inventory','push_shift','push_purchase',
-      'push_salary_confirm','push_staff_change','push_inventory_alert','push_store_alert'];
+      'push_salary_confirm','push_inventory_alert','push_store_alert'];
     // 加密 token（空字符串也会被加密为空串）
     const encPushplus = b.pushplus_token !== undefined ? encryptToken(b.pushplus_token || '') : undefined;
     const encSecret = b.wecom_secret !== undefined ? encryptToken(b.wecom_secret || '') : undefined;

@@ -107,7 +107,7 @@ router.put('/records', (req: AuthRequest, res: Response) => {
     const totalMorning = records.reduce((s: number, r: any) => s + (r.morning_qty || 0), 0);
     const totalAfternoon = records.reduce((s: number, r: any) => s + (r.afternoon_qty || 0), 0);
     const itemNames = [...new Set(records.map((r: any) => r.item_name || ''))].filter(Boolean).slice(0, 5).join('、');
-    triggerNotification({ type: 'purchase', action: '更新进货', storeId, detail: date + ' ' + records.length + '种商品 上午' + totalMorning + '/下午' + totalAfternoon + (itemNames ? ' 含' + itemNames : ''), operatorName: req.user.name || req.user.username });
+    triggerNotification({ type: 'purchase', action: '更新进货', storeId, detail: date + '，' + records.length + '种商品，上午' + totalMorning + '，下午' + totalAfternoon + (itemNames ? '，含' + itemNames : ''), operatorName: req.user.name || req.user.username });
     eventBus.broadcast({ type: 'purchase', action: 'update', storeId, data: { date } });
     res.json({ message: '保存成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }

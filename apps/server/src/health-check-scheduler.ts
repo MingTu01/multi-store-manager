@@ -25,19 +25,21 @@ export function startHealthCheckScheduler() {
           // 推送给 ADMIN + 店铺管理员 + 店长 + 员工本人（通过 storeId 触发 getTargetUsers 的多对象逻辑）
           triggerNotification({
             type: 'health_cert',
-            action: user.name + ' 健康证已过期',
+            action: '健康证已过期',
             storeId: user.store_id || undefined,
             targetUserId: user.id,
-            detail: '已过期' + Math.abs(daysLeft) + '天，请立即处理'
+            detail: '员工 ' + user.name + ' 的健康证已过期 ' + Math.abs(daysLeft) + ' 天，请立即处理',
+            operatorName: '系统'
           });
         } else if (daysLeft <= 30 && dayOfWeek === 1) {
           // Within 30 days: notify once per week (Monday)
           triggerNotification({
             type: 'health_cert',
-            action: user.name + ' 健康证即将到期',
+            action: '健康证即将到期',
             storeId: user.store_id || undefined,
             targetUserId: user.id,
-            detail: '还剩' + daysLeft + '天到期，请尽快体检'
+            detail: '员工 ' + user.name + ' 的健康证还剩 ' + daysLeft + ' 天到期，请尽快体检',
+            operatorName: '系统'
           });
         }
       }

@@ -116,7 +116,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
       type: 'dividend',
       action: '分红归档',
       storeId: req.params.storeId,
-      detail: '分红 #' + req.params.id + ' 已归档, 金额 ¥' + dividend.total_amount.toFixed(2)
+      detail: '分红 #' + req.params.id + ' 已归档，金额 ¥' + dividend.total_amount.toFixed(2)
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: null, message: '分红已归档' });

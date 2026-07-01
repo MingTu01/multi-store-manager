@@ -82,8 +82,8 @@ export function getSettings(): any {
 // ── 角色可接收的推送类型 ──
 // MANAGER 只收日报，不收周报/月报/待处理提醒
 const ROLE_ALLOWED_TYPES: Record<string, string[]> = {
-  ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','store_alert','entry','inventory','shift','payroll','dividend','health_cert','staff','store','purchase','salary_confirm','staff_change'],
-  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','entry','inventory','shift','purchase','salary_confirm','health_cert','staff_change','staff','store'],
+  ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','store_alert','entry','inventory','shift','payroll','dividend','health_cert','staff','store','purchase','salary_confirm'],
+  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','entry','inventory','shift','purchase','salary_confirm','health_cert','staff','store'],
   MANAGER: ['daily_report','entry','inventory','shift','purchase','health_cert','staff','store'],
   STAFF: ['payroll','salary_confirm'],
   SHAREHOLDER: ['dividend'],
@@ -239,6 +239,7 @@ export async function sendStoreNotification(storeId: string, title: string, cont
 
 // ── 报表模板 ──
 const LINE = '━━━━━━━━━━━━━━━━';
+const SIGNATURE = '\n— 多店联营管理系统 · 自动发送';
 function moneyStr(n: number): string { return '¥' + formatMoney(n); }
 function pctStr(n: number): string { return n.toFixed(1) + '%'; }
 function todayStr(): string {
@@ -276,7 +277,7 @@ function reportHtmlTable(): string {
 }
 function reportHtmlFooter(ti: number, te: number): string {
   const p = ti-te, m = ti>0?(p/ti*100):0;
-  return '</tbody></table><div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:8px"><strong>全店合计</strong>　收入 '+moneyStr(ti)+'　支出 '+moneyStr(te)+'　利润 '+moneyStr(p)+'　毛利率 '+pctStr(m)+'</div></div>';
+  return '</tbody></table><div style="margin-top:16px;padding:12px;background:#f0f9ff;border-radius:8px"><strong>全店合计</strong>　收入 '+moneyStr(ti)+'　支出 '+moneyStr(te)+'　利润 '+moneyStr(p)+'　毛利率 '+pctStr(m)+'</div><p style="color:#94a3b8;font-size:12px;margin:12px 0 0;text-align:center">— 多店联营管理系统 · 自动发送</p></div>';
 }
 
 
@@ -379,6 +380,7 @@ export function getBatchEntriesByDateRange(storeIds: string[], startDate: string
     r += storeBlock(s.name, d.todayIncome, d.todayExpense); 
   }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 export function buildDailyReportHtml(): string {
@@ -412,6 +414,7 @@ export function buildWeeklyReport(): string {
     ti+=d.income; te+=d.expense; r += storeBlock(s.name, d.income, d.expense);
   }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 export function buildWeeklyReportHtml(): string {
@@ -441,12 +444,13 @@ export function buildMonthlyReport(): string {
   const storeIds = stores.map(s => s.id);
   const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
-  let r = '◆ ' + mname + ' 月度经营报告\n' + LINE + '\n\n';
+  let r = '◆ ' + mname + ' 月度经营报告\n' + LINE + '\n' + ms + '\n\n';
   for (const s of stores) {
     const d = batchData.get(s.id) || { income: 0, expense: 0 };
     ti+=d.income; te+=d.expense; r += storeBlock(s.name, d.income, d.expense);
   }
   r += LINE + '\n★ 全店合计\n  收入 '+moneyStr(ti)+'    支出 '+moneyStr(te)+'\n  利润 '+moneyStr(ti-te)+'    毛利率 '+pctStr(ti>0?((ti-te)/ti*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 export function buildMonthlyReportHtml(): string {
@@ -457,7 +461,7 @@ export function buildMonthlyReportHtml(): string {
   const storeIds = stores.map(s => s.id);
   const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
-  let h = reportHtmlHeader(mname + ' 月度经营报告', '') + reportHtmlTable();
+  let h = reportHtmlHeader(mname + ' 月度经营报告', ms) + reportHtmlTable();
   for (const s of stores) {
     const d = batchData.get(s.id) || { income: 0, expense: 0 };
     ti+=d.income; te+=d.expense; h += storeRowHtml(s.name, d.income, d.expense);
@@ -470,14 +474,16 @@ export function buildReviewReminder(): string {
   const p = (db.prepare("SELECT COUNT(*) as c FROM inventory_checks WHERE status='pending'").get() as any)?.c||0;
   const pw = (db.prepare("SELECT COUNT(*) as c FROM payroll WHERE status='draft'").get() as any)?.c||0;
   const pd = (db.prepare("SELECT COUNT(*) as c FROM dividends WHERE status='draft'").get() as any)?.c||0;
-  let r = '◆ 待处理事项提醒\n' + LINE + '\n\n';
+  let r = '◆ 待处理事项提醒\n' + LINE + '\n' + todayStr() + '\n\n';
   r += '▸ 待审核盘点    ' + p + ' 条\n▸ 待确认工资    ' + pw + ' 条\n▸ 待确认分红    ' + pd + ' 条\n';
-  if (p+pw+pd === 0) r += '\n✓ 暂无待处理事项\n';
+  r += '\n合计 ' + (p+pw+pd) + ' 条待处理\n';
+  if (p+pw+pd === 0) r += '✓ 暂无待处理事项\n';
+  r += SIGNATURE;
   return r;
 }
 
 export function buildAlert(message: string): string {
-  return '◆ 系统告警通知\n' + LINE + '\n\n' + message + '\n';
+  return '◆ 系统告警通知\n' + LINE + '\n' + todayStr() + '\n\n' + message + '\n' + SIGNATURE;
 }
 
 // ── 单店铺报表函数 ──
@@ -487,6 +493,8 @@ export function buildDailyReportForStore(storeId: string): string {
   const d = getStoreData(storeId);
   let r = '◆ ' + store.name + ' 每日经营简报\n' + LINE + '\n' + todayStr() + '\n\n';
   r += storeBlock(store.name, d.todayIncome, d.todayExpense);
+  r += LINE + '\n★ 合计\n  收入 '+moneyStr(d.todayIncome)+'    支出 '+moneyStr(d.todayExpense)+'\n  利润 '+moneyStr(d.todayIncome-d.todayExpense)+'    毛利率 '+pctStr(d.todayIncome>0?((d.todayIncome-d.todayExpense)/d.todayIncome*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 
@@ -502,6 +510,8 @@ export function buildWeeklyReportForStore(storeId: string): string {
   const d = data.get(storeId) || { income: 0, expense: 0 };
   let r = '◆ ' + store.name + ' 每周经营报告\n' + LINE + '\n' + ss + ' 至 ' + es + '\n\n';
   r += storeBlock(store.name, d.income, d.expense);
+  r += LINE + '\n★ 合计\n  收入 '+moneyStr(d.income)+'    支出 '+moneyStr(d.expense)+'\n  利润 '+moneyStr(d.income-d.expense)+'    毛利率 '+pctStr(d.income>0?((d.income-d.expense)/d.income*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 
@@ -513,8 +523,10 @@ export function buildMonthlyReportForStore(storeId: string): string {
   const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
   const data = getBatchEntriesByDateRange([storeId], ms+'%', '');
   const d = data.get(storeId) || { income: 0, expense: 0 };
-  let r = '◆ ' + store.name + ' ' + mname + ' 月度经营报告\n' + LINE + '\n\n';
+  let r = '◆ ' + store.name + ' ' + mname + ' 月度经营报告\n' + LINE + '\n' + ms + '\n\n';
   r += storeBlock(store.name, d.income, d.expense);
+  r += LINE + '\n★ 合计\n  收入 '+moneyStr(d.income)+'    支出 '+moneyStr(d.expense)+'\n  利润 '+moneyStr(d.income-d.expense)+'    毛利率 '+pctStr(d.income>0?((d.income-d.expense)/d.income*100):0)+'\n';
+  r += SIGNATURE;
   return r;
 }
 
@@ -524,8 +536,10 @@ export function buildReviewReminderForStore(storeId: string): string {
   const p = (db.prepare("SELECT COUNT(*) as c FROM inventory_checks WHERE status='pending' AND store_id = ?").get(storeId) as any)?.c||0;
   const pw = (db.prepare("SELECT COUNT(*) as c FROM payroll WHERE status='draft' AND store_id = ?").get(storeId) as any)?.c||0;
   const pd = (db.prepare("SELECT COUNT(*) as c FROM dividends WHERE status='draft' AND store_id = ?").get(storeId) as any)?.c||0;
-  let r = '◆ ' + store.name + ' 待处理事项提醒\n' + LINE + '\n\n';
+  let r = '◆ ' + store.name + ' 待处理事项提醒\n' + LINE + '\n' + todayStr() + '\n\n';
   r += '▸ 待审核盘点    ' + p + ' 条\n▸ 待确认工资    ' + pw + ' 条\n▸ 待确认分红    ' + pd + ' 条\n';
-  if (p+pw+pd === 0) r += '\n✓ 暂无待处理事项\n';
+  r += '\n合计 ' + (p+pw+pd) + ' 条待处理\n';
+  if (p+pw+pd === 0) r += '✓ 暂无待处理事项\n';
+  r += SIGNATURE;
   return r;
 }

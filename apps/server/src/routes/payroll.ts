@@ -195,7 +195,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
       type: 'salary_confirm',
       action: '确认工资单',
       storeId: req.params.storeId,
-      detail: '工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认, 总金额 ¥' + payroll.total_amount.toFixed(2),
+      detail: '工资单 #' + req.params.id + '（' + payroll.period + '）已确认，总金额 ¥' + payroll.total_amount.toFixed(2),
       operatorName: req.user.name || req.user.username
     });
 
@@ -207,7 +207,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
           type: 'salary_confirm',
           action: '工资已确认',
           storeId: req.params.storeId,
-          detail: '您的工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认',
+          detail: '您的工资单 #' + req.params.id + '（' + payroll.period + '）已确认',
           targetUserId: item.user_id
         , operatorName: req.user.name || req.user.username});
       }
