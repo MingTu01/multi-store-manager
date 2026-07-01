@@ -34,6 +34,41 @@ function validateCleanupPath(p: string): boolean {
   if (!normalized.startsWith('src/') && !normalized.startsWith('public/')) return false;
   return true;
 }
+// 安全替换 web-dist 目录：先拷贝到临时目录，验证后清空旧目录再拷贝（兼容 volume mount）
+function safeReplaceWebDist(newWebDistSrc: string, destWebDist: string): void {
+  const tmpDir = join(BASE_DIR, 'public', 'web-dist.tmp.' + Date.now());
+  try {
+    // 1. 拷贝新文件到临时目录
+    mkdirSync(tmpDir, { recursive: true });
+    cpSync(newWebDistSrc, tmpDir, { recursive: true, force: true });
+
+    // 2. 验证临时目录有 index.html（确保拷贝完整）
+    if (!existsSync(join(tmpDir, 'index.html'))) {
+      throw new Error('新 web-dist 缺少 index.html，拷贝不完整');
+    }
+
+    // 3. 清空旧 web-dist 内容（不删目录本身，兼容 Docker volume mount 挂载点）
+    if (existsSync(destWebDist)) {
+      for (const entry of readdirSync(destWebDist, { withFileTypes: true })) {
+        const target = join(destWebDist, entry.name);
+        try {
+          if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
+          else unlinkSync(target);
+        } catch (e: any) { logger.warn('[Upgrade] 清理旧 web-dist 文件失败:', entry.name, e.message); }
+      }
+    } else {
+      mkdirSync(destWebDist, { recursive: true });
+    }
+
+    // 4. 拷贝新内容到 web-dist
+    cpSync(tmpDir, destWebDist, { recursive: true, force: true });
+
+    logger.info('[Upgrade] web-dist 安全替换成功（旧文件已清理）');
+  } finally {
+    try { if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  }
+}
+
 // Zip Slip protection: validate all entry names before extraction
 function validateZipEntries(zip: any): boolean {
   const entries = zip.getEntries();
@@ -428,14 +463,14 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
             logger.warn('[Upgrade] Failed to process cleanup.json:', e.message);
           }
         }
-        // === 更新 web-dist ===
+        // === 更新 web-dist（安全替换：清理旧 hash 文件，避免堆积）===
         const webDist1 = join(workDir, 'web-dist');
         const webDist2 = join(workDir, 'public', 'web-dist');
         const webDistSrc = existsSync(webDist1) ? webDist1 : (existsSync(webDist2) ? webDist2 : null);
         if (webDistSrc) {
           const webDest = join(BASE_DIR, 'public', 'web-dist');
-          copyDir(webDistSrc, webDest);
-          logger.info('[Upgrade] web-dist updated');
+          safeReplaceWebDist(webDistSrc, webDest);
+          logger.info('[Upgrade] web-dist updated (旧文件已清理)');
           broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
         } else {
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
@@ -879,15 +914,17 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         }
         
         const publicDir = join(realExtractedFolder, 'public');
-        if (existsSync(publicDir)) {
-          const destPublic = join(BASE_DIR, 'public');
-          if (existsSync(destPublic)) {
-            const webDistDest = join(destPublic, 'web-dist');
-            }
-          cpSync(publicDir, destPublic, { recursive: true, force: true });
-          logger.info('[Update] web-dist updated');
+        const webDistInPkg = join(publicDir, 'web-dist');
+        const webDistRootPkg = join(realExtractedFolder, 'web-dist');
+        const webDistSrcUpdate = existsSync(webDistInPkg) ? webDistInPkg : (existsSync(webDistRootPkg) ? webDistRootPkg : null);
+        if (webDistSrcUpdate) {
+          const webDest = join(BASE_DIR, 'public', 'web-dist');
+          safeReplaceWebDist(webDistSrcUpdate, webDest);
+          logger.info('[Update] web-dist updated (旧文件已清理)');
           broadcastProgress('progress', { step: 3, total: 4, message: '更新前端文件' });
           await new Promise(r => setTimeout(r, 300));
+        } else {
+          throw new Error('更新包中找不到 web-dist 目录');
         }
         // === 更新服务端代码 ===
         const srcDir = join(realExtractedFolder, 'src');

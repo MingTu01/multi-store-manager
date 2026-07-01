@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.0",
-  "buildTime": "2026-07-01T00:32:42.665Z",
-  "description": "推送通知模块重构"
+  "version": "v2.0.1",
+  "buildTime": "2026-07-01T00:57:11.112Z",
+  "description": "Fix: 升级链路清理旧web-dist文件"
 }
