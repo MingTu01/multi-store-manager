@@ -134,7 +134,17 @@ export function triggerNotification(params: NotifyParams): void {
     const title = getNotifyTitle(type);
     // 内容格式化：有操作人加前缀，有详情加换行
     const operator = operatorName ? '[' + operatorName + '] ' : '';
-    const content = operator + action + (detail ? '\n' + detail : '');
+    // ADMIN 收所有店铺推送，需带[店铺名]标签区分；店铺管理员/店长只收本店，不带标签
+    // 方案A：按角色区分 content（同一事件生成两种 content）
+    let storeName = '';
+    if (storeId) {
+      try {
+        const store = db.prepare('SELECT name FROM stores WHERE id = ?').get(storeId) as any;
+        if (store && store.name) storeName = store.name;
+      } catch {}
+    }
+    const baseContent = operator + action + (detail ? '\n' + detail : '');
+    const adminContent = storeName ? (operator + '[' + storeName + '] ' + action + (detail ? '\n' + detail : '')) : baseContent;
     // health_cert 特殊处理：同时发给 targetUserId（员工本人）+ ADMIN + 店铺管理员 + 店长
     let targets: number[];
     if (type === 'health_cert' && targetUserId && storeId) {
@@ -144,6 +154,14 @@ export function triggerNotification(params: NotifyParams): void {
       targets = getTargetUsers(type, storeId, targetUserId);
     }
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ').slice(0, 19);
+
+    // 批量查询 target 用户角色（避免 N+1）
+    const roleMap = new Map<number, string>();
+    if (targets.length > 0) {
+      const placeholders = targets.map(() => '?').join(',');
+      const users = db.prepare('SELECT id, role FROM users WHERE id IN (' + placeholders + ')').all(...targets) as any[];
+      users.forEach(u => roleMap.set(u.id, u.role));
+    }
 
     // Generate link based on notification type
     const linkMap: Record<string, string> = {
@@ -167,9 +185,13 @@ export function triggerNotification(params: NotifyParams): void {
     };
     const link = linkMap[type] || '/notifications';
 
+    // 内部通知：ADMIN 写带标签的 content，其他角色写 baseContent
     const stmt = db.prepare('INSERT INTO notifications (user_id, title, content, type, store_id, link, read, created_at) VALUES (?,?,?,?,?,?,0,?)');
     for (const uid of targets) {
-      stmt.run(uid, title, content, type, storeId || '', link, now);
+      const role = roleMap.get(uid) || '';
+      const isGlobalAdmin = role.toUpperCase() === 'ADMIN' && storeId;
+      const userContent = isGlobalAdmin ? adminContent : baseContent;
+      stmt.run(uid, title, userContent, type, storeId || '', link, now);
     }
     // 外部推送 + 浏览器推送：都受用户开关控制（方案C：分离控制）
     // 内部通知永远写入（消息记录），外部推送/浏览器推送受开关控制
@@ -179,14 +201,18 @@ export function triggerNotification(params: NotifyParams): void {
       if (!userSettings) continue; // 无个人设置，跳过
       // 检查用户的推送开关（默认开启）
       if (pushField && userSettings[pushField] === 0) continue; // 用户关闭了该类型推送
+      // 按角色选择 content（ADMIN 带店铺标签，其他不带）
+      const role = roleMap.get(uid) || '';
+      const isGlobalAdmin = role.toUpperCase() === 'ADMIN' && storeId;
+      const userContent = isGlobalAdmin ? adminContent : baseContent;
       // 外部渠道推送（PushPlus/企业微信/爱语飞飞）：有个人渠道才发
       if (userSettings.pushplus_token || userSettings.wecom_secret || userSettings.iyuu_token) {
-        withRetry(() => sendNotification(title, content, type, userSettings), 'sendNotification-user-' + uid).catch(e => {
+        withRetry(() => sendNotification(title, userContent, type, userSettings), 'sendNotification-user-' + uid).catch(e => {
           logger.error('[Notify] sendNotification failed: ' + e.message);
         });
       }
       // 浏览器 Web Push（同样受开关控制）
-      withRetry(() => sendPushNotification(uid, title, content, link), 'sendPushNotification-' + uid).catch(e => {
+      withRetry(() => sendPushNotification(uid, title, userContent, link), 'sendPushNotification-' + uid).catch(e => {
         logger.error('[Notify] sendPushNotification failed: ' + e.message);
       });
     }
