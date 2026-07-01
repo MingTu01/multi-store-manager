@@ -58,7 +58,7 @@ router.post('/:type', upload.single('file'), (req: AuthRequest, res: Response) =
     if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
     writeFileSync(join(uploadDir, filename), file.buffer);
     res.json({ url: '/uploads/' + type + '/' + filename, filename });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.delete('/', (req: AuthRequest, res: Response) => {
@@ -73,7 +73,7 @@ router.delete('/', (req: AuthRequest, res: Response) => {
     if (!filePath.startsWith(uploadsDir + path.sep) && filePath !== uploadsDir) return res.status(400).json({ error: '路径不合法' });
     if (existsSync(filePath)) unlinkSync(filePath);
     res.json({ message: '文件已删除' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 export default router;

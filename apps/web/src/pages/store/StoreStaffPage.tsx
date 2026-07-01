@@ -9,7 +9,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useStore } from '../../stores/data';
-import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Shield, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle, User } from 'lucide-react';
+import { Plus, Edit3, Trash2, Camera, Loader2, Phone, MapPin, Upload, Eye, Calendar, BadgeCheck, XCircle, AlertTriangle, User } from 'lucide-react';
 import { ImagePreview } from '../../components/ImagePreview';
 import { uploadImage, compressToBase64 } from '../../lib/image';
 import { useConfirm } from '../../components/useConfirm';
@@ -152,7 +152,6 @@ const myRole = useStore((s) => s.user?.role);
           {staff.map((s: any) => {
             const role = getRoleBadge(s.role);
             const status = getStatusBadge(s.status);
-            const shareholder = s.role === 'SHAREHOLDER';
             return (
               <GlassCard key={s.id} className="p-4 cursor-pointer hover:ring-2 hover:ring-indigo-200 transition-all" onClick={() => setShowDetail(s)}>
                 <div className="flex items-start gap-3">
@@ -174,15 +173,10 @@ const myRole = useStore((s) => s.user?.role);
                     </div>
                   </div>
                 </div>
-                {canEdit && !shareholder && (
+                {canEdit && (
                   <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2">
                     <button onClick={() => openEdit(s)} className="action-btn flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"><Edit3 className="h-3 w-3" />编辑</button>
                     <button onClick={() => handleDelete(s.id, s.name)} disabled={deleting === s.id} className="action-btn flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-rose-500 hover:bg-rose-50"><Trash2 className="h-3 w-3" />删除</button>
-                  </div>
-                )}
-                {shareholder && (
-                  <div className="mt-3 flex items-center gap-1 border-t border-slate-100 pt-2 text-xs text-slate-400">
-                    <Shield className="h-3 w-3" />股东账号，仅可查看
                   </div>
                 )}
               </GlassCard>

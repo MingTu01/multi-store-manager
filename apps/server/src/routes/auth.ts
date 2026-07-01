@@ -53,7 +53,7 @@ router.get('/me', authMiddleware, (req: AuthRequest, res: Response) => {
     res.json({ user: { ...user, store_name: store?.name || '' } });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -96,17 +96,24 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
       if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);
       updates.push('password_hash=?'); vals.push(await bcrypt.hash(newPassword, 10));
       updates.push('must_change_password=0');
+      // 改密码时才更新 updated_at（用于让旧 token 失效）
+      updates.push("updated_at=datetime('now','localtime')");
     }
     if (updates.length === 0) throw new AppError(ErrorCode.INPUT_REQUIRED, '没有需要更新的内容', 400);
-    updates.push("updated_at=datetime('now','localtime')");
     vals.push(req.user.id);
     db.prepare('UPDATE users SET ' + updates.join(',') + ' WHERE id=?').run(...vals);
-    if (oldPassword && newPassword) { opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip); }
     const updated = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, must_change_password FROM users WHERE id = ?').get(req.user.id) as any;
+    // 如果改了密码，签发新 token 并更新 cookie，避免下次请求 401
+    if (oldPassword && newPassword) {
+      opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
+      const newToken = signToken({ id: updated.id, username: updated.username, name: updated.name, role: updated.role, store_id: updated.store_id });
+      setAuthCookie(res, newToken);
+      return res.json({ user: updated, message: '信息已更新，密码已修改', tokenRefreshed: true });
+    }
     res.json({ user: updated, message: '信息已更新' });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -120,13 +127,15 @@ router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) 
     if (!user) throw new AppError(ErrorCode.AUTH_USER_NOT_FOUND, '用户不存在', 404);
     if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);
     const hash = await bcrypt.hash(newPassword, 10);
-    db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
-    db.prepare('UPDATE users SET must_change_password = 0 WHERE id = ?').run(req.user.id);
+    db.prepare("UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
-    res.json({ message: '密码修改成功' });
+    // 签发新 token 并更新 cookie，避免下次请求 401
+    const newToken = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });
+    setAuthCookie(res, newToken);
+    res.json({ message: '密码修改成功', tokenRefreshed: true });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -144,7 +153,7 @@ router.post('/logout', authMiddleware, (req: AuthRequest, res: Response) => {
     res.json({ message: '\u5df2\u9000\u51fa\u767b\u5f55' });
   } catch (err: any) {
     if (err instanceof AppError) throw err;
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

@@ -46,6 +46,9 @@ const corsOrigin = process.env.CORS_ORIGIN || '';
 const ALLOWED_ORIGINS = corsOrigin
   ? corsOrigin.split(',').map(s => s.trim())
   : [];
+if (ALLOWED_ORIGINS.length === 0 && process.env.NODE_ENV === 'production') {
+  logger.warn('[CORS] CORS_ORIGIN not configured. Set it for better security. Falling back to allow all origins.');
+}
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // No origin (native app, curl, server-to-server, same-origin simple requests) — allow
@@ -56,9 +59,6 @@ const corsOptions: cors.CorsOptions = {
     if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     // No CORS_ORIGIN configured — allow all (CSRF protection via SameSite cookie)
     if (ALLOWED_ORIGINS.length === 0) {
-      if (process.env.NODE_ENV === 'production') {
-        logger.warn('[CORS] CORS_ORIGIN not configured. Set it for better security. Falling back to allow all origins.');
-      }
       return callback(null, true);
     }
     callback(null, false);
@@ -232,12 +232,13 @@ app.use((err: any, req: any, res: any, next: any) => {
 
   if (err instanceof AppError) {
     logger.error({ requestId, errorCode: err.errorCode, message: err.message }, 'AppError');
-    return res.status(err.httpStatus).json(err.toJSON(isProd));
+    // 内部管理系统：始终返回真实错误信息，便于诊断（不再隐藏 500 错误）
+    return res.status(err.httpStatus).json({ error: err.message, code: err.errorCode });
   }
 
-  logger.error({ requestId, method: req.method, path: req.path, error: err.message }, 'Unhandled ERROR');
+  logger.error({ requestId, method: req.method, path: req.path, error: err.message, stack: err.stack }, 'Unhandled ERROR');
   res.status(err.status || 500).json({
-    error: isProd ? '服务器内部错误' : (err.message || '服务器内部错误'),
+    error: err.message || '服务器内部错误',
     code: 'SRV_001'
   });
 });

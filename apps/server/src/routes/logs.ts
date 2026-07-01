@@ -73,7 +73,7 @@ router.get('/', authMiddleware, (req: AuthRequest, res) => {
     const totalPages = Math.ceil(total / ps);
     res.json({ data: rows, total, page: p, pageSize: ps, totalPages });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

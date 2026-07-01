@@ -38,7 +38,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true, data: { dividends: enriched, shareholders, balance } });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -65,7 +65,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: { id: dividendId }, message: '分红创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -95,7 +95,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     updateDividend();
     res.json({ success: true, data: null, message: '分红更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -120,7 +120,7 @@ router.put('/:id/archive', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ success: true, data: null, message: '分红已归档' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.delete('/:id', (req: AuthRequest, res: Response) => {
@@ -136,7 +136,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     deleteDiv();
     res.json({ success: true, data: null, message: '分红已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

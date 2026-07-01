@@ -65,7 +65,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
     res.json({ notifications, total, unread, page: p, pageSize: ps });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -75,7 +75,7 @@ router.get('/unread-count', (req: AuthRequest, res: Response) => {
     const result = db.prepare("SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0").get(req.user.id) as any;
     res.json({ count: result.count });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -92,7 +92,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     ).run(user_id, title, link || '', type || '', content || '', store_id || null);
     res.json({ id: result.lastInsertRowid, message: '通知发送成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -101,7 +101,7 @@ router.put('/:id/read', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '已标记为已读' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -110,7 +110,7 @@ router.put('/read-all', (req: AuthRequest, res: Response) => {
     db.prepare('UPDATE notifications SET read = 1 WHERE user_id = ?').run(req.user.id);
     res.json({ message: '全部已读' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -119,7 +119,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     db.prepare('DELETE FROM notifications WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
     res.json({ message: '通知已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

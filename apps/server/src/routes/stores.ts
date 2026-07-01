@@ -42,7 +42,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }));
     res.json({ stores: enriched });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -61,7 +61,7 @@ router.get('/:storeId', (req: AuthRequest, res: Response) => {
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(store.id);
     res.json({ ...store, staff_count: staffCount, shareholders });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -87,13 +87,12 @@ router.post('/', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '创建门店',
       storeId,
-      storeName: name,
-      detail: '新门店已创建'
+      detail: '新门店已创建，' + name
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: storeId, message: '门店创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -122,12 +121,12 @@ router.put('/:storeId', (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '修改门店',
       storeId: req.params.storeId,
-      detail: '门店信息已更新'
+      detail: '门店信息已更新' + (name ? '，' + name : '')
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -170,13 +169,12 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
       type: 'store',
       action: '删除门店',
       storeId: req.params.id,
-      storeName: store.name,
-      detail: '门店已删除'
+      detail: '门店已删除，' + store.name
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '门店已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -190,7 +188,7 @@ router.get('/:storeId/stats', (req: AuthRequest, res: Response) => {
     const expense = (db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM entries WHERE store_id=? AND type IN ('支出','expense') AND date=?" + entryFilterClause(req.user.role)).get(storeId, today) as any)?.total || 0;
     const staffCount = (db.prepare('SELECT COUNT(*) as count FROM users WHERE store_id = ?').get(storeId) as any).count || 0;
     res.json({ income, expense, profit: income - expense, staffCount });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
@@ -200,7 +198,7 @@ router.get('/:storeId/staff', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const staff = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at, health_cert_url, health_cert_name, health_cert_expiry, health_cert_verified FROM users WHERE store_id = ?').all(storeId);
     res.json({ staff });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
@@ -239,7 +237,7 @@ router.post('/:storeId/staff', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ id: result.lastInsertRowid, message: '员工添加成功，默认密码: 123456，首次登录需修改密码' });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
@@ -290,7 +288,7 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
     , operatorName: req.user.name || req.user.username});
 
     res.json({ message: '员工信息已更新' });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
@@ -309,7 +307,7 @@ router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
       operatorName: req.user.name || req.user.username
     });
     res.json({ message: '员工已删除' });
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
@@ -319,7 +317,7 @@ router.get('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     const storeId = req.params.storeId;
     const shareholders = db.prepare('SELECT * FROM shareholders WHERE store_id = ?').all(storeId);
     res.json(shareholders);
-  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
@@ -337,7 +335,7 @@ router.put('/:storeId/shareholders', (req: AuthRequest, res: Response) => {
     opLog(req.user.id, 0, '更新股东', '更新股东配置');
     res.json({ message: '股东信息更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

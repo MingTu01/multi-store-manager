@@ -28,7 +28,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const users = db.prepare(sql).all(...params);
     res.json(users);
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -43,7 +43,7 @@ router.get('/:id', (req: AuthRequest, res: Response) => {
     if (!u) return res.status(404).json({ error: '用户不存在' });
     res.json(u);
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -65,7 +65,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     opLog(req.user?.id || 0, store_id || 0, '员工', '创建员工 ' + (name || username));
     res.json({ id: result.lastInsertRowid, success: true });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -111,7 +111,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     userCache.invalidate('user_' + req.params.id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -128,7 +128,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     userCache.invalidate('user_' + req.params.id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 

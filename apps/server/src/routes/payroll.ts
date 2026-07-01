@@ -47,7 +47,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }).filter((pr: any) => canSeeAll || pr.items.length > 0);
     res.json({ success: true, data: enriched, pagination: { page: p, pageSize: ps, total } });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -85,7 +85,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ success: true, data: { id: payrollId }, message: '工资单创建成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -114,7 +114,7 @@ router.put('/:id', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ success: true, data: null, message: '工资单更新成功' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -167,7 +167,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     // 工资生成不推送（按需求：只有确认时才推送）
 
     res.json({ success: true, data: { id: payrollId }, message: '工资单生成成功' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
 
 // PUT /:id/confirm
@@ -215,7 +215,7 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: null, message: '工资单已确认' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
@@ -233,7 +233,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
     tx();
     res.json({ success: true, data: null, message: '工资单已删除' });
   } catch (err: any) {
-    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+    res.status(500).json({ error: err.message || '服务器内部错误' });
   }
 });
 
