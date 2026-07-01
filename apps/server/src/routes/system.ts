@@ -1274,7 +1274,10 @@ router.put('/user-notification-settings', async (req: AuthRequest, res: Response
       db.prepare('INSERT INTO user_notification_settings (' + cols.join(',') + ') VALUES (' + cols.map(()=>'?').join(',') + ')').run(...vals);
     }
     res.json({ message: '推送设置已保存' });
-  } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
+  } catch (err: any) {
+    logger.error('[PushSettings] PUT /user-notification-settings failed:', err.message, 'stack:', err.stack, 'body:', JSON.stringify(req.body));
+    res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message });
+  }
 });
 
 // POST test: 测试推送（频率限制 + 角色校验）
