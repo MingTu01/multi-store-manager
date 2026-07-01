@@ -401,6 +401,29 @@ for (const migration of versionedMigrations) {
   }
 }
 
+// === 强制补偿迁移：确保 user_notification_settings 表的所有推送字段都存在 ===
+// 原因：版本化迁移可能因历史原因标记为 success=1 但实际未执行，导致缺列
+// 此处独立强制执行，用 try-catch 忽略 duplicate column，保证字段一定存在
+const forcePushColumns = [
+  'push_salary_confirm', 'push_inventory_alert', 'push_store_alert', 'push_staff_change',
+  'push_entry', 'push_payroll', 'push_dividend', 'push_inventory', 'push_shift', 'push_purchase',
+  'push_health_cert', 'push_staff', 'push_store', 'push_report', 'push_review', 'push_alert',
+  'push_daily_report', 'push_weekly_report', 'push_monthly_report', 'push_review_reminder',
+  'push_bookkeeping_notify', 'push_inventory_notify', 'push_openclose_notify', 'push_purchase_notify',
+  'push_salary_notify', 'push_dividend_notify',
+];
+for (const col of forcePushColumns) {
+  try {
+    db.exec(`ALTER TABLE user_notification_settings ADD COLUMN ${col} INTEGER DEFAULT 1`);
+    logger.info(`[DB] 补偿迁移：添加列 ${col}`);
+  } catch (e: any) {
+    // 已存在则忽略，其他错误记录但不中断
+    if (!e.message.includes('duplicate column')) {
+      logger.warn(`[DB] 补偿迁移失败 ${col}: ${e.message}`);
+    }
+  }
+}
+
 
 // P1: 数据库索引 - 提升查询性能
 const indexes = [
