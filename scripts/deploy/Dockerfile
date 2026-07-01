@@ -19,6 +19,8 @@ RUN apt-get purge -y python3 make g++ && apt-get autoremove -y && rm -rf /var/li
 COPY src ./src/
 COPY tsconfig.json ./
 COPY public ./public/
+# 备份 web-dist 到非 volume 位置，用于启动时同步（解决 volume 缓存旧文件问题）
+RUN cp -r /app/public/web-dist /app/web-dist-seed
 COPY msl.js ./msl.js
 COPY startup-check.js ./startup-check.js
 COPY entrypoint.js ./entrypoint.js

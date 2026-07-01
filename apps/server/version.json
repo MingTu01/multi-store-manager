@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.1",
-  "buildTime": "2026-07-01T00:57:11.112Z",
-  "description": "Fix: 升级链路清理旧web-dist文件"
+  "version": "v2.0.2",
+  "buildTime": "2026-07-01T00:59:15.013Z",
+  "description": "Fix: rebuild后自动同步web-dist解决volume缓存"
 }

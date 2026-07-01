@@ -35,6 +35,31 @@ if (!fs.existsSync(mslBin)) {
   console.log('[Startup] Created msl command');
 }
 
+// --- Step 0: 同步 web-dist（解决 Docker volume 缓存旧前端文件问题）---
+// 镜像构建时备份了 /app/web-dist-seed，每次启动比较 seed 和 volume 里的 index.html
+// 不一致说明镜像更新了但 volume 还是旧文件，自动用 seed 覆盖
+const seedDir = '/app/web-dist-seed';
+const webDistDir = '/app/public/web-dist';
+if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
+  try {
+    const seedIndex = fs.readFileSync(path.join(seedDir, 'index.html'), 'utf8');
+    let volIndex = '';
+    try { volIndex = fs.readFileSync(path.join(webDistDir, 'index.html'), 'utf8'); } catch {}
+    if (seedIndex !== volIndex) {
+      console.log('[Startup] 检测到 web-dist 版本不一致，正在从镜像同步...');
+      execSync('rm -rf ' + webDistDir + '/*', { stdio: 'pipe' });
+      execSync('cp -r ' + seedDir + '/. ' + webDistDir + '/', { stdio: 'pipe' });
+      console.log('[Startup] web-dist 已从镜像同步完成');
+    } else {
+      console.log('[Startup] web-dist 版本一致，跳过同步');
+    }
+  } catch (e) {
+    console.log('[Startup] web-dist 同步检查失败:', e.message);
+  }
+} else {
+  console.log('[Startup] web-dist-seed 不存在，跳过同步（旧版镜像兼容）');
+}
+
 // Run startup-check.js
 console.log('[Startup] Running diagnostic checks...');
 try {
