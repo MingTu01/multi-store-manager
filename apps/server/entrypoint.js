@@ -66,14 +66,47 @@ function cpDirContents(src, dest) {
 }
 const seedDir = '/app/web-dist-seed';
 const webDistDir = '/app/public/web-dist';
+
+// 校验 web-dist 完整性：index.html 存在 + index.html 引用的主 bundle 文件都真实存在
+// 任何一个缺失都说明 volume 被旧文件污染，需要强制从 seed 同步
+function checkWebDistIntegrity(dir) {
+  const indexPath = path.join(dir, 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    return { ok: false, reason: 'index.html 不存在' };
+  }
+  let indexContent = '';
+  try {
+    indexContent = fs.readFileSync(indexPath, 'utf8');
+  } catch (e) {
+    return { ok: false, reason: 'index.html 读取失败: ' + e.message };
+  }
+  // 提取所有 assets/*.js 引用，验证主 bundle 是否存在
+  const refs = indexContent.match(/assets\/[A-Za-z0-9_.\-]+\.js/g) || [];
+  if (refs.length === 0) {
+    return { ok: false, reason: 'index.html 未引用任何 JS bundle' };
+  }
+  for (const ref of refs) {
+    const refPath = path.join(dir, ref);
+    if (!fs.existsSync(refPath)) {
+      return { ok: false, reason: '引用的文件不存在: ' + ref };
+    }
+  }
+  return { ok: true, refs: refs.length };
+}
+
 if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
   try {
     const seedIndex = fs.readFileSync(path.join(seedDir, 'index.html'), 'utf8');
     let volIndex = '';
     try { volIndex = fs.readFileSync(path.join(webDistDir, 'index.html'), 'utf8'); } catch {}
-    if (seedIndex !== volIndex) {
-      console.log('[Startup] 检测到 web-dist 版本不一致，正在从镜像同步...');
-      console.log('[Startup] seed index.html hash:', seedIndex.length, 'bytes');
+
+    // 双重校验：index.html 内容一致 + volume 引用的文件都真实存在
+    const volCheck = checkWebDistIntegrity(webDistDir);
+    const needSync = (seedIndex !== volIndex) || !volCheck.ok;
+
+    if (needSync) {
+      console.log('[Startup] 检测到 web-dist 需要同步，原因:', !volCheck.ok ? volCheck.reason : 'index.html 内容不一致');
+      console.log('[Startup] seed index.html:', seedIndex.length, 'bytes');
       console.log('[Startup] volume index.html:', volIndex ? (volIndex.length + ' bytes') : '不存在');
       // 1. 清空 volume 里的旧文件
       rmrfDirContents(webDistDir);
@@ -82,13 +115,14 @@ if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
       cpDirContents(seedDir, webDistDir);
       console.log('[Startup] 新文件已拷贝');
       // 3. 验证
-      if (fs.existsSync(path.join(webDistDir, 'index.html'))) {
-        console.log('[Startup] web-dist 已从镜像同步完成');
+      const afterCheck = checkWebDistIntegrity(webDistDir);
+      if (afterCheck.ok) {
+        console.log('[Startup] web-dist 已从镜像同步完成，校验通过 (' + afterCheck.refs + ' 个 JS 引用)');
       } else {
-        console.error('[Startup] ERROR: 同步后 index.html 不存在！');
+        console.error('[Startup] ERROR: 同步后校验失败: ' + afterCheck.reason);
       }
     } else {
-      console.log('[Startup] web-dist 版本一致，跳过同步');
+      console.log('[Startup] web-dist 完整性校验通过 (' + volCheck.refs + ' 个 JS 引用)，跳过同步');
     }
   } catch (e) {
     console.error('[Startup] web-dist 同步检查失败:', e.message);
