@@ -162,10 +162,12 @@ function atomicReplaceSrc(newSrcDir: string, destSrc: string): void {
   }
 }
 
-// 同步 src-seed：升级成功后把最新 src 复制到 /app/src-seed
-// 这样容器 down/up 后 entrypoint.js 能从 src-seed 恢复升级后的版本
+// 同步 src-seed：升级成功后把最新 src 复制到 /app/data/src-seed（持久化 volume）
+// 这样容器 down/up 后 entrypoint.js 能从 data/src-seed 恢复升级后的版本
+// 关键：src-seed 必须在持久化 volume（/app/data），不能在镜像层，
+// 否则容器 down/up 后 src-seed 会与 src 一起回退，无法起到恢复作用
 function syncSrcSeed(srcDir: string): void {
-  const seedDir = join(BASE_DIR, 'src-seed');
+  const seedDir = join(BASE_DIR, 'data', 'src-seed');
   try {
     // 读取当前版本号，写入 src-seed/version.json 便于诊断
     let version = '';
@@ -177,7 +179,7 @@ function syncSrcSeed(srcDir: string): void {
         try {
           if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
           else unlinkSync(target);
-        } catch (e: any) { logger.warn('[Upgrade] 清理旧 src-seed 失败:', entry.name, e.message); }
+        } catch (e: any) { logger.warn('[Upgrade] 清理旧 data/src-seed 失败:', entry.name, e.message); }
       }
     } else {
       mkdirSync(seedDir, { recursive: true });
@@ -185,10 +187,10 @@ function syncSrcSeed(srcDir: string): void {
     // 拷贝最新 src 到 seed
     cpSync(srcDir, seedDir, { recursive: true, force: true });
     // 写入版本标记
-    writeFileSync(join(seedDir, 'version.json'), JSON.stringify({ version, syncedAt: new Date().toISOString() }, null, 2));
-    logger.info('[Upgrade] src-seed 已同步，版本:', version);
+    writeFileSync(join(seedDir, 'version.json'), JSON.stringify({ version, syncedAt: new Date().toISOString(), source: 'upgrade' }, null, 2));
+    logger.info('[Upgrade] data/src-seed 已同步，版本:', version);
   } catch (e: any) {
-    logger.warn('[Upgrade] src-seed 同步失败（非致命，下次容器 down/up 可能回退到镜像版本）:', e.message);
+    logger.warn('[Upgrade] data/src-seed 同步失败（非致命，下次容器 down/up 可能回退到镜像版本）:', e.message);
   }
 }
 
