@@ -164,27 +164,7 @@ router.post('/generate', (req: AuthRequest, res: Response) => {
     });
     tx();
 
-    // Send individual salary notifications to each employee
-    for (const item of items) {
-      if (item.user_id) {
-        triggerNotification({
-          type: 'payroll',
-          action: '工资已生成',
-          storeId,
-          detail: payrollPeriod + ' 工资 ¥' + item.total_amount.toFixed(2),
-          targetUserId: item.user_id,
-          operatorName: req.user.name || req.user.username
-        });
-      }
-    }
-    // Notify admin about total
-    triggerNotification({
-      type: 'payroll',
-      action: '生成工资单',
-      storeId,
-      detail: payrollPeriod + ' 工资单已生成, 总金额 ¥' + totalAmount.toFixed(2),
-      operatorName: req.user.name || req.user.username
-    });
+    // 工资生成不推送（按需求：只有确认时才推送）
 
     res.json({ success: true, data: { id: payrollId }, message: '工资单生成成功' });
   } catch (err: any) { res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
@@ -210,21 +190,21 @@ router.put('/:id/confirm', (req: AuthRequest, res: Response) => {
     }
     opLog(req.user.id, req.params.storeId, '确认工资单', '确认工资单 #' + req.params.id);
 
-    // Notify admin about total
+    // 工资确认：通知 ADMIN + 店铺管理员 + 店长（用 salary_confirm 类型）
     triggerNotification({
-      type: 'payroll',
+      type: 'salary_confirm',
       action: '确认工资单',
       storeId: req.params.storeId,
       detail: '工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认, 总金额 ¥' + payroll.total_amount.toFixed(2),
       operatorName: req.user.name || req.user.username
     });
 
-    // 通知相关员工
+    // 通知相关员工（用 salary_confirm 类型）
     const payrollItems = db.prepare('SELECT user_id FROM payroll_items WHERE payroll_id = ?').all(req.params.id) as any[];
     for (const item of payrollItems) {
       if (item.user_id) {
         triggerNotification({
-          type: 'payroll',
+          type: 'salary_confirm',
           action: '工资已确认',
           storeId: req.params.storeId,
           detail: '您的工资单 #' + req.params.id + ' (' + payroll.period + ') 已确认',

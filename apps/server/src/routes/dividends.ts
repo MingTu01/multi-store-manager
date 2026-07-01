@@ -61,12 +61,7 @@ router.post('/', (req: AuthRequest, res: Response) => {
       stmt.run(dividendId, sh.name, sh.ratio, amount);
     }
 
-    triggerNotification({
-      type: 'dividend',
-      action: '创建分红',
-      storeId,
-      detail: '新分红已创建, 总金额 ¥' + Number(total_amount).toFixed(2) + (note ? ', 备注: ' + note : '')
-    , operatorName: req.user.name || req.user.username});
+    // 分红创建不推送（按需求：只有归档时才推送）
 
     res.json({ success: true, data: { id: dividendId }, message: '分红创建成功' });
   } catch (err: any) {

@@ -70,7 +70,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; bgOff: string; text: string;
 
 const PUSH_OPTIONS: PushOption[] = [
   // 经营报表
-  { key: 'push_daily_report', label: '每日经营简报', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: true },
+  { key: 'push_daily_report', label: '每日经营简报', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'medium', defaultSelected: true },
   { key: 'push_weekly_report', label: '每周经营报告', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'low', defaultSelected: false },
   { key: 'push_monthly_report', label: '月度经营报告', category: '经营报表', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'low', defaultSelected: false },
   // 异常与审核
@@ -83,12 +83,13 @@ const PUSH_OPTIONS: PushOption[] = [
   { key: 'push_bookkeeping_notify', label: '记账通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
   { key: 'push_inventory_notify', label: '盘点通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
   { key: 'push_purchase_notify', label: '进货通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
+  { key: 'push_staff', label: '员工通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
+  { key: 'push_store', label: '门店通知', category: '门店运营', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'low', defaultSelected: false },
   // 人事与财务
-  { key: 'push_salary_confirm', label: '工资确认通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: true },
-  { key: 'push_salary_notify', label: '工资发放通知', category: '人事财务', roles: ['STAFF'], priority: 'medium', defaultSelected: true },
+  { key: 'push_salary_confirm', label: '工资确认通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'STAFF'], priority: 'medium', defaultSelected: true },
   { key: 'push_dividend_notify', label: '分红发放通知', category: '人事财务', roles: ['SHAREHOLDER', 'ADMIN'], priority: 'medium', defaultSelected: true },
-  { key: 'push_health_cert', label: '健康证到期提醒', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'high', defaultSelected: true },
-  { key: 'push_staff_change', label: '员工变动通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN'], priority: 'medium', defaultSelected: false },
+  { key: 'push_health_cert', label: '健康证到期提醒', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'high', defaultSelected: true },
+  { key: 'push_staff_change', label: '员工变动通知', category: '人事财务', roles: ['ADMIN', 'STORE_ADMIN', 'MANAGER'], priority: 'medium', defaultSelected: false },
 ];
 
 const INPUT_CLS =

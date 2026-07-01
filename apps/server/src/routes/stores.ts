@@ -294,8 +294,18 @@ router.put('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
 router.delete('/:storeId/staff/:id', (req: AuthRequest, res: Response) => {
   try {
     if (!isStoreAdmin(req.user.role)) throw new AppError(ErrorCode.PERM_DENIED, '无权限', 403);
+    // 先查询员工信息用于通知
+    const staff = db.prepare('SELECT name, job_title FROM users WHERE id = ? AND store_id = ?').get(req.params.id, req.params.storeId) as any;
     db.prepare('DELETE FROM users WHERE id = ? AND store_id = ? AND role != ?').run(req.params.id, req.params.storeId, 'ADMIN');
     opLog(req.user.id, req.params.storeId, '删除员工', '删除员工 #' + req.params.id);
+    // 触发人员变动通知（ADMIN + 店铺管理员 + 店长）
+    triggerNotification({
+      type: 'staff_change',
+      action: '删除员工',
+      storeId: req.params.storeId,
+      detail: '员工 #' + req.params.id + (staff ? ' ' + (staff.name || '') + (staff.job_title ? ' (' + staff.job_title + ')' : '') : '') + ' 已删除',
+      operatorName: req.user.name || req.user.username
+    });
     res.json({ message: '员工已删除' });
   } catch (err: any) { if (err instanceof AppError) throw err; res.status(500).json({ error: process.env.NODE_ENV === "production" ? "服务器内部错误" : err.message }); }
 });

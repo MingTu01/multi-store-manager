@@ -80,11 +80,12 @@ export function getSettings(): any {
 }
 
 // ── 角色可接收的推送类型 ──
+// MANAGER 只收日报，不收周报/月报/待处理提醒
 const ROLE_ALLOWED_TYPES: Record<string, string[]> = {
   ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','store_alert','entry','inventory','shift','payroll','dividend','health_cert','staff','store','purchase','salary_confirm','staff_change'],
-  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','entry','inventory','shift','purchase','salary_confirm','health_cert','staff_change'],
-  MANAGER: ['entry','inventory','shift','purchase'],
-  STAFF: ['payroll'],
+  STORE_ADMIN: ['daily_report','weekly_report','monthly_report','review_reminder','alert','inventory_alert','entry','inventory','shift','purchase','salary_confirm','health_cert','staff_change','staff','store'],
+  MANAGER: ['daily_report','entry','inventory','shift','purchase','health_cert','staff','store'],
+  STAFF: ['payroll','salary_confirm'],
   SHAREHOLDER: ['dividend'],
 };
 

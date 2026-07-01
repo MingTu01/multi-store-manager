@@ -78,11 +78,13 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
 
   const userIds: number[] = [];
 
-  // 报表类通知：发给 ADMIN（全局）或店铺管理员（单店铺）
+  // 报表类通知：MANAGER 只收 daily_report，不收 weekly/monthly_report/review_reminder
   if (type === 'daily_report' || type === 'weekly_report' || type === 'monthly_report' || type === 'review_reminder') {
     if (storeId) {
-      // 单店铺报表：发给该店铺的管理员
-      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
+      // 单店铺报表：daily_report 发给 STORE_ADMIN+MANAGER；其他只发给 STORE_ADMIN
+      const roles = type === 'daily_report' ? [ROLES.STORE_ADMIN, ROLES.MANAGER] : [ROLES.STORE_ADMIN];
+      const placeholders = roles.map(() => '?').join(',');
+      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (' + placeholders + ') AND status = ?').all(storeId, ...roles, 'active') as any[];
       storeAdmins.forEach((u: any) => userIds.push(u.id));
     } else {
       // 全局报表：发给所有 ADMIN
@@ -92,21 +94,25 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
     return [...new Set(userIds)];
   }
 
-  // 告警类通知：发给 ADMIN + 店铺管理员
+  // 告警类通知：发给 ADMIN + 店铺管理员（alert 类全发 ADMIN）
   if (type === 'alert') {
     const admins = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.ADMIN, 'active') as any[];
     admins.forEach((u: any) => userIds.push(u.id));
     return [...new Set(userIds)];
   }
 
-  // 其他通知类型
+  // 其他通知类型：ADMIN + 店铺管理员 + 店长
   const admins = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.ADMIN, 'active') as any[];
   admins.forEach((u: any) => userIds.push(u.id));
 
   if (storeId) {
-    if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase' || type === 'health_cert' || type === 'staff' || type === 'store' || type === 'salary_confirm' || type === 'staff_change' || type === 'inventory_alert' || type === 'store_alert') {
-      const storeAdmins = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
-      storeAdmins.forEach((u: any) => userIds.push(u.id));
+    // 业务事件推送：ADMIN + 店铺管理员 + 店长
+    if (type === 'entry' || type === 'inventory' || type === 'shift' || type === 'purchase' ||
+        type === 'health_cert' || type === 'staff' || type === 'store' ||
+        type === 'salary_confirm' || type === 'staff_change' ||
+        type === 'inventory_alert' || type === 'store_alert') {
+      const storeUsers = db.prepare('SELECT id FROM users WHERE store_id = ? AND role IN (?, ?) AND status = ?').all(storeId, ROLES.STORE_ADMIN, ROLES.MANAGER, 'active') as any[];
+      storeUsers.forEach((u: any) => userIds.push(u.id));
     }
 
     if (type === 'dividend') {
@@ -115,7 +121,8 @@ function getTargetUsers(type: NotifyType, storeId?: string, targetUserId?: numbe
     }
   }
 
-  if (type === 'payroll') {
+  // payroll: 通知所有员工（工资确认时）
+  if (type === 'payroll' || type === 'salary_confirm') {
     const staffs = db.prepare('SELECT id FROM users WHERE role = ? AND status = ?').all(ROLES.STAFF, 'active') as any[];
     staffs.forEach((u: any) => userIds.push(u.id));
   }
@@ -129,7 +136,14 @@ export function triggerNotification(params: NotifyParams): void {
     const title = getNotifyTitle(type);
     const operator = operatorName ? '[' + operatorName + '] ' : '';
     const content = operator + action + (detail ? ': ' + detail : '');
-    const targets = getTargetUsers(type, storeId, targetUserId);
+    // health_cert 特殊处理：同时发给 targetUserId（员工本人）+ ADMIN + 店铺管理员 + 店长
+    let targets: number[];
+    if (type === 'health_cert' && targetUserId && storeId) {
+      const managers = getTargetUsers(type, storeId, undefined);
+      targets = [...new Set([targetUserId, ...managers])];
+    } else {
+      targets = getTargetUsers(type, storeId, targetUserId);
+    }
     const now = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).replace('T', ' ').slice(0, 19);
 
     // Generate link based on notification type
