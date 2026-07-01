@@ -96,13 +96,73 @@ if (NEED_INSTALL) {
   console.log('[Startup] node_modules OK, skipping npm install');
 }
 
-// --- Step 3: Start the application with crash recovery ---
+// --- Step 3: Start the application with crash recovery + auto-rollback ---
 console.log('');
 console.log('[Startup] Starting application...');
 console.log('');
 
 let crashCount = 0;
 let crashTimes = [];
+let rollbackAttempted = false;
+
+// 自动回滚：从 backups/code-backups 找最近的 pre-upgrade-*.zip 恢复
+function attemptAutoRollback() {
+  if (rollbackAttempted) return false; // 只回滚一次
+  rollbackAttempted = true;
+  const backupDir = path.join(BASE_DIR, 'backups', 'code-backups');
+  if (!fs.existsSync(backupDir)) {
+    console.error('[Rollback] No code-backups directory');
+    return false;
+  }
+  const backups = fs.readdirSync(backupDir)
+    .filter(f => f.startsWith('pre-upgrade-') && f.endsWith('.zip'))
+    .sort().reverse();
+  if (backups.length === 0) {
+    console.error('[Rollback] No pre-upgrade backup found');
+    return false;
+  }
+  const latest = backups[0];
+  const zipPath = path.join(backupDir, latest);
+  console.error('[Rollback] Restoring from backup:', latest);
+  try {
+    // 用 AdmZip 解压并恢复 src 和 web-dist
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(zipPath);
+    // 恢复 src
+    if (zip.getEntry('src/') || zip.getEntries().some(e => e.entryName.startsWith('src/'))) {
+      const srcDir = path.join(BASE_DIR, 'src');
+      // 清空旧 src
+      try { execSync('rm -rf ' + srcDir + '/*', { stdio: 'pipe' }); } catch {}
+      zip.extractEntryTo('src/', BASE_DIR, false, false);
+      console.error('[Rollback] src restored');
+    }
+    // 恢复 web-dist
+    if (zip.getEntries().some(e => e.entryName.startsWith('web-dist/'))) {
+      const webDistDir = path.join(BASE_DIR, 'public', 'web-dist');
+      try { execSync('rm -rf ' + webDistDir + '/*', { stdio: 'pipe' }); } catch {}
+      zip.extractEntryTo('web-dist/', path.join(BASE_DIR, 'public'), false, false);
+      console.error('[Rollback] web-dist restored');
+    }
+    // 恢复 package.json
+    const pkgEntry = zip.getEntry('package.json');
+    if (pkgEntry) {
+      fs.writeFileSync(path.join(BASE_DIR, 'package.json'), pkgEntry.getData().toString('utf8'));
+      console.error('[Rollback] package.json restored');
+    }
+    // 重新 npm install
+    try {
+      execSync('npm install --omit=dev --ignore-scripts', { cwd: BASE_DIR, stdio: 'pipe', timeout: 120000 });
+      console.error('[Rollback] npm install completed');
+    } catch (e) {
+      console.error('[Rollback] npm install failed:', e.message);
+    }
+    console.error('[Rollback] Restore complete, restarting...');
+    return true;
+  } catch (e) {
+    console.error('[Rollback] Failed:', e.message);
+    return false;
+  }
+}
 
 function startApp() {
   const child = spawn('node', ['--import', 'tsx', 'src/index.ts'], {
@@ -128,12 +188,23 @@ function startApp() {
       console.error('');
       console.error('========================================');
       console.error('  APPLICATION CRASHED ' + crashCount + ' TIMES');
-      console.error('  Waiting 60s before retry...');
-      console.error('  Use "docker exec -it <container> node /app/msl.js" for recovery');
+      console.error('  Attempting auto-rollback...');
       console.error('========================================');
       console.error('');
-      // Sleep 60s then retry (avoids tight crash loop)
-      setTimeout(() => { crashTimes = []; crashCount = 0; startApp(); }, 60000);
+      // 尝试自动回滚
+      const rolledBack = attemptAutoRollback();
+      if (rolledBack) {
+        // 回滚成功，重置计数，重启
+        crashTimes = [];
+        crashCount = 0;
+        setTimeout(startApp, 3000);
+      } else {
+        console.error('  Auto-rollback failed or no backup available');
+        console.error('  Waiting 60s before retry...');
+        console.error('  Use "docker exec -it <container> node /app/msl.js" for recovery');
+        // Sleep 60s then retry (avoids tight crash loop)
+        setTimeout(() => { crashTimes = []; crashCount = 0; startApp(); }, 60000);
+      }
     } else {
       console.log('[Startup] App exited unexpectedly (code: ' + code + '), restarting...');
       console.log('[Startup] Crash ' + crashCount + '/' + MAX_CRASHES + ' in window');

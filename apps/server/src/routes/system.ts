@@ -35,8 +35,10 @@ function validateCleanupPath(p: string): boolean {
   return true;
 }
 // 安全替换 web-dist 目录：先拷贝到临时目录，验证后清空旧目录再拷贝（兼容 volume mount）
+// 加固版：清理前先备份到 web-dist.bak，全部成功后才删备份；失败自动回滚
 function safeReplaceWebDist(newWebDistSrc: string, destWebDist: string): void {
   const tmpDir = join(BASE_DIR, 'public', 'web-dist.tmp.' + Date.now());
+  const bakDir = join(BASE_DIR, 'public', 'web-dist.bak.' + Date.now());
   try {
     // 1. 拷贝新文件到临时目录
     mkdirSync(tmpDir, { recursive: true });
@@ -47,8 +49,10 @@ function safeReplaceWebDist(newWebDistSrc: string, destWebDist: string): void {
       throw new Error('新 web-dist 缺少 index.html，拷贝不完整');
     }
 
-    // 3. 清空旧 web-dist 内容（不删目录本身，兼容 Docker volume mount 挂载点）
+    // 3. 备份旧 web-dist（用于失败回滚）
     if (existsSync(destWebDist)) {
+      cpSync(destWebDist, bakDir, { recursive: true, force: true });
+      // 清空旧 web-dist 内容（不删目录本身，兼容 volume mount 挂载点）
       for (const entry of readdirSync(destWebDist, { withFileTypes: true })) {
         const target = join(destWebDist, entry.name);
         try {
@@ -63,9 +67,116 @@ function safeReplaceWebDist(newWebDistSrc: string, destWebDist: string): void {
     // 4. 拷贝新内容到 web-dist
     cpSync(tmpDir, destWebDist, { recursive: true, force: true });
 
+    // 5. 验证拷贝成功
+    if (!existsSync(join(destWebDist, 'index.html'))) {
+      throw new Error('web-dist 拷贝后验证失败，index.html 不存在');
+    }
+
+    // 6. 成功，删除备份
+    try { rmSync(bakDir, { recursive: true, force: true }); } catch {}
     logger.info('[Upgrade] web-dist 安全替换成功（旧文件已清理）');
+  } catch (err) {
+    // 回滚：从备份恢复
+    logger.error('[Upgrade] web-dist 替换失败，正在回滚:', (err as Error).message);
+    try {
+      if (existsSync(bakDir)) {
+        for (const entry of readdirSync(destWebDist, { withFileTypes: true })) {
+          const target = join(destWebDist, entry.name);
+          try {
+            if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
+            else unlinkSync(target);
+          } catch {}
+        }
+        cpSync(bakDir, destWebDist, { recursive: true, force: true });
+        logger.info('[Upgrade] web-dist 已从备份回滚');
+      }
+    } catch (e: any) { logger.error('[Upgrade] web-dist 回滚失败:', e.message); }
+    throw err;
   } finally {
     try { if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try { if (existsSync(bakDir)) rmSync(bakDir, { recursive: true, force: true }); } catch {}
+  }
+}
+
+// 原子替换 src 目录：备份旧 src → 拷贝新 src → 验证 → 失败回滚
+function atomicReplaceSrc(newSrcDir: string, destSrc: string): void {
+  const bakDir = destSrc + '.bak.' + Date.now();
+  const tmpDir = destSrc + '.tmp.' + Date.now();
+  try {
+    // 1. 拷贝新 src 到临时目录
+    mkdirSync(tmpDir, { recursive: true });
+    cpSync(newSrcDir, tmpDir, { recursive: true, force: true });
+
+    // 2. 验证关键文件存在（至少要有 index.ts 或 index.js）
+    const hasIndex = existsSync(join(tmpDir, 'index.ts')) || existsSync(join(tmpDir, 'index.js'));
+    if (!hasIndex) {
+      throw new Error('新 src 目录缺少入口文件 index.ts/index.js');
+    }
+
+    // 3. 备份旧 src（重命名，原子操作）
+    if (existsSync(destSrc)) {
+      try { rmSync(bakDir, { recursive: true, force: true }); } catch {}
+      cpSync(destSrc, bakDir, { recursive: true, force: true });
+      // 清空旧 src
+      for (const entry of readdirSync(destSrc, { withFileTypes: true })) {
+        const target = join(destSrc, entry.name);
+        try {
+          if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
+          else unlinkSync(target);
+        } catch (e: any) { logger.warn('[Upgrade] 清理旧 src 文件失败:', entry.name, e.message); }
+      }
+    } else {
+      mkdirSync(destSrc, { recursive: true });
+    }
+
+    // 4. 拷贝新内容
+    cpSync(tmpDir, destSrc, { recursive: true, force: true });
+
+    // 5. 验证
+    if (!existsSync(join(destSrc, 'index.ts')) && !existsSync(join(destSrc, 'index.js'))) {
+      throw new Error('src 拷贝后验证失败，入口文件不存在');
+    }
+
+    // 6. 成功，删备份
+    try { rmSync(bakDir, { recursive: true, force: true }); } catch {}
+    logger.info('[Upgrade] src 原子替换成功');
+  } catch (err) {
+    logger.error('[Upgrade] src 替换失败，正在回滚:', (err as Error).message);
+    try {
+      if (existsSync(bakDir)) {
+        for (const entry of readdirSync(destSrc, { withFileTypes: true })) {
+          const target = join(destSrc, entry.name);
+          try {
+            if (entry.isDirectory()) rmSync(target, { recursive: true, force: true });
+            else unlinkSync(target);
+          } catch {}
+        }
+        cpSync(bakDir, destSrc, { recursive: true, force: true });
+        logger.info('[Upgrade] src 已从备份回滚');
+      }
+    } catch (e: any) { logger.error('[Upgrade] src 回滚失败:', e.message); }
+    throw err;
+  } finally {
+    try { if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try { if (existsSync(bakDir)) rmSync(bakDir, { recursive: true, force: true }); } catch {}
+  }
+}
+
+// 从备份恢复（用于 npm install 失败等场景）
+function restoreFromBackup(backupDir: string): void {
+  try {
+    // 恢复 src
+    const bakSrc = join(backupDir, 'src');
+    if (existsSync(bakSrc)) atomicReplaceSrc(bakSrc, join(BASE_DIR, 'src'));
+    // 恢复 web-dist
+    const bakWebDist = join(backupDir, 'web-dist');
+    if (existsSync(bakWebDist)) safeReplaceWebDist(bakWebDist, join(BASE_DIR, 'public', 'web-dist'));
+    // 恢复 package.json
+    const bakPkg = join(backupDir, 'package.json');
+    if (existsSync(bakPkg)) copyFileSync(bakPkg, join(BASE_DIR, 'package.json'));
+    logger.info('[Upgrade] 已从备份恢复代码');
+  } catch (e: any) {
+    logger.error('[Upgrade] 从备份恢复失败:', e.message);
   }
 }
 
@@ -476,7 +587,7 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           broadcastProgress('error', { message: '升级失败: web-dist目录不存在' });
           return;
         }
-        // === 更新服务端代码 ===
+        // === 更新服务端代码（原子替换，失败自动回滚）===
         const sSrc1 = join(workDir, 'server-src');
         const sSrc2 = join(workDir, 'src');
         const sSrc = existsSync(sSrc1) ? sSrc1 : (existsSync(sSrc2) ? sSrc2 : null);
@@ -484,9 +595,26 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           broadcastProgress('error', { message: '升级失败: 服务端代码目录不存在' });
           return;
         }
+        // 升级前备份（用于 npm install 失败时回滚）
+        const upgradeBakDir = join(BASE_DIR, 'data', 'upgrade-bak-' + Date.now());
+        try {
+          mkdirSync(upgradeBakDir, { recursive: true });
+          if (existsSync(join(BASE_DIR, 'src'))) cpSync(join(BASE_DIR, 'src'), join(upgradeBakDir, 'src'), { recursive: true, force: true });
+          if (existsSync(join(BASE_DIR, 'public', 'web-dist'))) cpSync(join(BASE_DIR, 'public', 'web-dist'), join(upgradeBakDir, 'web-dist'), { recursive: true, force: true });
+          if (existsSync(join(BASE_DIR, 'package.json'))) copyFileSync(join(BASE_DIR, 'package.json'), join(upgradeBakDir, 'package.json'));
+          logger.info('[Upgrade] Pre-upgrade backup created:', upgradeBakDir);
+        } catch (e: any) {
+          logger.warn('[Upgrade] Pre-upgrade backup failed (continue):', e.message);
+        }
+
         const srcDest = join(BASE_DIR, 'src');
-        copyDir(sSrc, srcDest);
-        logger.info('[Upgrade] server code updated');
+        try {
+          atomicReplaceSrc(sSrc, srcDest);
+          logger.info('[Upgrade] server code updated (atomic)');
+        } catch (e: any) {
+          broadcastProgress('error', { message: '服务端代码替换失败: ' + e.message });
+          return;
+        }
 
         // === 更新启动脚本和容器工具 ===
         for (const f of ['startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json']) {
@@ -503,17 +631,24 @@ router.post('/upgrade', upload.single('file'), (req: AuthRequest, res: Response)
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
           logger.info('[Upgrade] package.json updated');
         }
-        // === npm install (失败必须中止升级) ===
+        // === npm install (失败必须中止并回滚) ===
         try {
           logger.info('[Upgrade] Running npm install...');
           broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
           execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
           logger.info('[Upgrade] npm install completed');
-        } catch (e) {
-          logger.error('[Upgrade] npm install FAILED:', e.message);
-          broadcastProgress('error', { message: '依赖安装失败，请检查服务器 npm 环境: ' + e.message });
+        } catch (e: any) {
+          logger.error('[Upgrade] npm install FAILED, rolling back:', e.message);
+          broadcastProgress('progress', { step: 3, total: 4, message: '依赖安装失败，正在回滚...' });
+          restoreFromBackup(upgradeBakDir);
+          // 重跑 npm install 恢复依赖
+          try { execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' }); } catch {}
+          broadcastProgress('error', { message: '依赖安装失败，已回滚到升级前状态: ' + e.message });
+          try { rmSync(upgradeBakDir, { recursive: true, force: true }); } catch {}
           return;
         }
+        // npm install 成功，删除升级备份
+        try { rmSync(upgradeBakDir, { recursive: true, force: true }); } catch {}
         // === 后置脚本 ===
         const postUpgradeScript = join(workDir, 'post-upgrade.cjs');
         if (existsSync(postUpgradeScript)) {
@@ -926,14 +1061,31 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         } else {
           throw new Error('更新包中找不到 web-dist 目录');
         }
-        // === 更新服务端代码 ===
+        // === 更新服务端代码（原子替换，失败自动回滚）===
         const srcDir = join(realExtractedFolder, 'src');
         if (!existsSync(srcDir)) {
           throw new Error('更新包中找不到 src/ 目录，更新包格式不正确');
         }
+        // 升级前备份
+        const upgradeBakDir2 = join(BASE_DIR, 'data', 'upgrade-bak-' + Date.now());
+        try {
+          mkdirSync(upgradeBakDir2, { recursive: true });
+          if (existsSync(join(BASE_DIR, 'src'))) cpSync(join(BASE_DIR, 'src'), join(upgradeBakDir2, 'src'), { recursive: true, force: true });
+          if (existsSync(join(BASE_DIR, 'public', 'web-dist'))) cpSync(join(BASE_DIR, 'public', 'web-dist'), join(upgradeBakDir2, 'web-dist'), { recursive: true, force: true });
+          if (existsSync(join(BASE_DIR, 'package.json'))) copyFileSync(join(BASE_DIR, 'package.json'), join(upgradeBakDir2, 'package.json'));
+          logger.info('[Update] Pre-upgrade backup created:', upgradeBakDir2);
+        } catch (e: any) { logger.warn('[Update] Pre-upgrade backup failed (continue):', e.message); }
+
         const destSrc = join(BASE_DIR, 'src');
-        cpSync(srcDir, destSrc, { recursive: true, force: true });
-        logger.info('[Update] server-src updated');
+        try {
+          atomicReplaceSrc(srcDir, destSrc);
+          logger.info('[Update] server-src updated (atomic)');
+        } catch (e: any) {
+          logger.error('[Update] src 替换失败，正在回滚:', e.message);
+          restoreFromBackup(upgradeBakDir2);
+          try { rmSync(upgradeBakDir2, { recursive: true, force: true }); } catch {}
+          throw new Error('服务端代码替换失败: ' + e.message);
+        }
 
         // === 更新启动脚本和容器工具 ===
         for (const f of ['startup-check.js', 'msl.js', 'entrypoint.js', 'tsconfig.json']) {
@@ -946,10 +1098,30 @@ router.post('/do-update', async (req: AuthRequest, res: Response) => {
         broadcastProgress('progress', { step: 3, total: 4, message: '更新服务端代码' });
         await new Promise(r => setTimeout(r, 300));
         const pkgFile = join(realExtractedFolder, 'package.json');
+        const oldPkgContent = existsSync(join(BASE_DIR, 'package.json')) ? readFileSync(join(BASE_DIR, 'package.json'), 'utf8') : '';
         if (existsSync(pkgFile)) {
           copyFileSync(pkgFile, join(BASE_DIR, 'package.json'));
           logger.info('[Update] package.json updated');
+          // 如果 package.json 变化，尝试 npm install（失败回滚）
+          const newPkgContent = readFileSync(pkgFile, 'utf8');
+          if (oldPkgContent && oldPkgContent !== newPkgContent) {
+            try {
+              logger.info('[Update] package.json changed, running npm install...');
+              broadcastProgress('progress', { step: 3, total: 4, message: '正在安装依赖' });
+              execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' });
+              logger.info('[Update] npm install completed');
+            } catch (e: any) {
+              logger.error('[Update] npm install FAILED, rolling back:', e.message);
+              broadcastProgress('progress', { step: 3, total: 4, message: '依赖安装失败，正在回滚...' });
+              restoreFromBackup(upgradeBakDir2);
+              try { execFileSync('npm', ['install', '--omit=dev', '--ignore-scripts'], { cwd: BASE_DIR, timeout: 300000, stdio: 'pipe' }); } catch {}
+              try { rmSync(upgradeBakDir2, { recursive: true, force: true }); } catch {}
+              throw new Error('依赖安装失败，已回滚: ' + e.message);
+            }
+          }
         }
+        // 成功，删升级备份
+        try { rmSync(upgradeBakDir2, { recursive: true, force: true }); } catch {}
         const versionFile = join(realExtractedFolder, 'data', 'version.json');
         if (existsSync(versionFile)) {
           copyFileSync(versionFile, join(BASE_DIR, 'data', 'version.json'));
