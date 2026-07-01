@@ -38,6 +38,32 @@ if (!fs.existsSync(mslBin)) {
 // --- Step 0: 同步 web-dist（解决 Docker volume 缓存旧前端文件问题）---
 // 镜像构建时备份了 /app/web-dist-seed，每次启动比较 seed 和 volume 里的 index.html
 // 不一致说明镜像更新了但 volume 还是旧文件，自动用 seed 覆盖
+// 用 Node.js fs API，避免 shell glob 不展开的问题
+function rmrfDirContents(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const target = path.join(dir, entry.name);
+    try {
+      if (entry.isDirectory()) fs.rmSync(target, { recursive: true, force: true });
+      else fs.unlinkSync(target);
+    } catch (e) {
+      console.log('[Startup] 清理失败:', entry.name, e.message);
+    }
+  }
+}
+function cpDirContents(src, dest) {
+  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      fs.mkdirSync(destPath, { recursive: true });
+      cpDirContents(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
+}
 const seedDir = '/app/web-dist-seed';
 const webDistDir = '/app/public/web-dist';
 if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
@@ -47,14 +73,25 @@ if (fs.existsSync(seedDir) && fs.existsSync(path.join(seedDir, 'index.html'))) {
     try { volIndex = fs.readFileSync(path.join(webDistDir, 'index.html'), 'utf8'); } catch {}
     if (seedIndex !== volIndex) {
       console.log('[Startup] 检测到 web-dist 版本不一致，正在从镜像同步...');
-      execSync('rm -rf ' + webDistDir + '/*', { stdio: 'pipe' });
-      execSync('cp -r ' + seedDir + '/. ' + webDistDir + '/', { stdio: 'pipe' });
-      console.log('[Startup] web-dist 已从镜像同步完成');
+      console.log('[Startup] seed index.html hash:', seedIndex.length, 'bytes');
+      console.log('[Startup] volume index.html:', volIndex ? (volIndex.length + ' bytes') : '不存在');
+      // 1. 清空 volume 里的旧文件
+      rmrfDirContents(webDistDir);
+      console.log('[Startup] 旧文件已清空');
+      // 2. 从 seed 拷贝新文件
+      cpDirContents(seedDir, webDistDir);
+      console.log('[Startup] 新文件已拷贝');
+      // 3. 验证
+      if (fs.existsSync(path.join(webDistDir, 'index.html'))) {
+        console.log('[Startup] web-dist 已从镜像同步完成');
+      } else {
+        console.error('[Startup] ERROR: 同步后 index.html 不存在！');
+      }
     } else {
       console.log('[Startup] web-dist 版本一致，跳过同步');
     }
   } catch (e) {
-    console.log('[Startup] web-dist 同步检查失败:', e.message);
+    console.error('[Startup] web-dist 同步检查失败:', e.message);
   }
 } else {
   console.log('[Startup] web-dist-seed 不存在，跳过同步（旧版镜像兼容）');

@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.4",
-  "buildTime": "2026-07-01T01:23:29.027Z",
-  "description": "修复前端清除渠道配置不生效+新增清除按钮"
+  "version": "v2.0.5",
+  "buildTime": "2026-07-01T01:40:15.970Z",
+  "description": "修复entrypoint web-dist同步用shell glob不展开的bug"
 }
