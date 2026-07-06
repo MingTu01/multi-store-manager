@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, TrendingUp, DollarSign, Divide,
@@ -189,8 +189,46 @@ export default function StoreCalendarDetailPage() {
     return `${d.getMonth() + 1}月${d.getDate()}日 周${weekDays[d.getDay()]}`;
   })() : '';
 
-  // 是否显示添加按钮
-  const canAdd = data?.can_create_handover || data?.can_manage_rest;
+  // 是否今天及以后：过去日期隐藏添加按钮
+  const isPast = (() => {
+    if (!date) return false;
+    const t = new Date();
+    const todayStr = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    return date < todayStr;
+  })();
+  const canAdd = !isPast && (data?.can_create_handover || data?.can_manage_rest);
+
+  // 触摸滑动切换日期：左滑下一日、右滑上一日
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
+  const SWIPE_THRESHOLD = 50;
+  const SWIPE_MAX_VERTICAL = 40;
+
+  const shiftDate = (offset: number) => {
+    if (!storeId || !date) return;
+    const d = new Date(date + 'T00:00:00');
+    d.setDate(d.getDate() + offset);
+    const next = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    nav('/store/' + storeId + '/calendar/' + next);
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+    swipedRef.current = false;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_MAX_VERTICAL) {
+      swipedRef.current = true;
+      if (dx < 0) shiftDate(1);  // 左滑 → 下一日
+      else shiftDate(-1);        // 右滑 → 上一日
+    }
+  };
 
   if (loading) {
     return (
@@ -201,7 +239,11 @@ export default function StoreCalendarDetailPage() {
   }
 
   return (
-    <div className="space-y-3 pb-24">
+    <div
+      className="space-y-3 pb-24"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {/* 顶部日期 */}
       <PageHeader
         title={dateDisplay}
@@ -223,15 +265,15 @@ export default function StoreCalendarDetailPage() {
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-emerald-50/80 p-3 text-center">
               <div className="text-[11px] font-medium text-emerald-500">收入</div>
-              <div className="mt-1 text-lg font-bold text-emerald-600">¥{formatMoney(data.finance.income)}</div>
+              <div className="mt-1 whitespace-nowrap text-lg font-bold text-emerald-600">¥{formatMoney(data.finance.income)}</div>
             </div>
             <div className="rounded-xl bg-rose-50/80 p-3 text-center">
               <div className="text-[11px] font-medium text-rose-500">支出</div>
-              <div className="mt-1 text-lg font-bold text-rose-500">¥{formatMoney(data.finance.expense)}</div>
+              <div className="mt-1 whitespace-nowrap text-lg font-bold text-rose-500">¥{formatMoney(data.finance.expense)}</div>
             </div>
             <div className={'rounded-xl p-3 text-center ' + (data.finance.profit >= 0 ? 'bg-emerald-50/80' : 'bg-rose-50/80')}>
               <div className={'text-[11px] font-medium ' + (data.finance.profit >= 0 ? 'text-emerald-500' : 'text-rose-500')}>盈利</div>
-              <div className={'mt-1 text-lg font-bold ' + (data.finance.profit > 0 ? 'text-emerald-600' : data.finance.profit < 0 ? 'text-rose-500' : 'text-slate-400')}>
+              <div className={'mt-1 whitespace-nowrap text-lg font-bold ' + (data.finance.profit > 0 ? 'text-emerald-600' : data.finance.profit < 0 ? 'text-rose-500' : 'text-slate-400')}>
                 ¥{formatMoney(data.finance.profit)}
               </div>
             </div>

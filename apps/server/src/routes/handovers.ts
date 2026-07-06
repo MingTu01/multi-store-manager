@@ -4,7 +4,6 @@ import { AuthRequest } from '../auth.js';
 import { isAdmin, isManagerOrAbove, isReadonly } from '../lib/roles.js';
 import { sanitizeNote } from '../sanitize.js';
 import { opLog } from '../oplog.js';
-import { triggerNotification } from '../notify-trigger.js';
 import { eventBus } from '../event-bus.js';
 import { localDate } from '../lib/utils.js';
 
@@ -96,14 +95,7 @@ router.post('/daily', (req: AuthRequest, res: Response) => {
 
     opLog(req.user.id, storeId, '日常交接', `提交了 ${handoverDate} 的日常交接`);
 
-    triggerNotification({
-      type: 'shift',
-      action: '日常交接',
-      storeId,
-      detail: `${req.user.name || req.user.username} 提交了交接：${content.substring(0, 50)}`,
-      operatorName: req.user.name || req.user.username
-    });
-
+    // 日常交接仅走站内 SSE 广播，不触发外部推送（避免被标记为开闭店通知）
     eventBus.broadcast({ type: 'handover', action: 'new', storeId });
 
     res.json({ success: true, data: { id: result.lastInsertRowid }, message: '提交成功' });

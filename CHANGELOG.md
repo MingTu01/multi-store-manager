@@ -1,3 +1,18 @@
+## v2.2.9 (2026-07-07)
+
+### 门店端日历单日详情页优化
+
+#### 修复
+- **门店收支金额居中对齐**：在金额 div 上添加 `whitespace-nowrap`，确保金额不换行、完整显示
+- **过去日期隐藏添加按钮**：新增 `isPast` 逻辑判断（比较 URL 中的 `date` 与今天），过去日期 `canAdd = false`，悬浮添加按钮自动隐藏
+- **左右滑动切换日期**：参考日历月份切换的实现，在详情页最外层 div 添加 `onTouchStart/onTouchEnd`，左滑下一日、右滑上一日，滑动阈值同月历（水平 > 50px 且垂直 < 40px）
+- **日常交接不再走外部推送**：删除 `handovers.ts` POST /daily 路由中的 `triggerNotification({ type: 'shift' ... })` 调用，仅保留 `eventBus.broadcast` 站内 SSE 广播，修复日常交接被错误标记为"开闭店通知"并推送到外部的问题
+- **清理未使用 import**：删除 `handovers.ts` 顶部已不再使用的 `triggerNotification` import
+
+#### 影响文件
+- [apps/web/src/pages/store/StoreCalendarDetailPage.tsx](file:///workspace/apps/web/src/pages/store/StoreCalendarDetailPage.tsx)：收支对齐 + 过去日期隐藏按钮 + 滑动切换日期
+- [apps/server/src/routes/handovers.ts](file:///workspace/apps/server/src/routes/handovers.ts)：移除日常交接外部推送 + 清理 import
+
 ## v2.2.7 (2026-07-06)
 
 ### 日历格子文字自适应 + 数字显示优化
