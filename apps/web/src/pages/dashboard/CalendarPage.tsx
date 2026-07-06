@@ -27,9 +27,11 @@ export default function CalendarPage() {
   useEffect(() => { load(); }, [year, month]);
 
   const profitMap: Record<string, number> = {};
+  const openCountMap: Record<string, number> = {};
   if (data?.days) {
     for (const d of data.days) {
       profitMap[d.date] = d.profit;
+      openCountMap[d.date] = d.openCount || 0;
     }
   }
 
@@ -66,10 +68,12 @@ export default function CalendarPage() {
             return <div className="text-[10px] text-slate-300">—</div>;
           }
           const color = profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-rose-500' : 'text-slate-400';
+          const openN = openCountMap[date] || 0;
+          const totalN = data?.storeCount || 0;
           return (
             <div className="space-y-0.5">
               <div className={'text-xs font-semibold ' + color}>{profit > 0 ? '+' : ''}{formatMoney(profit)}</div>
-              <div className="text-[10px] text-slate-400">{data?.storeCount || 0}店</div>
+              <div className="text-[10px] text-slate-400">{openN}/{totalN}店营业</div>
             </div>
           );
         }}

@@ -43,14 +43,23 @@ router.get('/monthly', (req: AuthRequest, res: Response) => {
     // 统计店铺总数
     const storeCount = (db.prepare('SELECT COUNT(*) as c FROM stores').get() as any).c;
 
-    // 统计每日开店数（根据当日最后一次开闭店记录判断）
-    // 简化：直接用 stores.is_open 当前状态（月历不追溯历史开闭店，避免复杂查询）
-    // 当日开店数取当日有开店记录的店铺数
+    // 统计每日开店数：当日有开店记录的店铺数
     const openRows = db.prepare(
-      `SELECT store_id, MAX(created_at) as last_time FROM store_opens
-       WHERE created_at >= ? AND created_at <= ?
-       GROUP BY store_id`
+      `SELECT store_id, date(created_at) as day FROM store_opens
+       WHERE type = 'open' AND created_at >= ? AND created_at <= ?`
     ).all(dateFrom + ' 00:00:00', dateTo + ' 23:59:59') as any[];
+    const openCountMap: Record<string, number> = {};
+    for (const r of openRows) {
+      // 同一店铺同一天可能多次开店记录，用 Set 去重
+      const key = r.store_id + '_' + r.day;
+      openCountMap[key] = 1;
+    }
+    // 计算每日独立开店店铺数
+    const dayOpenCount: Record<string, number> = {};
+    for (const k of Object.keys(openCountMap)) {
+      const [sid, day] = k.split('_');
+      dayOpenCount[day] = (dayOpenCount[day] || 0) + 1;
+    }
 
     // 构建每日数据
     const days: any[] = [];
@@ -65,7 +74,7 @@ router.get('/monthly', (req: AuthRequest, res: Response) => {
         expense,
         profit: income - expense,
         storeCount,
-        openCount: storeCount // 默认全店，实际开闭店状态在 daily 接口精确返回
+        openCount: dayOpenCount[ds] || 0
       });
     }
 
