@@ -131,7 +131,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2.5/2] flex flex-col ' +
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2/2.5] flex flex-col ' +
                 // 今日整格浅色渐变填充（恢复原样式）
                 (isToday && cell.isCurrentMonth
                   ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
