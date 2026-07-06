@@ -1,3 +1,23 @@
+## v2.2.7 (2026-07-06)
+
+### 日历格子文字自适应 + 数字显示优化
+
+#### 修复
+- **比例调整**：`aspect-[2/3]` 改为 `aspect-[2.5/2]`（即 5:4，纵向略瘦高），更合理利用空间
+- **真正的自适应字号**：弃用 cqw clamp 方案（之前字号太小但有空位），改用 `useFitText` hook + canvas 文字宽度测量 + 二分查找最大可容纳字号，让文字撑满格子可用宽度
+  - 新增 [useFitText.ts](file:///workspace/apps/web/src/hooks/useFitText.ts)：用 ResizeObserver 监听容器宽度变化，动态计算字号
+  - 新增 [FitText.tsx](file:///workspace/apps/web/src/components/FitText.tsx)：复用组件
+- **去掉万单位**：日历格子、管理端详情、门店端详情的 formatMoney 都改为显示完整数字，不再用"万"做单位
+
+#### 影响文件
+- `apps/web/src/components/Calendar.tsx`：比例 2.5:2，移除 container-type
+- `apps/web/src/hooks/useFitText.ts`：新增自适应文字 hook
+- `apps/web/src/components/FitText.tsx`：新增 FitText 组件
+- `apps/web/src/pages/dashboard/CalendarPage.tsx`：用 FitText，去掉万单位
+- `apps/web/src/pages/store/StoreCalendarPage.tsx`：用 FitText，去掉万单位
+- `apps/web/src/pages/dashboard/CalendarDetailPage.tsx`：去掉万单位
+- `apps/web/src/pages/store/StoreCalendarDetailPage.tsx`：去掉万单位
+
 ## v2.2.6 (2026-07-06)
 
 ### 日历交互优化

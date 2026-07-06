@@ -12,7 +12,7 @@ import { useConfirm } from '../../components/useConfirm';
 import { api, invalidateCache } from '../../lib/api';
 
 function formatMoney(n: number) {
-  if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + '万';
+  // 不用万做单位，显示完整数字
   return n.toFixed(2);
 }
 

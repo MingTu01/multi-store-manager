@@ -131,7 +131,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2/3] flex flex-col ' +
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2.5/2] flex flex-col ' +
                 // 今日整格浅色渐变填充（恢复原样式）
                 (isToday && cell.isCurrentMonth
                   ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
@@ -156,8 +156,8 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
                   </span>
                 )}
               </div>
-              {/* 自定义内容容器：设为 container 让内部用 cqw 单位自适应字号 */}
-              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden" style={{ containerType: 'inline-size' }}>
+              {/* 自定义内容容器 */}
+              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden">
                 {loading ? (
                   <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
                 ) : renderCell ? (

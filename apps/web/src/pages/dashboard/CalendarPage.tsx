@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar } from '../../components/Calendar';
+import { FitText } from '../../components/FitText';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../lib/api';
 
 function formatMoney(n: number) {
-  if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + '万';
+  // 不用万做单位，显示完整数字
   return n.toFixed(0);
 }
 
@@ -65,7 +66,7 @@ export default function CalendarPage() {
           if (!isCurrentMonth) return null;
           const profit = profitMap[date];
           if (profit === undefined || profit === 0) {
-            return <div className="text-slate-300" style={{ fontSize: 'clamp(7px, 18cqw, 10px)' }}>—</div>;
+            return <div className="text-slate-300 text-[10px]">—</div>;
           }
           // 红绿色区分盈亏，不显示 +/- 符号
           const color = profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-rose-500' : 'text-slate-400';
@@ -73,8 +74,8 @@ export default function CalendarPage() {
           const totalN = data?.storeCount || 0;
           return (
             <div className="space-y-0.5">
-              <div className={'font-semibold whitespace-nowrap ' + color} style={{ fontSize: 'clamp(8px, 22cqw, 11px)' }}>{formatMoney(profit)}</div>
-              <div className="text-slate-400 whitespace-nowrap" style={{ fontSize: 'clamp(7px, 18cqw, 9px)' }}>{openN}/{totalN}店</div>
+              <FitText text={formatMoney(profit)} className={'font-semibold ' + color} minFontSize={8} maxFontSize={14} />
+              <div className="text-slate-400 text-[9px] whitespace-nowrap">{openN}/{totalN}店</div>
             </div>
           );
         }}

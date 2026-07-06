@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from '../../components/Calendar';
+import { FitText } from '../../components/FitText';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../lib/api';
 
 function formatMoney(n: number) {
-  if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + '万';
+  // 不用万做单位，显示完整数字
   return n.toFixed(0);
 }
 
@@ -73,12 +74,12 @@ export default function StoreCalendarPage() {
             // 管理类角色：显示盈利，红绿色区分，不显示 +/- 符号
             const profit = d.profit;
             if (profit === null || profit === undefined) return null;
-            if (profit === 0) return <div className="text-slate-300" style={{ fontSize: 'clamp(7px, 18cqw, 10px)' }}>—</div>;
+            if (profit === 0) return <div className="text-slate-300 text-[10px]">—</div>;
             const color = profit > 0 ? 'text-emerald-600' : 'text-rose-500';
             return (
               <div className="space-y-0.5">
-                <div className={'font-semibold whitespace-nowrap ' + color} style={{ fontSize: 'clamp(8px, 22cqw, 11px)' }}>{formatMoney(profit)}</div>
-                {d.rest_count > 0 && <div className="text-orange-400 whitespace-nowrap" style={{ fontSize: 'clamp(7px, 18cqw, 9px)' }}>{d.rest_count}人休</div>}
+                <FitText text={formatMoney(profit)} className={'font-semibold ' + color} minFontSize={8} maxFontSize={14} />
+                {d.rest_count > 0 && <div className="text-orange-400 text-[9px] whitespace-nowrap">{d.rest_count}人休</div>}
               </div>
             );
           } else {
@@ -87,7 +88,7 @@ export default function StoreCalendarPage() {
               <div className="flex flex-wrap gap-0.5">
                 {d.has_handover && <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title="有交接" />}
                 {d.rest_count > 0 && <span className="inline-block h-1.5 w-1.5 rounded-full bg-orange-400" title={`${d.rest_count}人休息`} />}
-                {d.my_rest && <span className="font-medium whitespace-nowrap text-orange-500" style={{ fontSize: 'clamp(7px, 16cqw, 9px)' }}>我休</span>}
+                {d.my_rest && <span className="text-[9px] font-medium text-orange-500">我休</span>}
               </div>
             );
           }
