@@ -19,12 +19,15 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
   const today = new Date();
   const todayStr = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
 
-  // 计算月历网格（6行7列）
+  // 计算月历网格
   const firstDay = new Date(year, month - 1, 1);
   // 周一为一周第一天：getDay() 返回 0(周日)-6(周六)，转换为周一为首
   const firstDayOfWeek = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month, 0).getDate();
   const prevMonthDays = new Date(year, month - 1, 0).getDate();
+
+  // 5行（35格）优先；装不下时才用6行（42格）
+  const totalCells = (firstDayOfWeek + daysInMonth) <= 35 ? 35 : 42;
 
   const cells: { date: string; isCurrentMonth: boolean; day: number }[] = [];
   // 上月填充
@@ -39,8 +42,8 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push({ date: `${year}-${pad(month)}-${pad(d)}`, isCurrentMonth: true, day: d });
   }
-  // 下月填充至42格（6行）
-  const remaining = 42 - cells.length;
+  // 下月填充
+  const remaining = totalCells - cells.length;
   for (let d = 1; d <= remaining; d++) {
     const nextMonth = month + 1;
     const nextYear = nextMonth > 12 ? year + 1 : year;
@@ -49,7 +52,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
   }
 
   return (
-    <div className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm">
+    <div className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm overflow-hidden">
       {/* 月份切换头部 */}
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
@@ -84,23 +87,31 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative min-h-[72px] sm:min-h-[88px] border-b border-r border-slate-50 p-1.5 sm:p-2 ' +
-                (cell.isCurrentMonth ? 'bg-white/40' : 'bg-slate-50/40') +
+                'relative border-b border-r border-slate-100 p-1.5 sm:p-2 ' +
+                // 今日整格渐变填充
+                (isToday && cell.isCurrentMonth
+                  ? 'bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-50 '
+                  : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
-                (idx >= 35 ? ' border-b-0' : '')
+                (idx >= totalCells - 7 ? ' border-b-0' : '')
               }
             >
+              {/* 日期数字 */}
               <div className="flex items-center justify-between">
                 <span className={
                   'text-xs font-medium ' +
-                  (!cell.isCurrentMonth ? 'text-slate-300' : isToday ? 'flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-white' : 'text-slate-600')
+                  (!cell.isCurrentMonth ? 'text-slate-300' :
+                   isToday ? 'text-indigo-600 font-bold' : 'text-slate-600')
                 }>
                   {cell.day}
                 </span>
-                {isToday && cell.isCurrentMonth && <span className="hidden sm:inline text-[10px] text-indigo-400">今</span>}
+                {isToday && cell.isCurrentMonth && (
+                  <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[9px] font-medium text-white">今</span>
+                )}
               </div>
-              <div className="mt-0.5">
+              {/* 自定义内容填满剩余空间 */}
+              <div className="mt-0.5 min-h-[52px] sm:min-h-[64px]">
                 {loading ? (
                   <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
                 ) : renderCell ? (
