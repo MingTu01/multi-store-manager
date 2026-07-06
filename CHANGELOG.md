@@ -1,3 +1,19 @@
+## v2.2.5 (2026-07-06)
+
+### 移动端日历格子布局优化（修正 v2.2.4）
+
+#### 修复
+- **格子比例**：`aspect-square`（正方形）改为 `aspect-[3/2]`（3:2 长方形），更适合移动端纵向排列
+- **当天背景**：改回原来的浅色渐变 `from-indigo-100/90 via-purple-100/80 to-pink-100/80`（撤销 v2.2.4 的深色渐变）
+- **当天日期数字**：用深色小圆 badge（`bg-indigo-500` 圆形）承载白色加粗放大 20% 的数字（12px → 14px），在浅色背景上清晰可读
+- **内容字号自适应**：内容容器设 `container-type: inline-size`，文字字号用 `clamp(min, Ncqw, max)` 随格子宽度连续缩放，保证全部内容完整显示（不截断）
+- **去掉 ± 符号**：盈利/亏损仅用红绿色区分，不再显示 +/- 前缀
+
+#### 影响文件
+- `apps/web/src/components/Calendar.tsx`：格子比例 3:2，背景恢复浅色，当天数字 badge 样式，容器设 container-type
+- `apps/web/src/pages/dashboard/CalendarPage.tsx`：字号 cqw 自适应，去掉 +/- 符号
+- `apps/web/src/pages/store/StoreCalendarPage.tsx`：字号 cqw 自适应，去掉 +/- 符号
+
 ## v2.2.4 (2026-07-06)
 
 ### 移动端日历格子布局优化

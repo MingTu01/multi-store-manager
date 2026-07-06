@@ -87,31 +87,33 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-square flex flex-col ' +
-                // 今日整格深色渐变填充（让白色日期数字清晰可读）
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[3/2] flex flex-col ' +
+                // 今日整格浅色渐变填充（恢复原样式）
                 (isToday && cell.isCurrentMonth
-                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600 '
+                  ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
                   : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
                 (idx >= totalCells - 7 ? ' border-b-0' : '')
               }
             >
-              {/* 日期数字 - 右上角 */}
+              {/* 日期数字 - 右上角；当天用深色小圆 badge 承载白色加粗放大数字 */}
               <div className="flex justify-end">
-                <span className={
-                  // 当天日期数字：白色加粗 + 放大20%（text-xs 12px → text-sm 14px）
-                  (isToday && cell.isCurrentMonth
-                    ? 'text-sm font-bold text-white '
-                    : 'text-xs font-medium ') +
-                  (!cell.isCurrentMonth ? 'text-slate-300' :
-                   isToday ? '' : 'text-slate-600')
-                }>
-                  {cell.day}
-                </span>
+                {isToday && cell.isCurrentMonth ? (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[14px] font-bold text-white shadow-sm">
+                    {cell.day}
+                  </span>
+                ) : (
+                  <span className={
+                    'text-xs font-medium ' +
+                    (!cell.isCurrentMonth ? 'text-slate-300' : 'text-slate-600')
+                  }>
+                    {cell.day}
+                  </span>
+                )}
               </div>
-              {/* 自定义内容填满剩余空间 - 防止文字换行 */}
-              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden">
+              {/* 自定义内容容器：设为 container 让内部用 cqw 单位自适应字号 */}
+              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden" style={{ containerType: 'inline-size' }}>
                 {loading ? (
                   <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
                 ) : renderCell ? (
