@@ -4,7 +4,7 @@ import { api } from '../../lib/api';
 import { GlassCard } from '../../components/GlassCard';
 import { PageHeader } from '../../components/PageHeader';
 import { Modal } from '../../components/Modal';
-import { Server, Database, Upload, Send, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Edit2, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
+import { Server, Database, Upload, Info, Save, HardDrive, Cpu, RefreshCw, Download, Trash2, RotateCcw, Plus, Check, X, Eye, EyeOff, Loader2, AlertCircle, ScanLine, Settings } from 'lucide-react';
 import { useConfirm } from '../../components/useConfirm';
 import { getBaseURL } from '../../lib/config';
 
@@ -48,15 +48,6 @@ export default function SettingsPage() {
   const [restoreComplete, setRestoreComplete] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const backupFileRef = useRef<HTMLInputElement>(null);
-  const [notifSettings, setNotifSettings] = useState<any>({});
-  // msg state removed - using showToast
-  const [editingChannel, setEditingChannel] = useState<string | null>(null);
-  const [channelForm, setChannelForm] = useState<any>({});
-  const [showSecret, setShowSecret] = useState<Record<string, boolean>>({});
-
-  const [channelStatus, setChannelStatus] = useState<Record<string, boolean>>({});
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; text: string } | null>(null);
   // Upgrade states
   const [upgradeFile, setUpgradeFile] = useState<File | null>(null);
   const [upgradeInfo, setUpgradeInfo] = useState<any>(null);
@@ -80,19 +71,6 @@ export default function SettingsPage() {
   const [ocrSaving, setOcrSaving] = useState(false);
   const [showOcrKey, setShowOcrKey] = useState(false);
 
-  // Notification channels config
-  const channels = [
-    { key: 'pushplus', label: 'PushPlus', fields: [{ f: 'pushplus_token', label: 'Token', secret: true }] },
-    { key: 'wecom', label: '企业微信', fields: [{ f: 'wecom_corpid', label: 'CorpID' }, { f: 'wecom_agentid', label: 'AgentID' }, { f: 'wecom_secret', label: 'Secret', secret: true }, { f: 'wecom_userid', label: 'UserID' }, { f: 'wecom_proxy_url', label: '代理地址' }] },
-  ];
-  const reportOptions = [
-    { key: 'push_daily_report', label: '每日简报' },
-    { key: 'push_weekly_report', label: '每周简报' },
-    { key: 'push_monthly_report', label: '每月简报' },
-    { key: 'push_review_reminder', label: '待审核提醒' },
-    { key: 'push_alert', label: '异常警告' },
-  ];
-
   const showMsg = (ok: boolean, text: string) => { showToast(text, ok ? 'success' : 'error'); };
 
   useEffect(() => { return () => { if (pollRef.current) clearInterval(pollRef.current); }; }, []);
@@ -103,8 +81,6 @@ export default function SettingsPage() {
       api.get('/system/auto-backup').then(setAutoBackup).catch(() => {});
       api.get('/system/backups').then((d: any) => setBackups(d.backups || [])).catch(() => {});
     }
-    // 注：原 `if (tab === 'notif')` 分支已删除——'notif' 不在 Tab 类型中，永不可达。
-    // 通知设置数据现在由 openEditChannel 等交互按需拉取，不再依赖 tab 切换预加载。
     if (tab === 'ocr') {
       api.get('/health-cert/config').then((d: any) => {
         setOcrConfig(d);
@@ -475,60 +451,6 @@ export default function SettingsPage() {
   };
   const handleRefreshPage = () => {
     reloadWithCacheClear();
-  };
-
-  // === Notifications ===
-  const openEditChannel = (key: string) => {
-    setEditingChannel(key);
-    setShowSecret({});
-    setTestResult(null);
-    // 按需拉取最新通知设置（原 tab==='notif' 预加载已删除，此处补偿）
-    api.get('/system/notification-settings').then((d: any) => {
-      setNotifSettings(d);
-      const status: Record<string, boolean> = {};
-      channels.forEach(ch => { status[ch.key] = ch.fields.every(f => d[f.f]); });
-      setChannelStatus(status);
-      setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: d[f.f] || '' }), {}) || {});
-    }).catch(() => {
-      setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: notifSettings[f.f] || '' }), {}) || {});
-    });
-  };
-  const saveChannel = async () => {
-    try {
-      const updated = { ...notifSettings, ...channelForm };
-      await api.put('/system/notification-settings', updated);
-      setNotifSettings(updated);
-      const ch = channels.find(c => c.key === editingChannel);
-      const hasConfig = ch?.fields.every(f => channelForm[f.f]) || false;
-      setChannelStatus(s => ({ ...s, [editingChannel!]: hasConfig }));
-      setEditingChannel(null);
-      showMsg(true, '配置已保存');
-    } catch (e: any) { showMsg(false, e.message || '保存失败'); }
-  };
-  const handleTestChannel = async () => {
-    const ch = channels.find(c => c.key === editingChannel);
-    if (!ch) return;
-    const hasConfig = ch.fields.every(f => channelForm[f.f]);
-    if (!hasConfig) { setTestResult({ ok: false, text: '请先填写所有必填配置项' }); return; }
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const testRes = await api.post('/system/notification-settings/test?type=daily', { config: channelForm });
-      if (testRes.message) {
-        setTestResult({ ok: true, text: '测试成功，推送已发送。请点击“保存”保存配置' });
-      } else {
-        setTestResult({ ok: false, text: '测试失败' });
-      }
-    } catch (e: any) {
-      setTestResult({ ok: false, text: e.message || '测试失败，请检查配置' });
-    } finally {
-      setTesting(false);
-    }
-  };;
-  const handleToggleNotif = async (key: string) => {
-    const updated = { ...notifSettings, [key]: !notifSettings[key] };
-    setNotifSettings(updated);
-    try { await api.put('/system/notification-settings', updated); } catch {}
   };
 
   const inputCls = 'w-full rounded-xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm outline-none transition-all focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 placeholder:text-slate-400';
@@ -915,32 +837,6 @@ export default function SettingsPage() {
         </div>
       </Modal>
 
-{/* === Channel Edit Modal === */}
-      <Modal open={!!editingChannel} onClose={() => setEditingChannel(null)} title={'配置 ' + (channels.find(c => c.key === editingChannel)?.label || '')}>
-        <div className="space-y-4">
-          {editingChannel && channels.find(c => c.key === editingChannel)?.fields.map((f: any) => (
-            <div key={f.f}>
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">{f.label}</label>
-              <div className="relative">
-                <input type={f.secret && !showSecret[f.f] ? 'password' : 'text'} value={channelForm[f.f] || ''} onChange={e => setChannelForm((s: any) => ({ ...s, [f.f]: e.target.value }))} className={inputCls} placeholder={'请输入 ' + f.label} />
-                {f.secret && <button onClick={() => setShowSecret(s => ({ ...s, [f.f]: !s[f.f] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showSecret[f.f] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>}
-              </div>
-            </div>
-          ))}
-          {testResult && (
-            <div className={`flex items-center gap-2 rounded-xl p-3 text-sm ${testResult.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-              {testResult.ok ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
-              {testResult.text}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button onClick={saveChannel} className="flex-1 rounded-xl bg-indigo-500 py-2.5 text-sm font-medium text-white hover:bg-indigo-600">保存</button>
-            <button onClick={handleTestChannel} disabled={testing} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 py-2.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
-              {testing ? <><Loader2 className="h-4 w-4 animate-spin" />测试中...</> : <><Send className="h-4 w-4" />测试</>}
-            </button>
-          </div>
-        </div>
-      </Modal>
     <ConfirmDialog />
     </div>
   );
