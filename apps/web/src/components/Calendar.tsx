@@ -90,7 +90,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
                 'relative border-b border-r border-slate-100 p-1.5 sm:p-2 ' +
                 // 今日整格渐变填充
                 (isToday && cell.isCurrentMonth
-                  ? 'bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-50 '
+                  ? 'bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 '
                   : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
