@@ -88,27 +88,24 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
                 'relative border-b border-r border-slate-100 p-1.5 sm:p-2 ' +
-                // 今日整格渐变填充
+                // 今日整格渐变填充（80% 透明度，柔和不刺眼）
                 (isToday && cell.isCurrentMonth
-                  ? 'bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 '
+                  ? 'bg-gradient-to-br from-indigo-200/80 via-purple-200/80 to-pink-200/80 '
                   : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
                 (idx >= totalCells - 7 ? ' border-b-0' : '')
               }
             >
-              {/* 日期数字 */}
-              <div className="flex items-center justify-between">
+              {/* 日期数字 - 右上角 */}
+              <div className="flex justify-end">
                 <span className={
                   'text-xs font-medium ' +
                   (!cell.isCurrentMonth ? 'text-slate-300' :
-                   isToday ? 'text-indigo-600 font-bold' : 'text-slate-600')
+                   isToday ? 'text-indigo-700 font-bold' : 'text-slate-600')
                 }>
                   {cell.day}
                 </span>
-                {isToday && cell.isCurrentMonth && (
-                  <span className="rounded-full bg-indigo-500 px-1.5 py-0.5 text-[9px] font-medium text-white">今</span>
-                )}
               </div>
               {/* 自定义内容填满剩余空间 */}
               <div className="mt-0.5 min-h-[52px] sm:min-h-[64px]">
