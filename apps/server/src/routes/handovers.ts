@@ -132,7 +132,7 @@ router.put('/daily/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: '只能修改自己的交接记录' });
     }
 
-    db.prepare('UPDATE staff_handovers SET content = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ?').run(sanitizeNote(content), id);
+    db.prepare('UPDATE staff_handovers SET content = ?, updated_at = datetime(\'now\',\'localtime\') WHERE id = ? AND store_id = ?').run(sanitizeNote(content), id, storeId);
 
     eventBus.broadcast({ type: 'handover', action: 'update', storeId });
 
@@ -158,7 +158,7 @@ router.delete('/daily/:id', (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: '只能删除自己的交接记录' });
     }
 
-    db.prepare('DELETE FROM staff_handovers WHERE id = ?').run(id);
+    db.prepare('DELETE FROM staff_handovers WHERE id = ? AND store_id = ?').run(id, storeId);
 
     eventBus.broadcast({ type: 'handover', action: 'delete', storeId });
 

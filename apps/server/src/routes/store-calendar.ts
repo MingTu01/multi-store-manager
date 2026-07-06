@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { AuthRequest } from '../auth.js';
-import { isManagerOrAbove, isReadonly, isAdmin, isStoreAdmin } from '../lib/roles.js';
+import { isManagerOrAbove, isReadonly } from '../lib/roles.js';
 import db from '../db.js';
 
 const router = Router({ mergeParams: true });

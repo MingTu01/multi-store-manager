@@ -10,7 +10,6 @@ import { Modal } from '../../components/Modal';
 import { showToast } from '../../components/Toast';
 import { useConfirm } from '../../components/useConfirm';
 import { api, invalidateCache } from '../../lib/api';
-import { useStore } from '../../stores/data';
 
 function formatMoney(n: number) {
   if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + '万';
@@ -27,7 +26,6 @@ const LEAVE_TYPES = [
 export default function StoreCalendarDetailPage() {
   const { storeId, date } = useParams();
   const nav = useNavigate();
-  const user = useStore((s) => s.user);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { confirm, ConfirmDialog } = useConfirm();

@@ -109,7 +109,7 @@ router.get('/daily', (req: AuthRequest, res: Response) => {
     const shiftRows = db.prepare(
       `SELECT so.store_id, so.type, so.user_id, so.handover_content, so.note, so.created_at, u.name as user_name
        FROM store_opens so LEFT JOIN users u ON so.user_id = u.id
-       WHERE so.store_id IN (SELECT id FROM stores) AND date(so.created_at) = ?
+       WHERE date(so.created_at) = ?
        ORDER BY so.created_at ASC`
     ).all(date) as any[];
     const shiftMap: Record<string, any[]> = {};

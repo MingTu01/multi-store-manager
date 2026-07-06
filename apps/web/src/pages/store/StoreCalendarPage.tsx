@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar } from '../../components/Calendar';
 import { PageHeader } from '../../components/PageHeader';
 import { api } from '../../lib/api';
-import { useStore } from '../../stores/data';
 
 function formatMoney(n: number) {
   if (Math.abs(n) >= 10000) return (n / 10000).toFixed(2) + '万';
@@ -13,14 +12,14 @@ function formatMoney(n: number) {
 export default function StoreCalendarPage() {
   const { storeId } = useParams();
   const nav = useNavigate();
-  const user = useStore((s) => s.user);
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const canViewFinance = user && ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'].includes(user.role);
+  // 使用后端返回的 can_view_finance 字段，避免前端硬编码角色判断
+  const canViewFinance = !!data?.can_view_finance;
 
   const load = () => {
     if (!storeId) return;
