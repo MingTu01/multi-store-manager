@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useRef } from 'react';
 
 interface CalendarProps {
   year: number;
@@ -15,9 +16,46 @@ function pad(n: number) { return String(n).padStart(2, '0'); }
 
 const WEEK_DAYS = ['一', '二', '三', '四', '五', '六', '日'];
 
+// 滑动阈值：水平位移超过此值才触发切换
+const SWIPE_THRESHOLD = 50;
+// 垂直位移上限：超过此值认为是纵向滚动，不触发切换
+const SWIPE_MAX_VERTICAL = 40;
+
 export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, renderCell, loading }: CalendarProps) {
   const today = new Date();
   const todayStr = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+
+  // 触摸滑动状态
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  // 标记本次 touch 是否已触发滑动切换（用于阻止后续 click）
+  const swipedRef = useRef(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+    swipedRef.current = false;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    // 水平位移超过阈值且垂直位移较小 → 触发月份切换
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_MAX_VERTICAL) {
+      swipedRef.current = true;
+      if (dx < 0) onNext();   // 向左滑 → 下一月
+      else onPrev();          // 向右滑 → 上一月
+    }
+  };
+  // 滑动后阻止 click 事件（避免误触日期）
+  const onCellClickCapture = (e: React.MouseEvent) => {
+    if (swipedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      swipedRef.current = false;
+    }
+  };
 
   // 计算月历网格
   const firstDay = new Date(year, month - 1, 1);
@@ -52,12 +90,18 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
   }
 
   return (
-    <div className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm overflow-hidden">
+    <div
+      className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm overflow-hidden select-none"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onClickCapture={onCellClickCapture}
+    >
       {/* 月份切换头部 */}
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-indigo-500" />
           <h2 className="text-base font-semibold text-slate-900">{year}年{month}月</h2>
+          <span className="ml-1 hidden text-[10px] text-slate-400 sm:inline">← 左右滑动切换</span>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={onPrev} aria-label="上一月" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 transition-colors">
@@ -87,7 +131,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[3/2] flex flex-col ' +
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2/3] flex flex-col ' +
                 // 今日整格浅色渐变填充（恢复原样式）
                 (isToday && cell.isCurrentMonth
                   ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
