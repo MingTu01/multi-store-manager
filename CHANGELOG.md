@@ -1,3 +1,22 @@
+## v2.2.4 (2026-07-06)
+
+### 移动端日历格子布局优化
+
+#### 问题
+小屏机型上日期格子被挤压成长方形，金额和文字换行显示
+
+#### 修复
+- **保持正方形**：日期格子改用 `aspect-square` 替代固定 `min-h`，确保任何屏幕宽度下都是正方形
+- **文字一行显示**：所有格子内文字添加 `whitespace-nowrap truncate`，通过缩小字号（利润 `text-[11px]`、副信息 `text-[9px]`）完全适配格子宽度
+- **当天日期数字**：白色加粗 + 放大 20%（`text-xs` 12px → `text-sm` 14px）
+- **当天格子背景**：改为深色渐变（`from-indigo-500 to-purple-600`），让白色日期数字清晰可读
+- **当天内容文字**：管理端利润金额、门店端利润/休息标记、STAFF 圆点标记在当天格子内统一改为白色/半透明白色
+
+#### 影响文件
+- `apps/web/src/components/Calendar.tsx`：格子布局改为 `aspect-square flex flex-col`，当天数字样式
+- `apps/web/src/pages/dashboard/CalendarPage.tsx`：利润文字适配 + 当天白色
+- `apps/web/src/pages/store/StoreCalendarPage.tsx`：利润/休息标记适配 + 当天白色
+
 ## v2.2.3 (2026-07-06)
 
 ### 安全漏洞修复（S7-S12，全项目代码审查）

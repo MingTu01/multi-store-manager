@@ -61,19 +61,21 @@ export default function CalendarPage() {
         onToday={goToday}
         loading={loading}
         onDateClick={(date) => nav('/calendar/' + date)}
-        renderCell={(date, _isToday, isCurrentMonth) => {
+        renderCell={(date, isToday, isCurrentMonth) => {
           if (!isCurrentMonth) return null;
           const profit = profitMap[date];
           if (profit === undefined || profit === 0) {
             return <div className="text-[10px] text-slate-300">—</div>;
           }
-          const color = profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-rose-500' : 'text-slate-400';
+          // 当天格子背景为深色渐变，文字改白色保证可读
+          const color = isToday ? 'text-white' : (profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-rose-500' : 'text-slate-400');
+          const subColor = isToday ? 'text-white/80' : 'text-slate-400';
           const openN = openCountMap[date] || 0;
           const totalN = data?.storeCount || 0;
           return (
             <div className="space-y-0.5">
-              <div className={'text-xs font-semibold ' + color}>{profit > 0 ? '+' : ''}{formatMoney(profit)}</div>
-              <div className="text-[10px] text-slate-400">{openN}/{totalN}店营业</div>
+              <div className={'text-[11px] font-semibold whitespace-nowrap truncate ' + color}>{profit > 0 ? '+' : ''}{formatMoney(profit)}</div>
+              <div className={'text-[9px] whitespace-nowrap truncate ' + subColor}>{openN}/{totalN}店营业</div>
             </div>
           );
         }}

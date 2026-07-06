@@ -64,7 +64,7 @@ export default function StoreCalendarPage() {
         onToday={goToday}
         loading={loading}
         onDateClick={(date) => nav('/store/' + storeId + '/calendar/' + date)}
-        renderCell={(date, _isToday, isCurrentMonth) => {
+        renderCell={(date, isToday, isCurrentMonth) => {
           if (!isCurrentMonth) return null;
           const d = dayMap[date];
           if (!d) return null;
@@ -74,20 +74,25 @@ export default function StoreCalendarPage() {
             const profit = d.profit;
             if (profit === null || profit === undefined) return null;
             if (profit === 0) return <div className="text-[10px] text-slate-300">—</div>;
-            const color = profit > 0 ? 'text-emerald-600' : 'text-rose-500';
+            // 当天格子背景为深色渐变，文字改白色保证可读
+            const color = isToday ? 'text-white' : (profit > 0 ? 'text-emerald-600' : 'text-rose-500');
+            const restColor = isToday ? 'text-white/80' : 'text-orange-400';
             return (
               <div className="space-y-0.5">
-                <div className={'text-xs font-semibold ' + color}>{profit > 0 ? '+' : ''}{formatMoney(profit)}</div>
-                {d.rest_count > 0 && <div className="text-[10px] text-orange-400">{d.rest_count}人休</div>}
+                <div className={'text-[11px] font-semibold whitespace-nowrap truncate ' + color}>{profit > 0 ? '+' : ''}{formatMoney(profit)}</div>
+                {d.rest_count > 0 && <div className={'text-[9px] whitespace-nowrap truncate ' + restColor}>{d.rest_count}人休</div>}
               </div>
             );
           } else {
             // STAFF：显示标记
+            const dotColor = isToday ? 'bg-white' : 'bg-amber-400';
+            const restDotColor = isToday ? 'bg-white/80' : 'bg-orange-400';
+            const myRestColor = isToday ? 'text-white' : 'text-orange-500';
             return (
               <div className="flex flex-wrap gap-0.5">
-                {d.has_handover && <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" title="有交接" />}
-                {d.rest_count > 0 && <span className="inline-block h-1.5 w-1.5 rounded-full bg-orange-400" title={`${d.rest_count}人休息`} />}
-                {d.my_rest && <span className="text-[9px] text-orange-500 font-medium">我休</span>}
+                {d.has_handover && <span className={'inline-block h-1.5 w-1.5 rounded-full ' + dotColor} title="有交接" />}
+                {d.rest_count > 0 && <span className={'inline-block h-1.5 w-1.5 rounded-full ' + restDotColor} title={`${d.rest_count}人休息`} />}
+                {d.my_rest && <span className={'text-[9px] font-medium whitespace-nowrap ' + myRestColor}>我休</span>}
               </div>
             );
           }

@@ -87,10 +87,10 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1.5 sm:p-2 ' +
-                // 今日整格渐变填充（介于 100 与 200 之间，柔和适中）
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-square flex flex-col ' +
+                // 今日整格深色渐变填充（让白色日期数字清晰可读）
                 (isToday && cell.isCurrentMonth
-                  ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
+                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600 '
                   : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
@@ -100,17 +100,20 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               {/* 日期数字 - 右上角 */}
               <div className="flex justify-end">
                 <span className={
-                  'text-xs font-medium ' +
+                  // 当天日期数字：白色加粗 + 放大20%（text-xs 12px → text-sm 14px）
+                  (isToday && cell.isCurrentMonth
+                    ? 'text-sm font-bold text-white '
+                    : 'text-xs font-medium ') +
                   (!cell.isCurrentMonth ? 'text-slate-300' :
-                   isToday ? 'text-indigo-700 font-bold' : 'text-slate-600')
+                   isToday ? '' : 'text-slate-600')
                 }>
                   {cell.day}
                 </span>
               </div>
-              {/* 自定义内容填满剩余空间 */}
-              <div className="mt-0.5 min-h-[52px] sm:min-h-[64px]">
+              {/* 自定义内容填满剩余空间 - 防止文字换行 */}
+              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden">
                 {loading ? (
-                  <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
+                  <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
                 ) : renderCell ? (
                   renderCell(cell.date, isToday, cell.isCurrentMonth)
                 ) : null}
