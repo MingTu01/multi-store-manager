@@ -29,6 +29,10 @@ const StoreLogsPage = lazy(() => import('./pages/store/StoreLogsPage'));
 const StoreSettingsPage = lazy(() => import('./pages/store/StoreSettingsPage'));
 const StoreAccountPage = lazy(() => import('./pages/store/StoreAccountPage'));
 const StoreNotificationsPage = lazy(() => import('./pages/store/StoreNotificationsPage'));
+const CalendarPage = lazy(() => import('./pages/dashboard/CalendarPage'));
+const CalendarDetailPage = lazy(() => import('./pages/dashboard/CalendarDetailPage'));
+const StoreCalendarPage = lazy(() => import('./pages/store/StoreCalendarPage'));
+const StoreCalendarDetailPage = lazy(() => import('./pages/store/StoreCalendarDetailPage'));
 
 function Loading() {
   return (
@@ -125,6 +129,8 @@ export default function App() {
           <Route path="upgrade" element={<Guard perm="upgrade"><SettingsPage /></Guard>} />
           <Route path="password" element={<Guard perm="password"><PasswordPage /></Guard>} />
           <Route path="admin-settings" element={<Guard perm="adminSettings"><AdminSettingsPage /></Guard>} />
+          <Route path="calendar" element={<Guard perm="dashboard"><CalendarPage /></Guard>} />
+          <Route path="calendar/:date" element={<Guard perm="dashboard"><CalendarDetailPage /></Guard>} />
           <Route path="store/:storeId" element={<StoreGuard><StoreOverviewPage /></StoreGuard>} />
           <Route path="store/:storeId/entries" element={<StoreGuard><StoreEntriesPage /></StoreGuard>} />
           <Route path="store/:storeId/inventory" element={<StoreGuard><StoreInventoryPage /></StoreGuard>} />
@@ -137,6 +143,8 @@ export default function App() {
           <Route path="store/:storeId/logs" element={<StoreGuard><StoreLogsPage /></StoreGuard>} />
           <Route path="store/:storeId/account" element={<StoreGuard><StoreAccountPage /></StoreGuard>} />
           <Route path="store/:storeId/notifications" element={<StoreGuard><StoreNotificationsPage /></StoreGuard>} />
+          <Route path="store/:storeId/calendar" element={<StoreGuard><StoreCalendarPage /></StoreGuard>} />
+          <Route path="store/:storeId/calendar/:date" element={<StoreGuard><StoreCalendarDetailPage /></StoreGuard>} />
           <Route path="store/:storeId/settings" element={<StoreGuard><StoreSettingsPage /></StoreGuard>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

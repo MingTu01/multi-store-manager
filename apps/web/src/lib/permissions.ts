@@ -23,6 +23,7 @@ const p: Record<string, Role[]> = {
   storeAdminSettings: ['ADMIN', 'STORE_ADMIN'],
   storeNotificationSettings: ['ADMIN', 'STORE_ADMIN'],
   storePurchase: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'SHAREHOLDER'],
+  storeCalendar: ['ADMIN', 'STORE_ADMIN', 'MANAGER', 'STAFF', 'SHAREHOLDER'],
 };
 
 export type PermissionKey = string;

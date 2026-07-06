@@ -5,7 +5,7 @@ import { canAccess } from '../lib/permissions';
 import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
-import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft, Truck } from 'lucide-react';
+import { LayoutDashboard, Store, Bell, Settings, BookOpen, Package, Clock, BarChart3, Users, DollarSign, Divide, FileText, MoreHorizontal, X, User, ArrowLeft, Truck, Calendar } from 'lucide-react';
 
 // All store tabs in priority order
 const ALL_STORE_TABS = [
@@ -13,6 +13,7 @@ const ALL_STORE_TABS = [
   { to: (id: string) => '/store/' + id + '/entries', icon: BookOpen, label: '记账', key: 'storeEntries' },
   { to: (id: string) => '/store/' + id + '/purchase', icon: Truck, label: '进货', key: 'storePurchase' },
   { to: (id: string) => '/store/' + id + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
+  { to: (id: string) => '/store/' + id + '/calendar', icon: Calendar, label: '日历', key: 'storeCalendar' },
   { to: (id: string) => '/store/' + id + '/notifications', icon: Bell, label: '通知', key: 'storeNotifications', badge: true },
   { to: (id: string) => '/store/' + id + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
   { to: (id: string) => '/store/' + id + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
@@ -27,6 +28,7 @@ const ALL_STORE_TABS = [
 const ADMIN_TABS = [
   { to: '/', icon: LayoutDashboard, label: '仪表盘', key: 'dashboard' },
   { to: '/stores', icon: Store, label: '门店', key: 'stores' },
+  { to: '/calendar', icon: Calendar, label: '日历', key: 'dashboard' },
   { to: '/notifications', icon: Bell, label: '通知', key: 'notifications', badge: true },
   { to: '/upgrade', icon: Settings, label: '设置', key: 'upgrade' },
   { to: '/admin-settings', icon: User, label: '我的', key: 'adminSettings' },

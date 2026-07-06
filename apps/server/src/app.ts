@@ -25,6 +25,9 @@ import dashboardRouter from './routes/dashboard.js';
 import healthCertRouter from './routes/health-cert.js';
 import purchaseRouter from './routes/purchase.js';
 import uploadRouter from './routes/upload.js';
+import calendarRouter from './routes/calendar.js';
+import storeCalendarRouter from './routes/store-calendar.js';
+import restSchedulesRouter from './routes/rest-schedules.js';
 import { startHealthCheckScheduler } from './health-check-scheduler.js';
 import { requireStoreAccess } from './middleware/store-access.js';
 import { eventBus } from './event-bus.js';
@@ -212,6 +215,9 @@ startHealthCheckScheduler();
 app.use('/api/health-cert', authMiddleware, healthCertRouter);
 app.use('/api/stores/:storeId/purchase', authMiddleware, requireStoreAccess, purchaseRouter);
 app.use('/api/upload', authMiddleware, uploadRouter);
+app.use('/api/calendar', authMiddleware, calendarRouter);
+app.use('/api/stores/:storeId/calendar', authMiddleware, requireStoreAccess, storeCalendarRouter);
+app.use('/api/stores/:storeId/rest-schedules', authMiddleware, requireStoreAccess, restSchedulesRouter);
 
 // SPA fallback
 app.get('{*splat}', (req, res) => {

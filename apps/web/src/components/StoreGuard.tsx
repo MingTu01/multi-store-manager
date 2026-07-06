@@ -47,6 +47,7 @@ export function StoreGuard({ children }: { children: ReactNode }) {
     ['/entries', 'storeEntries'],
     ['/inventory', 'storeInventory'],
     ['/shifts', 'storeShifts'],
+    ['/calendar', 'storeCalendar'],
     ['/payroll', 'storePayroll'],
     ['/dividends', 'storeDividends'],
     ['/staff', 'storeStaff'],

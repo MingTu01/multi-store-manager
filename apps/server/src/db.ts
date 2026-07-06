@@ -139,6 +139,31 @@ CREATE TABLE IF NOT EXISTS store_opens (
   created_at TEXT DEFAULT (datetime('now','localtime'))
 );
 
+-- v2.2.0 排休表：店长及以上可为员工排休（全天休/请假）
+CREATE TABLE IF NOT EXISTS staff_rest_schedules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  type TEXT NOT NULL,
+  leave_type TEXT DEFAULT '',
+  note TEXT DEFAULT '',
+  created_by INTEGER,
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
+-- v2.2.0 员工日常交接表：员工可随时填写当日交接备注（独立于开闭店交接）
+CREATE TABLE IF NOT EXISTS staff_handovers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  store_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
+);
+
 CREATE TABLE IF NOT EXISTS dividends (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   store_id TEXT NOT NULL,
@@ -447,6 +472,10 @@ const indexes = [
     "CREATE INDEX IF NOT EXISTS idx_purchase_items_store ON purchase_items(store_id, sort_order)",
     "CREATE INDEX IF NOT EXISTS idx_purchase_records_store_date ON purchase_records(store_id, date)",
     "CREATE INDEX IF NOT EXISTS idx_purchase_records_item ON purchase_records(item_id)",
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_rest_user_date_type ON staff_rest_schedules(user_id, date, type)",
+  "CREATE INDEX IF NOT EXISTS idx_rest_store_date ON staff_rest_schedules(store_id, date)",
+  "CREATE INDEX IF NOT EXISTS idx_handover_store_date ON staff_handovers(store_id, date)",
+  "CREATE INDEX IF NOT EXISTS idx_handover_user_date ON staff_handovers(user_id, date)",
 ];
 for (const sql of indexes) {
   try { db.exec(sql); } catch (e) { /* index may already exist */ }

@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { NotificationBadge } from '../components/NotificationBadge';
 import { useNotificationStore } from '../stores/notification';
 import { canAccess } from '../lib/permissions';
-import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft, Truck } from 'lucide-react';
+import { LayoutDashboard, Store, Bell, Settings, Package, BookOpen, Users, BarChart3, Clock, FileText, DollarSign, Divide, LogOut, ChevronRight, ArrowLeft, Truck, Calendar } from 'lucide-react';
 
 import { getRoleLabel, getRoleBg, getRoleColor } from '../lib/role';
 
@@ -21,6 +21,7 @@ export function Sidebar() {
   const adminNav = [
     { to: '/', icon: LayoutDashboard, label: '仪表盘', key: 'dashboard' },
     { to: '/stores', icon: Store, label: '门店管理', key: 'stores' },
+    { to: '/calendar', icon: Calendar, label: '经营日历', key: 'dashboard' },
     { to: '/notifications', icon: Bell, label: '消息通知', key: 'notifications', badge: true },
     { to: '/upgrade', icon: Settings, label: '系统设置', key: 'upgrade' },
   ];
@@ -30,6 +31,7 @@ export function Sidebar() {
     { to: '/store/' + storeId + '/entries', icon: BookOpen, label: '记账', key: 'storeEntries' },
     { to: '/store/' + storeId + '/purchase', icon: Truck, label: '进货', key: 'storePurchase' },
     { to: '/store/' + storeId + '/shifts', icon: Clock, label: '开闭店', key: 'storeShifts' },
+    { to: '/store/' + storeId + '/calendar', icon: Calendar, label: '经营日历', key: 'storeCalendar' },
     { to: '/store/' + storeId + '/notifications', icon: Bell, label: '消息通知', key: 'storeNotifications', badge: true },
     { to: '/store/' + storeId + '/inventory', icon: Package, label: '盘点', key: 'storeInventory' },
     { to: '/store/' + storeId + '/report', icon: BarChart3, label: '报表', key: 'storeReport' },
