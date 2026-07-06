@@ -26,7 +26,6 @@ apps/server/src/
 ├── oplog.ts           # 操作日志记录
 ├── notify.ts          # 消息推送
 ├── event-bus.ts       # SSE 事件总线
-├── report-scheduler.ts # 定时报表推送
 ├── health-check-scheduler.ts # 健康证到期检查
 ├── routes/
 │   ├── auth.ts        # 登录/用户信息/密码
@@ -45,7 +44,9 @@ apps/server/src/
 │   ├── system.ts      # 系统设置/备份/升级
 │   ├── upload.ts      # 文件上传
 │   ├── notifications.ts # 通知管理
-│   └── health-cert.ts # 健康证管理
+│   ├── health-cert.ts # 健康证管理
+│   ├── calendar.ts    # 管理端经营日历
+│   └── store-calendar.ts # 门店端经营日历
 └── middleware/
     └── store-access.ts # 门店访问控制
 

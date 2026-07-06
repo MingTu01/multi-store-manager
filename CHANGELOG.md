@@ -1,3 +1,36 @@
+## v2.2.3 (2026-07-06)
+
+### 安全漏洞修复（S7-S12，全项目代码审查）
+
+#### 高危漏洞修复
+- **S7** `calendar.ts`：MANAGER 可跨店查看所有门店明细 → 非 ADMIN 强制按 `req.user.store_id` 过滤 `/monthly` 和 `/daily` 端点
+- **S8** `system.ts`：STORE_ADMIN 可修改全局推送密钥 → `PUT /notification-settings` 权限从 `isStoreAdmin` 收紧为 `isAdmin`
+- **S9** `system.ts`：GET `/notification-settings` 双重解密导致含 `:` 的 Token 被清空 → 删除多余的 `decryptToken` 调用（`getSettings()` 已内部解密）
+- **S10** `seed.ts`：角色值使用小写与 ROLES 常量不一致 → 统一改为大写 `SHAREHOLDER`/`MANAGER`/`STAFF`
+- **S11** `aliyun-ocr.ts`：凭证文件权限过宽 → 两处 `writeFileSync` 添加 `mode: 0o600`
+- **S12** `startup-check.js`：自动创建 admin/admin123 弱密码 → 改为 `crypto.randomBytes` 生成随机密码 + `must_change_password=1`
+
+### 死代码清理
+- 后端：删除 `dbRunWithRetry`、`entryFilterClause`、`requireRole`、`report-scheduler.ts`、`autoStatus`、`error-handler` 5 个工厂函数及 `toJSON`/`getPublicMessage` 方法
+- 前端 `Sidebar.tsx`：清理未使用 import（`useState`/`useEffect`/`api`/`LogOut`）
+- 前端 `SettingsPage.tsx`：清理不可达的通知设置 UI（`openEditChannel` 从未被调用，导致整块死代码），包大小 34.45 kB → 31.56 kB
+- 前端 `SettingsPage.tsx`：删除重复的 `RestartPoll` 函数
+
+### 文档更新
+- `ARCHITECTURE.md`：删除已废弃的 `report-scheduler.ts` 引用，补充 `calendar.ts` 和 `store-calendar.ts` 路由
+
+## v2.2.2 (2026-07-06)
+
+### 安全漏洞修复（S1-S6，全项目代码审查第一阶段）
+
+#### 高危漏洞修复
+- **S1** `auth.ts`：改密码后 `userCache` 未失效，旧 Token 60 秒内仍可用 → 改密后立即 `userCache.invalidate()` 并将当前 Token 加入黑名单
+- **S2** `inventory.ts`：DELETE 先删子表再校验 `store_id` 导致数据丢失 → 先校验 `store_id` 归属再删除，DELETE 语句全部带 `AND store_id = ?`
+- **S3** `inventory.ts`：多个端点缺 `store_id` 校验导致越权 → 所有涉及具体记录的 SELECT/UPDATE/DELETE 都加 `AND store_id = ?`
+- **S4** `users.ts`：MANAGER 可跨店查看所有人工资 → 非 ADMIN 强制按自己 `store_id` 过滤
+- **S5** `logs.ts`：SHAREHOLDER 角色穿透可看全部日志 → 补全角色分支，SHAREHOLDER 直接 403
+- **S6** `dashboard.ts`：`/trend` 端点完全无角色校验 → 添加 `isManagerOrAbove` 检查和 `effectiveStoreId` 逻辑
+
 ## v1.7.3b (2026-06-29)
 
 ### JPush Integration
