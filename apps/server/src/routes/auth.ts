@@ -6,6 +6,7 @@ import { signToken, setAuthCookie, clearAuthCookie, authMiddleware, AuthRequest,
 import { blacklistToken, hashToken } from '../token-blacklist.js';
 import { opLog } from '../oplog.js';
 import { AppError, ErrorCode } from '../error-handler.js';
+import { userCache } from '../cache.js';
 
 const router = Router();
 
@@ -102,6 +103,15 @@ router.put('/me', authMiddleware, async (req: AuthRequest, res: Response) => {
     if (updates.length === 0) throw new AppError(ErrorCode.INPUT_REQUIRED, '没有需要更新的内容', 400);
     vals.push(req.user.id);
     db.prepare('UPDATE users SET ' + updates.join(',') + ' WHERE id=?').run(...vals);
+    // 改密码后立即失效用户缓存，防止旧 Token 在缓存 TTL 内仍可用
+    if (oldPassword && newPassword) {
+      userCache.invalidate('user_' + req.user.id);
+      // 将当前 Token 加入黑名单，强制使用新 Token
+      const currentToken = getCookie(req, 'auth_token') || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : '');
+      if (currentToken) {
+        blacklistToken(hashToken(currentToken), Date.now() + 4 * 60 * 60 * 1000);
+      }
+    }
     const updated = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, must_change_password FROM users WHERE id = ?').get(req.user.id) as any;
     // 如果改了密码，签发新 token 并更新 cookie，避免下次请求 401
     if (oldPassword && newPassword) {
@@ -128,6 +138,13 @@ router.put('/password', authMiddleware, async (req: AuthRequest, res: Response) 
     if (!await bcrypt.compare(oldPassword, user.password_hash)) throw new AppError(ErrorCode.AUTH_PASSWORD_WRONG, '旧密码错误', 401);
     const hash = await bcrypt.hash(newPassword, 10);
     db.prepare("UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = datetime('now','localtime') WHERE id = ?").run(hash, req.user.id);
+    // 改密码后立即失效用户缓存，防止旧 Token 在缓存 TTL 内仍可用
+    userCache.invalidate('user_' + req.user.id);
+    // 将当前 Token 加入黑名单，强制使用新 Token
+    const currentToken = getCookie(req, 'auth_token') || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.substring(7) : '');
+    if (currentToken) {
+      blacklistToken(hashToken(currentToken), Date.now() + 4 * 60 * 60 * 1000);
+    }
     opLog(req.user.id, 0, '修改密码', '用户修改了自己的密码', req.ip);
     // 签发新 token 并更新 cookie，避免下次请求 401
     const newToken = signToken({ id: user.id, username: user.username, name: user.name, role: user.role, store_id: user.store_id });

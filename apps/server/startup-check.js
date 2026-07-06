@@ -168,9 +168,16 @@ async function runChecks() {
         issues++;
         try {
           const bcrypt = require('bcryptjs');
-          const hash = bcrypt.hashSync('admin123', 10);
-          db.prepare("INSERT INTO users (username, password_hash, name, role) VALUES (?, ?, ?, ?)").run('admin', hash, '管理员', 'ADMIN');
-          fix('Created default admin: admin / admin123');
+          const crypto = require('crypto');
+          // S12 修复：生成随机密码而非固定弱密码 admin123
+          const tempPassword = crypto.randomBytes(12).toString('base64').slice(0, 16);
+          const hash = bcrypt.hashSync(tempPassword, 10);
+          // 强制首次登录改密
+          db.prepare("INSERT INTO users (username, password_hash, name, role, must_change_password) VALUES (?, ?, ?, ?, ?)").run('admin', hash, '管理员', 'ADMIN', 1);
+          // 仅打印到容器 stdout 一次，便于运维获取；不会写日志文件
+          console.log(C.Y + C.BOLD + '  [SECURITY] Default admin created. Username: admin  Temp password: ' + tempPassword + C.D);
+          console.log(C.Y + '  [SECURITY] Please login and change password immediately.' + C.D);
+          fix('Created default admin with random password (must_change_password=1)');
           fixed++;
         } catch (e) {
           fail('Cannot create admin: ' + e.message);

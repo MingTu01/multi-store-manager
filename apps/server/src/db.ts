@@ -515,19 +515,4 @@ try {
   }
 } catch (e) { /* categories table may not exist yet */ }
 
-// SQLite 写重试辅助函数 - 用于关键写操作时处理 SQLITE_BUSY
-export function dbRunWithRetry(fn: () => any, maxRetries = 3): any {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return fn();
-    } catch (err: any) {
-      if (err.code === 'SQLITE_BUSY' && i < maxRetries - 1) {
-        // busy_timeout pragma handles the wait, just retry
-        continue;
-      }
-      throw err;
-    }
-  }
-}
-
 export default db;

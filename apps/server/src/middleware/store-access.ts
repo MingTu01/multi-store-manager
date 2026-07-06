@@ -18,17 +18,6 @@ export function requireStoreAccess(req: AuthRequest, res: Response, next: NextFu
   return res.status(403).json({ error: '无权访问该门店' });
 }
 
-// 角色要求中间件（S5/S25）
-export function requireRole(...roles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userRole = (req.user?.role || '').toUpperCase();
-    if (!roles.map(r => r.toUpperCase()).includes(userRole)) {
-      return res.status(403).json({ error: '无权限' });
-    }
-    next();
-  };
-}
-
 // 路径安全校验（S3）
 export function safePath(baseDir: string, filename: string): string | null {
   if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {

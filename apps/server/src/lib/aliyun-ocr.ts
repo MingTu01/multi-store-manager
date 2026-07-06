@@ -66,7 +66,7 @@ function loadCredentials(): AliyunOCRConfig {
           const dataDir = join(BASE_DIR, 'data');
           if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
           const encrypted = encryptToken(JSON.stringify(parsed));
-          writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), 'utf-8');
+          writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), { encoding: 'utf-8', mode: 0o600 });
           logger.info('[OCR] 已自动将明文凭证迁移为加密存储');
         } catch (migErr) {
           logger.warn('[OCR] 凭证加密迁移失败，继续使用明文:', (migErr as Error).message);
@@ -103,7 +103,7 @@ export function saveAliyunCredentials(accessKeyId: string, accessKeySecret: stri
   };
   // 加密存储凭证
   const encrypted = encryptToken(JSON.stringify(cred));
-  writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), 'utf-8');
+  writeFileSync(credPath, JSON.stringify({ encrypted: true, data: encrypted }, null, 2), { encoding: 'utf-8', mode: 0o600 });
   _config = cred;
   logger.info('[OCR] Aliyun credentials saved (encrypted)');
 }

@@ -43,30 +43,4 @@ export class AppError extends Error {
     this.details = details;
     Object.setPrototypeOf(this, AppError.prototype);
   }
-
-  toJSON(isProd: boolean = true) {
-    return { error: isProd ? this.getPublicMessage() : this.message, code: this.errorCode };
-  }
-
-  private getPublicMessage(): string {
-    if (this.httpStatus >= 500) return '服务器内部错误';
-    return this.message;
-  }
-}
-
-export function authError(code: ErrorCode, message: string, status: number = 401): AppError {
-  return new AppError(code, message, status);
-}
-export function inputError(code: ErrorCode, message: string): AppError {
-  return new AppError(code, message, 400);
-}
-export function permError(message: string = '无权限'): AppError {
-  return new AppError(ErrorCode.PERM_DENIED, message, 403);
-}
-export function notFoundError(message: string = '资源不存在'): AppError {
-  return new AppError(ErrorCode.RES_NOT_FOUND, message, 404);
-}
-export function dbError(err: Error): AppError {
-  console.error('[DB Error]', err.message);
-  return new AppError(ErrorCode.SERVER_DB_ERROR, '数据库操作失败', 500, true);
 }

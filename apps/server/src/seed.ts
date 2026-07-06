@@ -13,9 +13,10 @@ export function seedDatabase() {
   const hash = bcrypt.hashSync('123456', 10);
 
   // Create users
-  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title) VALUES (?,?,?,?)').run('shareholder', hash, 'shareholder', '股东');
-  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title, store_id) VALUES (?,?,?,?,?)').run('manager', hash, 'manager', '店长', 1);
-  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title, store_id) VALUES (?,?,?,?,?)').run('staff', hash, 'staff', '店员', 1);
+  // S10 修复：角色值统一使用大写，与 ROLES 常量保持一致
+  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title) VALUES (?,?,?,?)').run('shareholder', hash, 'SHAREHOLDER', '股东');
+  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title, store_id) VALUES (?,?,?,?,?)').run('manager', hash, 'MANAGER', '店长', 1);
+  db.prepare('INSERT OR IGNORE INTO users (username, password_hash, role, job_title, store_id) VALUES (?,?,?,?,?)').run('staff', hash, 'STAFF', '店员', 1);
 
   // Create stores
   db.prepare('INSERT INTO stores (name, address, initial_capital) VALUES (?,?,?)').run('示范店A', '北京市朝阳区建国路100号', 100000);

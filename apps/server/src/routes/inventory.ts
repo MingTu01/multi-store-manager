@@ -15,11 +15,6 @@ import { sanitizeText, sanitizeNote } from '../sanitize.js';
 
 const router = Router({ mergeParams: true });
 
-function autoStatus(qty: number): string {
-  if (qty <= 0) return 'pending'; // ???
-  return 'normal';
-}
-
 
 // GET / - list master items for this store
 router.get('/', (req: AuthRequest, res: Response) => {
@@ -95,14 +90,15 @@ router.delete('/items/:id', (req: AuthRequest, res: Response) => {
   try {
     if (!isManagerOrAbove(req.user.role)) return res.status(403).json({ error: '无权操作' });
     const itemId = req.params.id;
-    const item = db.prepare('SELECT * FROM inventory_master WHERE id = ?').get(itemId) as any;
+    const storeId = req.params.storeId;
+    // 先校验 store_id 归属，再执行删除（防止跨店数据丢失）
+    const item = db.prepare('SELECT * FROM inventory_master WHERE id = ? AND store_id = ?').get(itemId, storeId) as any;
     if (!item) return res.status(404).json({ error: '物品不存在' });
-    // Delete related check items first
-    db.prepare('DELETE FROM inventory_check_items WHERE master_id = ?').run(itemId);
+    // Delete related check items first (带 store_id 关联校验)
+    db.prepare('DELETE FROM inventory_check_items WHERE master_id = ? AND check_id IN (SELECT id FROM inventory_checks WHERE store_id = ?)').run(itemId, storeId);
     // Delete the master item
-    if (String(item.store_id) !== String(req.params.storeId)) return res.status(404).json({ error: '物品不存在' });
-    db.prepare('DELETE FROM inventory_master WHERE id = ? AND store_id = ?').run(itemId, req.params.storeId);
-    opLog(req.user.id, item.store_id, '删除盘点物品', item.name);
+    db.prepare('DELETE FROM inventory_master WHERE id = ? AND store_id = ?').run(itemId, storeId);
+    opLog(req.user.id, storeId, '删除盘点物品', item.name);
     res.json({ success: true, data: null, message: '删除成功' });
   } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
@@ -129,10 +125,12 @@ router.post('/items/:id/takeout', (req: AuthRequest, res: Response) => {
 router.post('/items/reorder', (req: AuthRequest, res: Response) => {
   try {
     if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
+    const storeId = req.params.storeId;
     const { order } = req.body; // [{id, sort_order}]
     if (!Array.isArray(order)) return res.status(400).json({ error: '参数错误' });
-    const stmt = db.prepare('UPDATE inventory_master SET sort_order = ? WHERE id = ?');
-    for (const o of order) stmt.run(o.sort_order, o.id);
+    // 带 store_id 校验，防止跨店重排
+    const stmt = db.prepare('UPDATE inventory_master SET sort_order = ? WHERE id = ? AND store_id = ?');
+    for (const o of order) stmt.run(o.sort_order, o.id, storeId);
     res.json({ success: true, data: null, message: '排序已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
@@ -158,7 +156,9 @@ router.post('/checks', (req: AuthRequest, res: Response) => {
 // GET /checks/:id - get check detail
 router.get('/checks/:id', (req: AuthRequest, res: Response) => {
   try {
-    const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ?').get(req.params.id) as any;
+    const storeId = req.params.storeId;
+    // 带 store_id 校验，防止跨店查看
+    const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ? AND store_id = ?').get(req.params.id, storeId) as any;
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ? ORDER BY id ASC').all(check.id);
     res.json({ success: true, data: { check, items } });
@@ -169,6 +169,10 @@ router.get('/checks/:id', (req: AuthRequest, res: Response) => {
 router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
   try {
     if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
+    const storeId = req.params.storeId;
+    // 先校验该 check 属于本店
+    const check = db.prepare('SELECT id FROM inventory_checks WHERE id = ? AND store_id = ?').get(req.params.id, storeId) as any;
+    if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const { consumption, actual_qty, status } = req.body;
     const fields: string[] = [];
     const vals: any[] = [];
@@ -176,8 +180,9 @@ router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
     if (actual_qty !== undefined) { fields.push('actual_qty=?'); vals.push(actual_qty); }
     if (status !== undefined) { fields.push('status=?'); vals.push(status); }
     if (fields.length > 0) {
-      vals.push(req.params.itemId);
-      db.prepare('UPDATE inventory_check_items SET ' + fields.join(',') + ' WHERE id=?').run(...vals);
+      vals.push(req.params.itemId, req.params.id);
+      // 带 check_id 校验，防止跨店改明细
+      db.prepare('UPDATE inventory_check_items SET ' + fields.join(',') + ' WHERE id=? AND check_id=?').run(...vals);
     }
     res.json({ success: true, data: null, message: '已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
@@ -187,7 +192,9 @@ router.put('/checks/:id/items/:itemId', (req: AuthRequest, res: Response) => {
 router.post('/checks/:id/complete', (req: AuthRequest, res: Response) => {
   try {
     if (!canOperateInventory(req.user.role)) return res.status(403).json({ error: '无权操作' });
-    const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ?').get(req.params.id) as any;
+    const storeId = req.params.storeId;
+    // 带 store_id 校验，防止跨店完成盘点
+    const check = db.prepare('SELECT * FROM inventory_checks WHERE id = ? AND store_id = ?').get(req.params.id, storeId) as any;
     if (!check) return res.status(404).json({ error: '盘点记录不存在' });
     const items = db.prepare('SELECT * FROM inventory_check_items WHERE check_id = ?').all(check.id) as any[];
     const completeCheck = db.transaction((checkId: number) => {

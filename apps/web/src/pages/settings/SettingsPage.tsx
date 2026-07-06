@@ -103,12 +103,8 @@ export default function SettingsPage() {
       api.get('/system/auto-backup').then(setAutoBackup).catch(() => {});
       api.get('/system/backups').then((d: any) => setBackups(d.backups || [])).catch(() => {});
     }
-      if (tab === 'notif') api.get('/system/notification-settings').then((d: any) => {
-        setNotifSettings(d);
-        const status: Record<string, boolean> = {};
-        channels.forEach(ch => { status[ch.key] = ch.fields.every(f => d[f.f]); });
-        setChannelStatus(status);
-      }).catch(() => {});
+    // 注：原 `if (tab === 'notif')` 分支已删除——'notif' 不在 Tab 类型中，永不可达。
+    // 通知设置数据现在由 openEditChannel 等交互按需拉取，不再依赖 tab 切换预加载。
     if (tab === 'ocr') {
       api.get('/health-cert/config').then((d: any) => {
         setOcrConfig(d);
@@ -327,21 +323,6 @@ export default function SettingsPage() {
         };
         if ((window as any).__sseReconnected) { waitForReady1(); } else { window.addEventListener('server-ready', waitForReady1); }
         setTimeout(() => { window.removeEventListener('server-ready', waitForReady1); delete (window as any).__upgradeInProgress; waitForReady1(); }, 120000);
-      };let RestartPoll: () => void; RestartPoll = () => {
-        if (restartDetected) return;
-        restartDetected = true;
-        (window as any).__upgradeInProgress = true;
-        const stepIdx2 = onlineStepNames.length - 1;
-        setUpdateSteps(prev => prev.map((s, i) => ({ ...s, done: i < stepIdx2, msg: i === stepIdx2 ? '等待服务器重启...' : s.msg })));
-        const waitForReady2 = () => {
-          window.removeEventListener('server-ready', waitForReady2);
-          delete (window as any).__upgradeInProgress;
-          setUpdateSteps(prev => prev.map(s => ({ ...s, done: true })));
-          setUpgradeComplete(true);
-          setUpdating(false);
-        };
-        if ((window as any).__sseReconnected) { waitForReady2(); } else { window.addEventListener('server-ready', waitForReady2); }
-        setTimeout(() => { window.removeEventListener('server-ready', waitForReady2); delete (window as any).__upgradeInProgress; waitForReady2(); }, 120000);
       };
       es.addEventListener('complete', () => { es.close(); handleRestartPoll(); });
       // Polling fallback for upgrade status (used when SSE fails)
@@ -497,7 +478,21 @@ export default function SettingsPage() {
   };
 
   // === Notifications ===
-  const openEditChannel = (key: string) => { setEditingChannel(key); setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: notifSettings[f.f] || '' }), {}) || {}); setShowSecret({}); setTestResult(null); };
+  const openEditChannel = (key: string) => {
+    setEditingChannel(key);
+    setShowSecret({});
+    setTestResult(null);
+    // 按需拉取最新通知设置（原 tab==='notif' 预加载已删除，此处补偿）
+    api.get('/system/notification-settings').then((d: any) => {
+      setNotifSettings(d);
+      const status: Record<string, boolean> = {};
+      channels.forEach(ch => { status[ch.key] = ch.fields.every(f => d[f.f]); });
+      setChannelStatus(status);
+      setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: d[f.f] || '' }), {}) || {});
+    }).catch(() => {
+      setChannelForm(channels.find(c => c.key === key)?.fields.reduce((a, f) => ({ ...a, [f.f]: notifSettings[f.f] || '' }), {}) || {});
+    });
+  };
   const saveChannel = async () => {
     try {
       const updated = { ...notifSettings, ...channelForm };

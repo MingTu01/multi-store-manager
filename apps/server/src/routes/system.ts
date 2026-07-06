@@ -743,11 +743,8 @@ router.post('/restart', (req: AuthRequest, res: Response) => {
 router.get('/notification-settings', (req: AuthRequest, res: Response) => {
   if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
   try {
+    // S9 修复：getSettings() 内部已解密 token，不能再重复 decryptToken，否则含 ':' 的明文 Token 会被清空
     const settings = getSettings();
-    // 返回前先解密 token（数据库存储为密文）
-    if (settings.pushplus_token) settings.pushplus_token = decryptToken(settings.pushplus_token);
-    if (settings.wecom_secret) settings.wecom_secret = decryptToken(settings.wecom_secret);
-    if (settings.iyuu_token) settings.iyuu_token = decryptToken(settings.iyuu_token);
     // 脱敏：只有 ADMIN 才能看到完整密钥
     if (!isAdmin(req.user.role)) {
       const masked = { ...settings };
@@ -766,7 +763,8 @@ router.get('/notification-settings', (req: AuthRequest, res: Response) => {
 
 router.put('/notification-settings', async (req: AuthRequest, res: Response) => {
   try {
-    if (!isStoreAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    // S8 修复：全局推送密钥写入仅 ADMIN，防止 STORE_ADMIN 改全局推送凭证
+    if (!isAdmin(req.user.role)) return res.status(403).json({ error: '仅管理员可修改全局推送设置' });
     const b = req.body;
     // SSRF 防护：校验 webhook/proxy URL
     if (b.wecom_proxy_url) {

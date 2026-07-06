@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { AuthRequest } from '../auth.js';
-import { isManagerOrAbove } from '../lib/roles.js';
+import { isManagerOrAbove, isAdmin } from '../lib/roles.js';
 import db from '../db.js';
 import { localDate, calculateFundBalance } from '../lib/utils.js';
 import logger from '../logger.js';
@@ -15,7 +15,7 @@ router.get('/', (req: AuthRequest, res: Response) => {
     }
   try {
     // Q13: 仅 ADMIN 可访问管理大屏
-    
+
     const { period, date, storeId } = req.query;
     const d = date ? new Date(date as string) : new Date();
     const dateStr = localDate(d);
@@ -126,18 +126,23 @@ router.get('/', (req: AuthRequest, res: Response) => {
 
 // GET /dashboard/trend - get trend data for charts
 router.get('/trend', (req: AuthRequest, res: Response) => {
+  if (!isManagerOrAbove(req.user.role)) {
+    return res.status(403).json({ error: '无权限访问趋势数据' });
+  }
   try {
     const { period = 'day', storeId, days } = req.query;
     const now = new Date();
     const points: any[] = [];
-    
+    // 非 ADMIN 强制按自己 store_id 过滤，防止跨店查看
+    const effectiveStoreId = isAdmin(req.user.role) ? storeId : req.user.store_id;
+
     if (period === 'day') {
       const dayCount = parseInt(days as string) || 30;
       const startDate = new Date(now); startDate.setDate(startDate.getDate() - (dayCount - 1));
       const startStr = localDate(startDate);
       const endStr = localDate(now);
-      const cond = storeId ? 'AND store_id = ?' : '';
-      const params = storeId ? [startStr, endStr, storeId] : [startStr, endStr];
+      const cond = effectiveStoreId ? 'AND store_id = ?' : '';
+      const params = effectiveStoreId ? [startStr, endStr, effectiveStoreId] : [startStr, endStr];
       const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
       const dateMap = new Map<string, { income: number; expense: number }>();
       for (const r of rows) {
@@ -163,8 +168,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         if (!maxDate || endStr > maxDate) maxDate = endStr;
         weekRanges.push({ ws: startStr, we: endStr, label: 'W' + Math.ceil((ws.getDate()) / 7) + '/' + (ws.getMonth() + 1) });
       }
-      const cond = storeId ? 'AND store_id = ?' : '';
-      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const cond = effectiveStoreId ? 'AND store_id = ?' : '';
+      const params = effectiveStoreId ? [minDate, maxDate, effectiveStoreId] : [minDate, maxDate];
       const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
       const dateMap = new Map<string, { type: string; amount: number }>();
       for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });
@@ -189,8 +194,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
         if (!maxDate || me > maxDate) maxDate = me;
         monthRanges.push({ start: ms, end: me, label: (m.getMonth() + 1) + '月' });
       }
-      const cond = storeId ? 'AND store_id = ?' : '';
-      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const cond = effectiveStoreId ? 'AND store_id = ?' : '';
+      const params = effectiveStoreId ? [minDate, maxDate, effectiveStoreId] : [minDate, maxDate];
       const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
       const dateMap = new Map<string, { type: string; amount: number }>();
       for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });
@@ -211,8 +216,8 @@ router.get('/trend', (req: AuthRequest, res: Response) => {
       }
       const minDate = yearRanges[0].start;
       const maxDate = yearRanges[yearRanges.length - 1].end;
-      const cond = storeId ? 'AND store_id = ?' : '';
-      const params = storeId ? [minDate, maxDate, storeId] : [minDate, maxDate];
+      const cond = effectiveStoreId ? 'AND store_id = ?' : '';
+      const params = effectiveStoreId ? [minDate, maxDate, effectiveStoreId] : [minDate, maxDate];
       const rows = db.prepare("SELECT date, type, SUM(amount) as t FROM entries WHERE date >= ? AND date <= ? " + cond + " GROUP BY date, type").all(...params) as any[];
       const dateMap = new Map<string, { type: string; amount: number }>();
       for (const r of rows) dateMap.set(r.date, { type: r.type, amount: r.t });

@@ -58,10 +58,21 @@ router.get('/', authMiddleware, (req: AuthRequest, res) => {
       whereClause += (whereClause ? ' AND ' : ' WHERE ') + 'o.user_id=?';
       countParams.push(userId);
       queryParams.push(userId);
-    } else if (userRole === 'MANAGER' && userStoreId) {
+    } else if (userRole === 'MANAGER') {
+      // MANAGER 只能看本店日志；store_id 缺失时拒绝访问防止穿透
+      if (!userStoreId) return res.status(403).json({ error: '无权限查看日志' });
       whereClause += (whereClause ? ' AND ' : ' WHERE ') + '(o.target=? OR o.user_id=?)';
       countParams.push(String(userStoreId), userId);
       queryParams.push(String(userStoreId), userId);
+    } else if (userRole === 'STORE_ADMIN') {
+      // STORE_ADMIN 只能看本店日志
+      if (!userStoreId) return res.status(403).json({ error: '无权限查看日志' });
+      whereClause += (whereClause ? ' AND ' : ' WHERE ') + '(o.target=? OR o.user_id=?)';
+      countParams.push(String(userStoreId), userId);
+      queryParams.push(String(userStoreId), userId);
+    } else if (userRole === 'SHAREHOLDER') {
+      // SHAREHOLDER 不可查看操作日志（含敏感信息）
+      return res.status(403).json({ error: '无权限查看操作日志' });
     }
 
     const total = (db.prepare('SELECT COUNT(*) as count FROM op_logs o' + whereClause).get(...countParams) as any).count;

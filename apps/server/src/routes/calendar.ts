@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { AuthRequest } from '../auth.js';
-import { isManagerOrAbove } from '../lib/roles.js';
+import { isManagerOrAbove, isAdmin } from '../lib/roles.js';
 import db from '../db.js';
 
 const router = Router();
@@ -23,31 +23,38 @@ router.get('/monthly', (req: AuthRequest, res: Response) => {
     const dateFrom = formatDate(firstDay);
     const dateTo = formatDate(lastDay);
 
+    // S7 修复：非 ADMIN 强制按自己 store_id 过滤，防止跨店查看
+    const scopedStoreId = isAdmin(req.user.role) ? null : req.user.store_id;
+    const storeCond = scopedStoreId ? 'AND store_id = ?' : '';
+    const storeParams = scopedStoreId ? [scopedStoreId] : [];
+
     // 批量聚合 entries 按 date 分组
     const incomeRows = db.prepare(
       `SELECT date, COALESCE(SUM(amount),0) as total FROM entries
-       WHERE date >= ? AND date <= ? AND type IN ('收入','income')
+       WHERE date >= ? AND date <= ? AND type IN ('收入','income') ${storeCond}
        GROUP BY date`
-    ).all(dateFrom, dateTo) as any[];
+    ).all(dateFrom, dateTo, ...storeParams) as any[];
     const expenseRows = db.prepare(
       `SELECT date, COALESCE(SUM(amount),0) as total FROM entries
-       WHERE date >= ? AND date <= ? AND type IN ('支出','expense')
+       WHERE date >= ? AND date <= ? AND type IN ('支出','expense') ${storeCond}
        GROUP BY date`
-    ).all(dateFrom, dateTo) as any[];
+    ).all(dateFrom, dateTo, ...storeParams) as any[];
 
     const incMap: Record<string, number> = {};
     const expMap: Record<string, number> = {};
     for (const r of incomeRows) incMap[r.date] = r.total;
     for (const r of expenseRows) expMap[r.date] = r.total;
 
-    // 统计店铺总数
-    const storeCount = (db.prepare('SELECT COUNT(*) as c FROM stores').get() as any).c;
+    // 统计店铺总数（非 ADMIN 时只能是 1，自己所在门店）
+    const storeCount = scopedStoreId
+      ? 1
+      : (db.prepare('SELECT COUNT(*) as c FROM stores').get() as any).c;
 
     // 统计每日开店数：当日有开店记录的店铺数（同店同天多次记录去重）
     const openRows = db.prepare(
       `SELECT store_id, date(created_at) as day FROM store_opens
-       WHERE type = 'open' AND created_at >= ? AND created_at <= ?`
-    ).all(dateFrom + ' 00:00:00', dateTo + ' 23:59:59') as any[];
+       WHERE type = 'open' AND created_at >= ? AND created_at <= ? ${storeCond}`
+    ).all(dateFrom + ' 00:00:00', dateTo + ' 23:59:59', ...storeParams) as any[];
     const dayOpenCount: Record<string, number> = {};
     const seen = new Set<string>();
     for (const r of openRows) {
@@ -89,17 +96,24 @@ router.get('/daily', (req: AuthRequest, res: Response) => {
     const date = req.query.date as string;
     if (!date) return res.status(400).json({ error: '缺少 date 参数' });
 
-    const allStores = db.prepare('SELECT id, name, is_open FROM stores ORDER BY id').all() as any[];
+    // S7 修复：非 ADMIN 只返回自己所在门店的数据
+    const scopedStoreId = isAdmin(req.user.role) ? null : req.user.store_id;
+    const storeCond = scopedStoreId ? 'AND store_id = ?' : '';
+    const storeParams = scopedStoreId ? [scopedStoreId] : [];
+    const storeFilter = scopedStoreId ? 'WHERE id = ?' : '';
+    const storeFilterParams = scopedStoreId ? [scopedStoreId] : [];
+
+    const allStores = db.prepare(`SELECT id, name, is_open FROM stores ${storeFilter} ORDER BY id`).all(...storeFilterParams) as any[];
 
     // 批量查询当日各店收支
     const incRows = db.prepare(
       `SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries
-       WHERE date = ? AND type IN ('收入','income') GROUP BY store_id`
-    ).all(date) as any[];
+       WHERE date = ? AND type IN ('收入','income') ${storeCond} GROUP BY store_id`
+    ).all(date, ...storeParams) as any[];
     const expRows = db.prepare(
       `SELECT store_id, COALESCE(SUM(amount),0) as total FROM entries
-       WHERE date = ? AND type IN ('支出','expense') GROUP BY store_id`
-    ).all(date) as any[];
+       WHERE date = ? AND type IN ('支出','expense') ${storeCond} GROUP BY store_id`
+    ).all(date, ...storeParams) as any[];
     const incMap: Record<string, number> = {};
     const expMap: Record<string, number> = {};
     for (const r of incRows) incMap[r.store_id] = r.total;
@@ -109,9 +123,9 @@ router.get('/daily', (req: AuthRequest, res: Response) => {
     const shiftRows = db.prepare(
       `SELECT so.store_id, so.type, so.user_id, so.handover_content, so.note, so.created_at, u.name as user_name
        FROM store_opens so LEFT JOIN users u ON so.user_id = u.id
-       WHERE date(so.created_at) = ?
+       WHERE date(so.created_at) = ? ${storeCond}
        ORDER BY so.created_at ASC`
-    ).all(date) as any[];
+    ).all(date, ...storeParams) as any[];
     const shiftMap: Record<string, any[]> = {};
     for (const s of shiftRows) {
       if (!shiftMap[s.store_id]) shiftMap[s.store_id] = [];
@@ -122,8 +136,8 @@ router.get('/daily', (req: AuthRequest, res: Response) => {
     const handoverRows = db.prepare(
       `SELECT h.id, h.store_id, h.user_id, h.content, h.created_at, u.name as user_name
        FROM staff_handovers h LEFT JOIN users u ON h.user_id = u.id
-       WHERE h.date = ? ORDER BY h.created_at ASC`
-    ).all(date) as any[];
+       WHERE h.date = ? ${storeCond} ORDER BY h.created_at ASC`
+    ).all(date, ...storeParams) as any[];
     const handoverMap: Record<string, any[]> = {};
     for (const h of handoverRows) {
       if (!handoverMap[h.store_id]) handoverMap[h.store_id] = [];
@@ -134,8 +148,8 @@ router.get('/daily', (req: AuthRequest, res: Response) => {
     const restRows = db.prepare(
       `SELECT r.id, r.store_id, r.user_id, r.type, r.leave_type, r.note, u.name as user_name
        FROM staff_rest_schedules r LEFT JOIN users u ON r.user_id = u.id
-       WHERE r.date = ? ORDER BY r.id ASC`
-    ).all(date) as any[];
+       WHERE r.date = ? ${storeCond} ORDER BY r.id ASC`
+    ).all(date, ...storeParams) as any[];
     const restMap: Record<string, any[]> = {};
     for (const r of restRows) {
       if (!restMap[r.store_id]) restMap[r.store_id] = [];

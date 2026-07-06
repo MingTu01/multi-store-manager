@@ -20,7 +20,11 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const { storeId } = req.query;
     let sql = 'SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at FROM users';
     const params: any[] = [];
-    if (storeId) {
+    // 非 ADMIN 强制按自己 store_id 过滤，防止跨店查看工资
+    if (!isAdmin(req.user.role)) {
+      sql += ' WHERE store_id = ?';
+      params.push(req.user.store_id);
+    } else if (storeId) {
       sql += ' WHERE store_id = ?';
       params.push(storeId);
     }
@@ -41,6 +45,10 @@ router.get('/:id', (req: AuthRequest, res: Response) => {
     }
     const u = db.prepare('SELECT id, username, name, phone, role, store_id, avatar, salary, status, job_title, address, created_at FROM users WHERE id = ?').get(req.params.id) as any;
     if (!u) return res.status(404).json({ error: '用户不存在' });
+    // 非 ADMIN 只能查看本店用户，防止跨店查看工资
+    if (!isAdmin(req.user.role) && u.store_id !== req.user.store_id) {
+      return res.status(403).json({ error: '无权限查看其他门店用户' });
+    }
     res.json(u);
   } catch (err: any) {
     res.status(500).json({ error: err.message || '服务器内部错误' });
