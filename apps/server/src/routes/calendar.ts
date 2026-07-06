@@ -43,22 +43,18 @@ router.get('/monthly', (req: AuthRequest, res: Response) => {
     // 统计店铺总数
     const storeCount = (db.prepare('SELECT COUNT(*) as c FROM stores').get() as any).c;
 
-    // 统计每日开店数：当日有开店记录的店铺数
+    // 统计每日开店数：当日有开店记录的店铺数（同店同天多次记录去重）
     const openRows = db.prepare(
       `SELECT store_id, date(created_at) as day FROM store_opens
        WHERE type = 'open' AND created_at >= ? AND created_at <= ?`
     ).all(dateFrom + ' 00:00:00', dateTo + ' 23:59:59') as any[];
-    const openCountMap: Record<string, number> = {};
-    for (const r of openRows) {
-      // 同一店铺同一天可能多次开店记录，用 Set 去重
-      const key = r.store_id + '_' + r.day;
-      openCountMap[key] = 1;
-    }
-    // 计算每日独立开店店铺数
     const dayOpenCount: Record<string, number> = {};
-    for (const k of Object.keys(openCountMap)) {
-      const [sid, day] = k.split('_');
-      dayOpenCount[day] = (dayOpenCount[day] || 0) + 1;
+    const seen = new Set<string>();
+    for (const r of openRows) {
+      const key = r.store_id + '|' + r.day;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dayOpenCount[r.day] = (dayOpenCount[r.day] || 0) + 1;
     }
 
     // 构建每日数据
