@@ -88,9 +88,9 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
                 'relative border-b border-r border-slate-100 p-1.5 sm:p-2 ' +
-                // 今日整格渐变填充（80% 透明度，柔和不刺眼）
+                // 今日整格渐变填充（介于 100 与 200 之间，柔和适中）
                 (isToday && cell.isCurrentMonth
-                  ? 'bg-gradient-to-br from-indigo-200/80 via-purple-200/80 to-pink-200/80 '
+                  ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
                   : cell.isCurrentMonth ? 'bg-white/40 ' : 'bg-slate-50/40 ') +
                 (clickable ? ' cursor-pointer hover:bg-indigo-50/50 transition-colors' : '') +
                 (idx % 7 === 6 ? ' border-r-0' : '') +
