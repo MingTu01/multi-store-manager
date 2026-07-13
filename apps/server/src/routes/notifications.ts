@@ -6,15 +6,15 @@ import logger from '../logger.js';
 
 
 
-// Auto-cleanup: delete read notifications older than 30 days, limit unread to 500
+// Auto-cleanup: delete read notifications older than 24 hours (by read_at), limit unread to 500
 function cleanupReadNotifications() {
   try {
-    // 删除超过30天的已读通知
+    // 删除已读超过24小时的通知（按读取时间 read_at 计算）
     const result = db.prepare(
-      "DELETE FROM notifications WHERE read = 1 AND created_at < datetime('now', '-30 days', 'localtime')"
+      "DELETE FROM notifications WHERE read = 1 AND read_at IS NOT NULL AND read_at < datetime('now', '-24 hours', 'localtime')"
     ).run();
     if (result.changes > 0) {
-      if (process.env.NODE_ENV !== 'production') logger.info('[通知清理] 已清理 ' + result.changes + ' 条已读通知(超过30天)');
+      if (process.env.NODE_ENV !== 'production') logger.info('[通知清理] 已清理 ' + result.changes + ' 条已读通知(超过24小时)');
     }
     // 限制每用户未读通知上限500条
     const users = db.prepare("SELECT DISTINCT user_id FROM notifications WHERE read = 0").all() as any[];
@@ -49,8 +49,13 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const offset = (p - 1) * ps;
     const typeFilter = type && type !== 'all' ? String(type) : '';
 
+    // 已读超过24小时的通知不显示在列表中（按读取时间 read_at 过滤）
+    const hideReadExpired = "(read = 0 OR read_at IS NULL OR read_at >= datetime('now', '-24 hours', 'localtime'))";
+
     // Build WHERE for count queries (no table alias)
-    const countWhere = typeFilter ? 'WHERE user_id = ? AND type = ?' : 'WHERE user_id = ?';
+    const countWhere = typeFilter
+      ? `WHERE user_id = ? AND type = ? AND ${hideReadExpired}`
+      : `WHERE user_id = ? AND ${hideReadExpired}`;
     const countParams: any[] = typeFilter ? [req.user.id, typeFilter] : [req.user.id];
 
     const total = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + countWhere).get(...countParams) as any).count;
@@ -59,7 +64,10 @@ router.get('/', (req: AuthRequest, res: Response) => {
     const unread = (db.prepare('SELECT COUNT(*) as count FROM notifications ' + unreadWhere).get(...unreadParams) as any).count;
 
     // Build WHERE for SELECT query (with table alias n.)
-    const selWhere = typeFilter ? 'WHERE n.user_id = ? AND n.type = ?' : 'WHERE n.user_id = ?';
+    const hideReadExpiredN = "(n.read = 0 OR n.read_at IS NULL OR n.read_at >= datetime('now', '-24 hours', 'localtime'))";
+    const selWhere = typeFilter
+      ? `WHERE n.user_id = ? AND n.type = ? AND ${hideReadExpiredN}`
+      : `WHERE n.user_id = ? AND ${hideReadExpiredN}`;
     const queryParams: any[] = typeFilter ? [req.user.id, typeFilter, ps, offset] : [req.user.id, ps, offset];
     const notifications = db.prepare('SELECT n.*, s.name as store_name FROM notifications n LEFT JOIN stores s ON n.store_id = s.id ' + selWhere + ' ORDER BY n.created_at DESC LIMIT ? OFFSET ?').all(...queryParams);
 
@@ -98,7 +106,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
 
 router.put('/:id/read', (req: AuthRequest, res: Response) => {
   try {
-    db.prepare('UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+    // 标记已读并记录读取时间（用于24小时后自动消失）
+    db.prepare("UPDATE notifications SET read = 1, read_at = datetime('now','localtime') WHERE id = ? AND user_id = ?").run(req.params.id, req.user.id);
     res.json({ message: '已标记为已读' });
   } catch (err: any) {
     res.status(500).json({ error: err.message || '服务器内部错误' });
@@ -107,7 +116,8 @@ router.put('/:id/read', (req: AuthRequest, res: Response) => {
 
 router.put('/read-all', (req: AuthRequest, res: Response) => {
   try {
-    db.prepare('UPDATE notifications SET read = 1 WHERE user_id = ?').run(req.user.id);
+    // 标记已读并记录读取时间（用于24小时后自动消失）
+    db.prepare("UPDATE notifications SET read = 1, read_at = datetime('now','localtime') WHERE user_id = ? AND read = 0").run(req.user.id);
     res.json({ message: '全部已读' });
   } catch (err: any) {
     res.status(500).json({ error: err.message || '服务器内部错误' });

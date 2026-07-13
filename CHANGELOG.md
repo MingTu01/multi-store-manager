@@ -1,3 +1,21 @@
+## v2.2.10 (2026-07-13)
+
+### 周报/月报推送周期修正 + 已读通知24小时自动消失
+
+#### 修复
+- **周报推送上周数据**：`buildWeeklyReport` / `buildWeeklyReportHtml` / `buildWeeklyReportForStore` 原本计算"本周"日期范围（周一 09:00 触发时只有当天 0-9 点的极少量数据），改为计算"上周一至上周日"（-7 天），与"每周经营报告"语义一致
+- **月报推送上月数据**：`buildMonthlyReport` / `buildMonthlyReportHtml` / `buildMonthlyReportForStore` 原本计算"本月"日期范围（每月 1 日 09:00 触发时只有 0-9 点的极少量数据），改为计算"上个月整月"，与"月度经营报告"语义一致
+- **已读通知 24 小时后自动消失**：
+  - `notifications` 表新增 `read_at` 字段（记录读取时间戳），含版本化补偿迁移
+  - `PUT /notifications/:id/read` 与 `PUT /notifications/read-all` 标记已读时同步写入 `read_at`
+  - `GET /notifications` 列表查询过滤掉 `read=1 且 read_at 早于 24 小时前` 的通知，不再显示
+  - 清理任务由"删除已读超 30 天（按 created_at）"改为"删除已读超 24 小时（按 read_at）"
+
+#### 影响文件
+- [apps/server/src/notify.ts](file:///workspace/apps/server/src/notify.ts)：6 个周报/月报函数日期范围改为上周/上月
+- [apps/server/src/db.ts](file:///workspace/apps/server/src/db.ts)：notifications 表新增 read_at 列 + 补偿迁移
+- [apps/server/src/routes/notifications.ts](file:///workspace/apps/server/src/routes/notifications.ts)：标记已读写 read_at + 列表过滤 + 清理任务改 24 小时
+
 ## v2.2.9 (2026-07-07)
 
 ### 门店端日历单日详情页优化

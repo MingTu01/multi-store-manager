@@ -401,7 +401,8 @@ export function buildDailyReportHtml(): string {
 export function buildWeeklyReport(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
   const now = new Date();
-  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
+  // 计算上周一和上周日（-7 天，避免本周几乎无数据）
+  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1 - 7);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
   const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
   const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
@@ -420,7 +421,8 @@ export function buildWeeklyReport(): string {
 export function buildWeeklyReportHtml(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
   const now = new Date();
-  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
+  // 计算上周一和上周日（-7 天，避免本周几乎无数据）
+  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1 - 7);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
   const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
   const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
@@ -439,8 +441,10 @@ export function buildWeeklyReportHtml(): string {
 export function buildMonthlyReport(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
   const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  // 计算上个月（避免本月几乎无数据）
+  const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const ms = lm.getFullYear() + '-' + String(lm.getMonth()+1).padStart(2,'0');
+  const mname = lm.getFullYear() + '年' + String(lm.getMonth()+1).padStart(2,'0') + '月';
   const storeIds = stores.map(s => s.id);
   const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
@@ -456,8 +460,10 @@ export function buildMonthlyReport(): string {
 export function buildMonthlyReportHtml(): string {
   const stores = db.prepare('SELECT * FROM stores').all() as any[];
   const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  // 计算上个月（避免本月几乎无数据）
+  const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const ms = lm.getFullYear() + '-' + String(lm.getMonth()+1).padStart(2,'0');
+  const mname = lm.getFullYear() + '年' + String(lm.getMonth()+1).padStart(2,'0') + '月';
   const storeIds = stores.map(s => s.id);
   const batchData = getBatchEntriesByDateRange(storeIds, ms+'%', '');
   let ti=0,te=0;
@@ -502,7 +508,8 @@ export function buildWeeklyReportForStore(storeId: string): string {
   const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
   if (!store) return '';
   const now = new Date();
-  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1);
+  // 计算上周一和上周日（-7 天，避免本周几乎无数据）
+  const ws = new Date(now); ws.setDate(now.getDate() - now.getDay() + 1 - 7);
   const we = new Date(ws); we.setDate(ws.getDate() + 6);
   const ss = ws.getFullYear() + '-' + String(ws.getMonth() + 1).padStart(2, '0') + '-' + String(ws.getDate()).padStart(2, '0');
   const es = we.getFullYear() + '-' + String(we.getMonth() + 1).padStart(2, '0') + '-' + String(we.getDate()).padStart(2, '0');
@@ -519,8 +526,10 @@ export function buildMonthlyReportForStore(storeId: string): string {
   const store = db.prepare('SELECT * FROM stores WHERE id = ?').get(storeId) as any;
   if (!store) return '';
   const now = new Date();
-  const ms = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  const mname = now.getFullYear() + '年' + String(now.getMonth()+1).padStart(2,'0') + '月';
+  // 计算上个月（避免本月几乎无数据）
+  const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const ms = lm.getFullYear() + '-' + String(lm.getMonth()+1).padStart(2,'0');
+  const mname = lm.getFullYear() + '年' + String(lm.getMonth()+1).padStart(2,'0') + '月';
   const data = getBatchEntriesByDateRange([storeId], ms+'%', '');
   const d = data.get(storeId) || { income: 0, expense: 0 };
   let r = '◆ ' + store.name + ' ' + mname + ' 月度经营报告\n' + LINE + '\n' + ms + '\n\n';
