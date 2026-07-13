@@ -107,7 +107,8 @@ router.post('/', (req: AuthRequest, res: Response) => {
 router.put('/:id/read', (req: AuthRequest, res: Response) => {
   try {
     // 标记已读并记录读取时间（用于24小时后自动消失）
-    db.prepare("UPDATE notifications SET read = 1, read_at = datetime('now','localtime') WHERE id = ? AND user_id = ?").run(req.params.id, req.user.id);
+    // 加 AND read = 0 保证幂等：重复点击不会重置 read_at 倒计时
+    db.prepare("UPDATE notifications SET read = 1, read_at = datetime('now','localtime') WHERE id = ? AND user_id = ? AND read = 0").run(req.params.id, req.user.id);
     res.json({ message: '已标记为已读' });
   } catch (err: any) {
     res.status(500).json({ error: err.message || '服务器内部错误' });

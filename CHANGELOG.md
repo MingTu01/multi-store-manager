@@ -1,3 +1,16 @@
+## v2.2.11 (2026-07-13)
+
+### 代码审查修复：补偿迁移 + 幂等性 + 历史数据迁移
+
+#### 修复
+- **强制补偿迁移 notifications.read_at**：在 `db.ts` 强制补偿迁移块新增独立 try-catch，确保 `read_at` 列一定存在，避免版本化迁移标记成功但实际未执行时列表接口 500
+- **历史已读数据迁移**：升级前已读但无 `read_at` 的通知（`read=1, read_at=NULL`）会永久显示且永不清理。新增迁移 `UPDATE notifications SET read_at = created_at WHERE read=1 AND read_at IS NULL`，把它们按 `created_at` 起算 24 小时，超期的自动清理
+- **标记已读幂等性**：`PUT /notifications/:id/read` 加 `AND read = 0` 条件，避免重复点击重置 `read_at` 倒计时（与"全部已读"接口保持一致）
+
+#### 影响文件
+- [apps/server/src/db.ts](file:///workspace/apps/server/src/db.ts)：read_at 强制补偿迁移 + 历史已读数据补填
+- [apps/server/src/routes/notifications.ts](file:///workspace/apps/server/src/routes/notifications.ts)：单条标记已读加 AND read = 0
+
 ## v2.2.10 (2026-07-13)
 
 ### 周报/月报推送周期修正 + 已读通知24小时自动消失

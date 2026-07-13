@@ -451,6 +451,27 @@ for (const col of forcePushColumns) {
   }
 }
 
+// === 强制补偿迁移：notifications.read_at 列（已读时间戳，用于24小时后自动消失）===
+try {
+  db.exec('ALTER TABLE notifications ADD COLUMN read_at TEXT');
+  logger.info('[DB] 补偿迁移：添加列 notifications.read_at');
+} catch (e: any) {
+  if (!e.message.includes('duplicate column')) {
+    logger.warn('[DB] 补偿迁移失败 notifications.read_at: ' + e.message);
+  }
+}
+
+// === 历史已读数据迁移：把升级前已读但无 read_at 的通知，read_at 补成 created_at ===
+// 这样它们会按创建时间起算 24 小时，超期的会在下次 cleanup 时被清理，避免"僵尸通知"永久残留
+try {
+  const result = db.prepare("UPDATE notifications SET read_at = created_at WHERE read = 1 AND read_at IS NULL").run();
+  if (result.changes > 0) {
+    logger.info(`[DB] 历史已读数据迁移：补填 ${result.changes} 条通知的 read_at`);
+  }
+} catch (e: any) {
+  logger.warn('[DB] 历史已读数据迁移失败: ' + e.message);
+}
+
 
 // P1: 数据库索引 - 提升查询性能
 const indexes = [
