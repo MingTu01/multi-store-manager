@@ -66,6 +66,8 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
 
   // 5行（35格）优先；装不下时才用6行（42格）
   const totalCells = (firstDayOfWeek + daysInMonth) <= 35 ? 35 : 42;
+  // 行数（5或6），桌面端通过 CSS 变量做等高行分布
+  const rows = totalCells / 7;
 
   const cells: { date: string; isCurrentMonth: boolean; day: number }[] = [];
   // 上月填充
@@ -91,13 +93,13 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
 
   return (
     <div
-      className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm overflow-hidden select-none"
+      className="rounded-2xl bg-white/60 backdrop-blur-xl border border-white/40 shadow-sm overflow-hidden select-none flex flex-col lg:h-[calc(100dvh-11rem)] lg:max-h-[860px]"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onClickCapture={onCellClickCapture}
     >
       {/* 月份切换头部 */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-indigo-500" />
           <h2 className="text-base font-semibold text-slate-900">{year}年{month}月</h2>
@@ -115,14 +117,17 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
       </div>
 
       {/* 星期标题 */}
-      <div className="grid grid-cols-7 border-b border-slate-100">
+      <div className="grid shrink-0 grid-cols-7 border-b border-slate-100">
         {WEEK_DAYS.map((d, i) => (
           <div key={d} className={'py-2 text-center text-xs font-medium ' + (i >= 5 ? 'text-rose-400' : 'text-slate-400')}>{d}</div>
         ))}
       </div>
 
-      {/* 日期网格 */}
-      <div className="grid grid-cols-7">
+      {/* 日期网格：桌面端用 CSS 变量等高分布行高，确保整月不超出屏幕 */}
+      <div
+        className="grid grid-cols-7 flex-1 min-h-0 lg:grid-rows-[repeat(var(--cal-rows),minmax(0,1fr))]"
+        style={{ '--cal-rows': rows } as React.CSSProperties}
+      >
         {cells.map((cell, idx) => {
           const isToday = cell.date === todayStr;
           const clickable = onDateClick && cell.isCurrentMonth;
@@ -131,7 +136,7 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
               key={idx}
               onClick={() => clickable && onDateClick!(cell.date)}
               className={
-                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2/2.5] flex flex-col ' +
+                'relative border-b border-r border-slate-100 p-1 sm:p-1.5 aspect-[2/2.5] lg:aspect-auto flex flex-col lg:flex-row lg:items-center lg:gap-2 lg:px-2.5 ' +
                 // 今日整格浅色渐变填充（恢复原样式）
                 (isToday && cell.isCurrentMonth
                   ? 'bg-gradient-to-br from-indigo-100/90 via-purple-100/80 to-pink-100/80 '
@@ -141,8 +146,8 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
                 (idx >= totalCells - 7 ? ' border-b-0' : '')
               }
             >
-              {/* 日期数字 - 右上角；当天用深色小圆 badge 承载白色加粗放大数字 */}
-              <div className="flex justify-end">
+              {/* 日期数字 - 移动端右上角；桌面端居左；当天用深色小圆 badge 承载白色加粗放大数字 */}
+              <div className="flex justify-end lg:shrink-0 lg:justify-start lg:basis-7">
                 {isToday && cell.isCurrentMonth ? (
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[14px] font-bold text-white shadow-sm">
                     {cell.day}
@@ -156,8 +161,8 @@ export function Calendar({ year, month, onPrev, onNext, onToday, onDateClick, re
                   </span>
                 )}
               </div>
-              {/* 自定义内容容器 */}
-              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden">
+              {/* 自定义内容容器：桌面端占据剩余宽度并垂直居中 */}
+              <div className="mt-0.5 flex-1 min-h-0 overflow-hidden lg:mt-0 lg:flex lg:items-center lg:justify-center">
                 {loading ? (
                   <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
                 ) : renderCell ? (
