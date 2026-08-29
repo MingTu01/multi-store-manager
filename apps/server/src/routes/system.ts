@@ -18,6 +18,7 @@ import { AuthRequest } from '../auth.js';
 import { getSettings, sendNotification, buildDailyReport, buildWeeklyReport, buildMonthlyReport, buildReviewReminder, buildAlert } from '../notify.js';
 import { safePath } from '../middleware/store-access.js';
 import { validateWebhookUrlAsync } from '../lib/network.js';
+import { isValidCron } from '../scheduler.js';
 
 
 // 安全校验：cleanup.json 路径白名单（CRITICAL安全加固）
@@ -450,7 +451,7 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
-    if (!existsSync(configPath)) return res.json({ enabled: false, interval: 'daily', keepCount: 30 });
+    if (!existsSync(configPath)) return res.json({ enabled: false, cron: '0 3 * * *', keepCount: 30 });
     res.json(JSON.parse(readFileSync(configPath, 'utf-8')));
   } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });
@@ -458,9 +459,32 @@ router.get('/auto-backup', (req: AuthRequest, res: Response) => {
 router.put('/auto-backup', (req: AuthRequest, res: Response) => {
   try {
     if (!isAdmin(req.user.role)) return res.status(403).json({ error: '无权限' });
+    const body = req.body || {};
+    const config: any = { enabled: !!body.enabled };
+
+    // cron 表达式：开启时必填且必须合法；关闭时保留合法值便于重新开启
+    const cron = typeof body.cron === 'string' ? body.cron.trim() : '';
+    if (cron) {
+      if (!isValidCron(cron)) return res.status(400).json({ error: 'Cron 表达式不合法（需 5 段：分 时 日 月 周，如 0 3 * * *）' });
+      config.cron = cron;
+    } else if (config.enabled) {
+      return res.status(400).json({ error: '请填写 Cron 表达式（如 0 3 * * *，每日 03:00 备份一次）' });
+    }
+
+    // 保留份数：开启时必填且 1-100；关闭时保留合法值
+    const keep = Number(body.keepCount);
+    const keepValid = Number.isInteger(keep) && keep >= 1 && keep <= 100;
+    if (keepValid) config.keepCount = keep;
+    else if (config.enabled) return res.status(400).json({ error: '保留份数需为 1-100 的整数' });
+
+    // 保留触发时间戳，避免每次保存都立即触发一次备份
+    for (const k of ['lastBackupRun', 'lastBackupCheck']) {
+      if (body[k]) config[k] = body[k];
+    }
+
     const configPath = join(BASE_DIR, 'data', 'auto-backup.json');
     mkdirSync(join(BASE_DIR, 'data'), { recursive: true });
-    writeFileSync(configPath, JSON.stringify(req.body, null, 2));
+    writeFileSync(configPath, JSON.stringify(config, null, 2));
     res.json({ message: '自动备份设置已更新' });
   } catch (err: any) { res.status(500).json({ error: err.message || '服务器内部错误' }); }
 });

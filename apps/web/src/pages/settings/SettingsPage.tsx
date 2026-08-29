@@ -491,19 +491,21 @@ export default function SettingsPage() {
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700"><RefreshCw className="h-4 w-4 text-indigo-500" />自动备份</h3>
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-slate-700">启用自动备份</span>
-              <button onClick={() => setAutoBackup((a: any) => ({ ...a, enabled: !a.enabled }))} className={`relative h-6 w-11 rounded-full transition-colors ${autoBackup.enabled ? 'bg-indigo-500' : 'bg-slate-300'}`}>
+              <button onClick={() => setAutoBackup((a: any) => ({ ...a, enabled: !a.enabled, cron: a.cron || '0 3 * * *' }))} className={`relative h-6 w-11 rounded-full transition-colors ${autoBackup.enabled ? 'bg-indigo-500' : 'bg-slate-300'}`}>
                 <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${autoBackup.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
             </div>
             {autoBackup.enabled && (
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-slate-600">备份频率</label>
-                  <select value={autoBackup.interval || 'daily'} onChange={e => setAutoBackup((a: any) => ({ ...a, interval: e.target.value }))} className={inputCls}>
-                    <option value="hourly">每小时</option>
-                    <option value="daily">每天</option>
-                    <option value="weekly">每周</option>
-                  </select>
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">备份频率（Cron 表达式）</label>
+                  <input type="text" value={autoBackup.cron || '0 3 * * *'} onChange={e => setAutoBackup((a: any) => ({ ...a, cron: e.target.value }))} className={inputCls} placeholder="0 3 * * *" />
+                  <p className="mt-1 text-xs text-slate-400">5 段式：分 时 日 月 周。默认 0 3 * * * = 每日 03:00 备份一次（北京时间）</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {[['每日一次', '0 3 * * *'], ['每小时', '0 * * * *'], ['每6小时', '0 */6 * * *'], ['每周一', '0 3 * * 1']].map(([label, expr]) => (
+                      <button key={expr} onClick={() => setAutoBackup((a: any) => ({ ...a, cron: expr }))} className="rounded-md border border-slate-200 px-2 py-0.5 text-[11px] text-slate-500 hover:bg-slate-50">{label}</button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-slate-600">保留份数</label>

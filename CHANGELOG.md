@@ -1,3 +1,25 @@
+## v2.2.13 (2026-08-16)
+
+### 自动备份修复 + Cron 表达式频率
+
+#### 修复
+- **保留份数不生效**：调度器硬编码保留 30 份，完全忽略设置页的"保留份数"。改为读取 `keepCount` 配置（1-100，默认 30），按文件修改时间新→旧排序，只超出部分删除
+- **清理排序错误**：原按文件名排序，hourly/daily/weekly 三种前缀混排时顺序错乱（可能误删新备份）。改为按 mtime 排序
+- **清理范围收窄**：只清理 `auto-backup-*.db`，手动备份 zip 和其他文件不受影响
+
+#### 新增
+- **备份频率改为 Cron 表达式**：设置页下拉框（每小时/每天/每周）换成 5 段式 cron 输入框（分 时 日 月 周），开启时默认 `0 3 * * *`（每日 03:00 备份一次，北京时间），附每日/每小时/每6小时/每周一快捷按钮
+- **自研 cron 解析器**：无新增依赖，支持 `*`、`*/n`、`a`、`a-b`、`a-b/n`、逗号组合，周字段 0/7 均表示周日，标准 cron 的日/周同时受限时 OR 语义；显式 Asia/Shanghai 时区
+- **错过触发补偿**：每 5 分钟检查一次，逐分钟回溯扫描（最多 24 小时），进程重启/停机期间错过的备份时间点会在恢复后补执行一次
+- **保存设置不再重复触发**：PUT 接口保留 `lastBackupRun`/`lastBackupCheck` 时间戳
+- **后端参数校验**：PUT /auto-backup 校验 cron 合法性与保留份数 1-100，非法返回 400 + 中文提示
+- **旧配置兼容**：已有 `interval`（hourly/daily/weekly）配置自动映射为对应 cron，无需手动迁移
+
+#### 影响文件
+- [apps/server/src/scheduler.ts](file:///workspace/apps/server/src/scheduler.ts)：cron 解析器 + 调度逻辑重写 + keepCount 清理修复
+- [apps/server/src/routes/system.ts](file:///workspace/apps/server/src/routes/system.ts)：GET/PUT /auto-backup 校验与默认值
+- [apps/web/src/pages/settings/SettingsPage.tsx](file:///workspace/apps/web/src/pages/settings/SettingsPage.tsx)：频率输入框 UI
+
 ## v2.2.12 (2026-08-16)
 
 ### 经营日历桌面端横向布局优化
